@@ -1,0 +1,10 @@
+name = "valaig"
+version = "0.1.0"
+defaultTargets = ["valaig"]
+
+[[lean_lib]]
+name = "Valaig"
+
+[[lean_exe]]
+name = "valaig"
+root = "Main"
