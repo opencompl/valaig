@@ -8,15 +8,104 @@ namespace Aiger.Parser
 open Std.Internal.Parsec.ByteArray
 open Std.Internal.Parsec
 
-@[inline]
-private def require {α : Type} (pred : α → Bool) (error : String) (parse : Parser α) : Parser α := do
-  let n ← parse
-  if !(pred n) then
-    fail error
-  return n
+structure Var where
+  val : Nat
+deriving Hashable, Repr, DecidableEq, Inhabited, Ord, BEq
+
+instance : LE Var := leOfOrd
+instance : LT Var := ltOfOrd
+
+namespace Var
 
 @[inline]
-private def tryParse {α : Type} (parse : Parser α) : Parser (Option α) := do
+def isConstant (v : Var) : Bool :=
+  v.val = 0
+
+@[inline]
+def offset (v : Var) (n : Nat) : Var :=
+  { v with val := v.val + n }
+
+end Var
+
+structure Lit where
+  ofRaw ::
+    val : Nat
+deriving Hashable, Repr, DecidableEq, Inhabited
+
+namespace Lit
+
+@[inline]
+def mk (v : Var) (invert : Bool := false) : Lit :=
+  ⟨v.val * 2 ||| invert.toNat⟩
+
+@[inline]
+def var (l : Lit) : Var := ⟨l.val / 2⟩
+
+@[inline]
+def inverted (l : Lit) : Bool := (l.val &&& 1) != 0
+
+@[inline]
+def defines (l : Lit) : Option Var :=
+  if !l.inverted then some l.var else none
+
+@[inline]
+def isConstant (l : Lit) : Bool :=
+  l.var.isConstant
+
+end Lit
+
+namespace Var
+
+@[inline]
+def toLit (v : Var) : Lit :=
+  Lit.mk v
+
+end Var
+
+structure Header where
+  binary : Bool
+  maxVar : Var
+  numInputs : Nat
+  numLatches : Nat
+  numOutputs : Nat
+  numAnds : Nat
+  numBads : Nat
+  numConstraints : Nat
+  numJustice : Nat
+  numFairness : Nat
+deriving Repr, Inhabited
+
+inductive SymbolType where
+| input : SymbolType
+| latch : SymbolType
+| output : SymbolType
+| bad : SymbolType
+| constraint : SymbolType
+| justice : SymbolType
+| fairness : SymbolType
+
+-- Wrap the parser inside the user provided monad transformer and a header
+-- reader outside so we can read the header state where needed
+abbrev ParserM (mT : (Type -> Type) -> (Type -> Type)) := ReaderT Header (mT Parser)
+
+-- TODO: Can we capture the notion that these are ordered and the add
+class ActionsT (mT : (Type -> Type) -> (Type -> Type)) where
+  addInput (var : Var) : ParserM mT Unit
+  addLatch (var : Var) (next : Lit) (reset : Option Lit) : ParserM mT Unit
+
+  addOutput (lit : Lit) : ParserM mT Unit
+  addBad (lit : Lit) : ParserM mT Unit
+  addConstraint (lit : Lit) : ParserM mT Unit
+
+  addGate (lhs : Var) (rhs0 rhs1 : Lit) : ParserM mT Unit
+
+  -- The indices of symbols correspond to the Nth call to the corresponding
+  -- add function
+  addSymbol (idx : Nat) (type : SymbolType) (symbol : String) : ParserM mT Unit
+  addComment (comment : String) : ParserM mT Unit
+
+@[inline]
+def tryParse {α : Type} (parse : Parser α) : Parser (Option α) := do
     attempt (parse <&> Option.some) <|> pure Option.none
 
 @[inline]
@@ -35,30 +124,7 @@ def skipNewline : Parser Unit :=
 def skipSpace : Parser Unit :=
   skipByteChar ' ' <|> fail "space expected"
 
-@[inline]
-def parseVariable : Parser Nat := parseNat
-
-@[inline]
-def parsePos : Parser Nat :=
-  parseNat |> require (. > 0) "non-zero integer expected"
-
-@[inline]
-def parseLiteral : Parser Nat :=
-  parsePos |> require (. &&& 1 = 0) "even integer literal expected"
-
-structure Header where
-  maxVar : Nat
-  numInputs : Nat
-  numLatches : Nat
-  numOutputs : Nat
-  numAnds : Nat
-  numBads : Nat
-  numConstraints : Nat
-  numJustice : Nat
-  numFairness : Nat
-deriving Repr
-
-def parseHeader : Parser (Header × Bool) := do
+def parseHeader : Parser Header := do
   let binary ←
     (attempt $ skipString "aig" *> pure true) <|>
     (attempt $ skipString "aag" *> pure false) <|>
@@ -74,7 +140,8 @@ def parseHeader : Parser (Header × Bool) := do
     nextNat
 
   let header := {
-    maxVar := ← nextNat,
+    binary,
+    maxVar := Var.mk (←nextNat),
     numInputs := ← nextNat,
     numLatches := ← nextNat
     numOutputs := ← nextNat
@@ -88,40 +155,147 @@ def parseHeader : Parser (Header × Bool) := do
   -- We don't do the newline parsing in maybeNextNat (as we want it to be
   -- seen by each non-matching parser) so do it here
   skipNewline
-  return (header, binary)
+  return header
+
+-- Open so we can call the functions without namespacing
+open ActionsT
+
+variable {α : Type}
+variable {mT : (Type -> Type) -> (Type -> Type)}
+variable [ActionsT mT]
+variable [Monad (mT Parser)]
+variable [MonadLift Parser (mT Parser)]
 
 @[inline]
-def parseNLines {α : Type} (parse : Parser α) (n : Nat) : Parser (Array α) := do
-  let mut lines := .emptyWithCapacity n
-  for _ in [0:n] do
-    lines := lines.push (← parse <* skipNewline)
-  return lines
+def getHeader : ParserM mT Header := read
 
 @[inline]
-def parseVariables (n : Nat) : Parser (Array Nat) :=
-  parseNLines parseVariable n
+def binary : ParserM mT Bool :=
+  return (←getHeader).binary
+
+namespace Binary
 
 @[inline]
-def parseSymbolLine : Parser String := do
-  let type ← satisfy ("ilobcjf".contains $ Char.ofUInt8 .)
-  let pos ← parseNat
-  skipSpace
-  let symb ← takeUntil (. = '\n'.toUInt8)
+def firstInput : ParserM mT Var :=
+  return (Var.mk 0)
+
+@[inline]
+def firstLatch : ParserM mT Var :=
+  return (←firstInput).offset (←getHeader).numInputs
+
+@[inline]
+def firstGate : ParserM mT Var :=
+  return (←firstLatch).offset (←getHeader).numLatches
+
+end Binary
+
+-- Lean can't automatically convert out of Parsec to our type so we use this
+@[inline]
+def failM (msg : String) : ParserM mT α :=
+  (Std.Internal.Parsec.fail msg : Parser _)
+
+@[inline]
+def require {α : Type} (pred : α → Bool) (error : String) (parse : ParserM mT α) : ParserM mT α := do
+  let n ← parse
+  if !(pred n) then
+    failM error
+  return n
+
+@[inline]
+def asLit (n : Nat) : ParserM mT Lit := do
+  let lit := Lit.ofRaw n
+  if lit.var > (←getHeader).maxVar then
+    failM "non-zero integer expected"
+  return lit
+
+-- Validates a literal used to define a gate/latch that must be even and non-zero
+@[inline]
+def asDefiningLit (n : Nat) : ParserM mT Var := do
+  let lit ← asLit n
+  if lit.isConstant then
+    failM "non-zero integer literal expected"
+  lit.defines.getDM <| failM "even integer literal expected"
+
+@[inline]
+def parseLit : ParserM mT Lit := parseNat >>= asLit
+
+@[inline]
+def parseDefiningLit : ParserM mT Var := parseNat >>= asDefiningLit
+
+@[inline]
+def parseNLines (parse : (idx : Nat) -> ParserM mT Unit) (n : Nat) : ParserM mT Unit := do
+  for i in [0:n] do
+    parse i <* skipNewline
+
+@[inline]
+def parseDefiningLiterals (action : Var -> ParserM mT Unit) (n : Nat) : ParserM mT Unit :=
+  parseNLines (fun _ => parseDefiningLit >>= action) n
+
+@[inline]
+def parseOutputLiterals (action : Lit -> ParserM mT Unit) (n : Nat) : ParserM mT Unit :=
+  parseNLines (fun _ => parseLit >>= action) n
+
+@[inline]
+def parseInputs : ParserM mT Unit := do
+  let n := (←getHeader).numInputs
+  if (←binary) then
+    for i in [0:n] do
+      addInput ((←Binary.firstInput).offset i)
+  else
+    parseDefiningLiterals addInput n
+
+@[inline]
+def parseLatch (n : Nat) : ParserM mT Unit := do
+  let latch ←
+    match ←binary with
+    | true => pure <| (←Binary.firstLatch).offset n
+    | false => parseDefiningLit <* skipSpace
+
+  let next ← parseLit
+  let reset ← (←tryParse (skipSpace *> parseNat)) |>.mapM asLit
+
+  addLatch latch next reset
+
+@[inline]
+def parseLatches : ParserM mT Unit := do
+  parseNLines parseLatch (←getHeader).numLatches
+
+@[inline]
+def parseSymbolLine : Parser (ParserM mT Unit) := do
+  let type : SymbolType ←
+    match ← (any : Parser _) <&> Char.ofUInt8 with
+    | 'i' => pure SymbolType.input
+    | 'l' => pure SymbolType.latch
+    | 'o' => pure SymbolType.output
+    | 'b' => pure SymbolType.bad
+    | 'c' => pure SymbolType.constraint
+    | 'j' => pure SymbolType.justice
+    | 'f' => pure SymbolType.fairness
+    | c => fail s!"Unsupported symbol type {c}"
+
+  let idx ← parseNat
+  let symb ←
+    (attempt $ skipSpace *> takeUntil (. = '\n'.toUInt8)) <|>
+    (pure ByteSlice.empty : Parser _)
   skipNewline
-  let _ := type
-  let _ := pos
+
   match String.fromUTF8? symb.toByteArray with
-  | none => fail "Couldn't decode non UTF8 symbol"
-  | some c => pure c
+  | none => fail "Couldn't decode non-UTF8 symbol"
+  | some sym => pure (addSymbol idx type sym)
+
+@[inline]
+partial def parseSymbols : ParserM mT Unit := do
+  if let some action ← tryParse parseSymbolLine then
+    action
+    parseSymbols
 
 @[inline]
 def parseCommentLine : Parser String := do
   let comment ← takeUntil (. = '\n'.toUInt8)
   skipNewline
-  -- TODO: This is a double copy
   match String.fromUTF8? comment.toByteArray with
-  | none => fail "Couldn't decode non UTF8 comment"
-  | some c => pure c
+  | none => fail "Couldn't decode non-UTF8 comment"
+  | some c => return c
 
 @[inline]
 def parseCommentHeader : Parser Unit := do
@@ -129,155 +303,135 @@ def parseCommentHeader : Parser Unit := do
   skipNewline
 
 @[inline]
-def parseComments : Parser (Array String) := 
-  attempt (parseCommentHeader *> many parseCommentLine) <|> pure #[]
-
-@[inline]
-def parseLatch (binary : Bool) : Parser Unit := do
-  if !binary then
-    let latch ← parseLiteral
-    skipSpace
-  let next ← parseVariable
-  let reset ← tryParse (skipSpace *> parseVariable)
-
-  let _ := next
-  let _ := reset
-  pure ()
-
-@[inline]
-def parseLatches (binary : Bool) (n : Nat) : Parser (Array Unit) :=
-  parseNLines (parseLatch binary) n
+partial def parseComments : ParserM mT Unit :=
+  attempt parseCommentHeader *> go
+where
+  go : ParserM mT Unit := do
+    addComment (← attempt parseCommentLine)
+    go
 
 namespace ASCII
 
 @[inline]
-def parseGate : Parser Unit := do
-  let lhs ← parseLiteral
-  let rhs0 ← skipSpace *> parseVariable
-  let rhs1 ← skipSpace *> parseVariable
-
-  let _ := lhs
-  let _ := rhs0
-  let _ := rhs1
-  pure ()
+def parseGate : ParserM mT Unit := do
+  let lhs ← parseDefiningLit
+  let rhs0 ← skipSpace *> parseLit
+  let rhs1 ← skipSpace *> parseLit
+  addGate lhs rhs0 rhs1
 
 @[inline]
-def parseGates (n : Nat) : Parser (Array Unit) :=
-  parseNLines parseGate n
+def parseGates : ParserM mT Unit := do
+  parseNLines (fun _ => parseGate) (←getHeader).numAnds
 
 end ASCII
 
 namespace Binary
 
-@[unbox]
-private structure DeltaVariableState (N : Type) [∀ n, OfNat N n] where
-  var : N := 0
-  shift : N := 0
-
 @[inline]
-def parseDeltaVariable : Parser Nat := do
-  let state := {}
+partial def parseDelta (var : Nat := 0) (mul : Nat := 1) : Parser Nat := do
+  let byte ← any
+  let masked := byte &&& 0x7f
 
-  -- Manually unroll the first 8 steps using u64 as this is most common and
-  -- fits within U64, so is fast this way whereas doing it with nats is slow
-  -- as the shift is only done within gmp
-  let (done, state) := step (← any).toUInt64 state; if done then return state.var.toNat
-  let (done, state) := step (← any).toUInt64 state; if done then return state.var.toNat
-  let (done, state) := step (← any).toUInt64 state; if done then return state.var.toNat
-  let (done, state) := step (← any).toUInt64 state; if done then return state.var.toNat
-  let (done, state) := step (← any).toUInt64 state; if done then return state.var.toNat
-  let (done, state) := step (← any).toUInt64 state; if done then return state.var.toNat
-  let (done, state) := step (← any).toUInt64 state; if done then return state.var.toNat
-  let (done, state) := step (← any).toUInt64 state; if done then return state.var.toNat
+  -- We multiply by the shift rather than shift left because currently Lean's
+  -- Nat shift left requires boxing the operands, even though in practice we
+  -- rarely require this
+  let var := var + masked.toNat * mul
+  let mul := mul * 1 <<< 7
 
-  -- The rest can be done with Nat
-  let mut nstate := { var := state.var.toNat, shift := state.shift.toNat }
-  repeat
-    let (done, state) := step (← any).toNat nstate;
-    nstate := state
-  until done
-  return nstate.var
-
-where
-  @[inline]
-  step {N : Type} [∀ n, OfNat N n] [AndOp N] [ShiftLeft N] [Add N] [BEq N]
-      (byte : N) (state : DeltaVariableState N) : Bool × DeltaVariableState N :=
-    let masked := byte &&& 0x7f
-    let var := state.var + (masked <<< state.shift)
-    let shift := state.shift + 7
-    let done := byte &&& 0x80 == 0
-    (done, { var, shift })
+  match byte &&& 0x80 with
+  | 0 => return var
+  | _ => parseDelta var mul
 
 -- Examples from the Aiger spec
 /-- info: Except.ok 0 -/
 #guard_msgs in
-#eval! parseDeltaVariable.run [0x00].toByteArray
+#eval! parseDelta.run [0x00].toByteArray
 
 /-- info: Except.ok 127 -/
 #guard_msgs in
-#eval! parseDeltaVariable.run [0x7f].toByteArray
+#eval! parseDelta.run [0x7f].toByteArray
 
 /-- info: Except.ok 128 -/
 #guard_msgs in
-#eval! parseDeltaVariable.run [0x80, 0x01].toByteArray
+#eval! parseDelta.run [0x80, 0x01].toByteArray
 
 /-- info: Except.ok 258 -/
 #guard_msgs in
-#eval! parseDeltaVariable.run [0x82, 0x02].toByteArray
+#eval! parseDelta.run [0x82, 0x02].toByteArray
 
 /-- info: Except.ok 16383 -/
 #guard_msgs in
-#eval! parseDeltaVariable.run [0xff, 0x7f].toByteArray
+#eval! parseDelta.run [0xff, 0x7f].toByteArray
 
 /-- info: Except.ok 16387 -/
 #guard_msgs in
-#eval! parseDeltaVariable.run [0x83, 0x80, 0x01].toByteArray
+#eval! parseDelta.run [0x83, 0x80, 0x01].toByteArray
 
 /-- info: Except.ok 268435455 -/
 #guard_msgs in
-#eval! parseDeltaVariable.run [0xff, 0xff, 0xff, 0x7f].toByteArray
+#eval! parseDelta.run [0xff, 0xff, 0xff, 0x7f].toByteArray
 
 /-- info: Except.ok 268435463 -/
 #guard_msgs in
-#eval! parseDeltaVariable.run [0x87, 0x80, 0x80, 0x80, 0x01].toByteArray
+#eval! parseDelta.run [0x87, 0x80, 0x80, 0x80, 0x01].toByteArray
 
 @[inline]
-def parseGate : Parser Unit := do
-  let rhs0 ← parseDeltaVariable
-  let rhs1 ← parseDeltaVariable
-  pure ()
+def parseGate (n : Nat) : ParserM mT Unit := do
+  let lhs := (←firstGate).offset n
+  let lhsLit := lhs.toLit
+  let delta0 ← parseDelta
+  let delta1 ← parseDelta
+
+  if delta0 > lhsLit.val then
+    failM "rhs0 delta must be less than lhs"
+  let rhs0 := Lit.ofRaw (lhsLit.val - delta0)
+
+  if delta1 > rhs0.val then
+    failM "rhs1 delta must be less than rhs0"
+  let rhs1 := Lit.ofRaw (rhs0.val - delta1)
+
+  addGate lhs rhs0 rhs1
 
 @[inline]
-def parseGates (n : Nat) : Parser (Array Unit) := do
-  let mut gates := .emptyWithCapacity n
-  for _ in [0:n] do
-    gates := gates.push (← parseGate)
-  return gates
+def parseGates : ParserM mT Unit := do
+  for i in [0:(←getHeader).numAnds] do
+    parseGate i
 
 end Binary
 
-def parse : Parser Unit := do
-  let (header, binary) ← parseHeader
+def parse (mT : (Type -> Type) -> (Type -> Type))
+    [ActionsT mT] [Monad (mT Parser)] [MonadLift Parser (mT Parser)]
+    : mT Parser Header := do
+  let header ← parseHeader
+
+  -- Run everything within a context where it can read the header
+  (ReaderT.run · header) <| do
+
   if header.numFairness > 0 || header.numJustice > 0 then
-    fail "Justice and Fairness properties not yet supported"
+    failM "Justice and Fairness properties not yet supported"
 
-  if !binary then
-    let inputs ← parseNLines parseLiteral header.numInputs
+  if header.binary then
+    if header.numInputs + header.numLatches + header.numAnds ≠ header.maxVar.val then
+      failM "number of inputs, latches and ands should sum to max var in binary aiger"
 
-  let latches ← parseLatches binary header.numLatches
-  let outputs ← parseVariables header.numOutputs
-  let bads ← parseVariables header.numBads
-  let constraints ← parseVariables header.numConstraints
-  -- let justice
-  -- let fairness
+  parseInputs
+  parseLatches
+  parseOutputLiterals addOutput header.numOutputs
+  parseOutputLiterals addBad header.numBads
+  parseOutputLiterals addConstraint header.numConstraints
+  -- TODO: Justice
+  -- TODO: Fairness
 
-  let gates ←
-    if binary then Binary.parseGates header.numAnds
-    else            ASCII.parseGates header.numAnds
+  if header.binary then
+    Binary.parseGates
+  else
+    ASCII.parseGates
 
-  let symbols ← many (attempt parseSymbolLine)
-  let comments ← parseComments
-  eof
+  parseSymbols
+  -- parseComments
+  -- (eof : Parser _)
+
+  return header
 
 end Aiger.Parser
 end Valaig
