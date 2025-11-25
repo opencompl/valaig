@@ -84,25 +84,22 @@ inductive SymbolType where
 | justice : SymbolType
 | fairness : SymbolType
 
--- Wrap the parser inside the user provided monad transformer and a header
--- reader outside so we can read the header state where needed
-abbrev ParserM (mT : (Type -> Type) -> (Type -> Type)) := ReaderT Header (mT Parser)
+abbrev HeaderT := ReaderT Header
 
--- TODO: Can we capture the notion that these are ordered and the add
-class ActionsT (mT : (Type -> Type) -> (Type -> Type)) where
-  addInput (var : Var) : ParserM mT Unit
-  addLatch (var : Var) (next : Lit) (reset : Option Lit) : ParserM mT Unit
+class ActionsM (m : Type -> Type) where
+  addInput (var : Var) : HeaderT m Unit
+  addLatch (var : Var) (next : Lit) (reset : Option Lit) : HeaderT m Unit
 
-  addOutput (lit : Lit) : ParserM mT Unit
-  addBad (lit : Lit) : ParserM mT Unit
-  addConstraint (lit : Lit) : ParserM mT Unit
+  addOutput (lit : Lit) : HeaderT m Unit
+  addBad (lit : Lit) : HeaderT m Unit
+  addConstraint (lit : Lit) : HeaderT m Unit
 
-  addGate (lhs : Var) (rhs0 rhs1 : Lit) : ParserM mT Unit
+  addGate (lhs : Var) (rhs0 rhs1 : Lit) : HeaderT m Unit
 
   -- The indices of symbols correspond to the Nth call to the corresponding
   -- add function
-  addSymbol (idx : Nat) (type : SymbolType) (symbol : String) : ParserM mT Unit
-  addComment (comment : String) : ParserM mT Unit
+  addSymbol (idx : Nat) (type : SymbolType) (symbol : String) : HeaderT m Unit
+  addComment (comment : String) : HeaderT m Unit
 
 @[inline]
 def tryParse {α : Type} (parse : Parser α) : Parser (Option α) := do
@@ -158,51 +155,49 @@ def parseHeader : Parser Header := do
   return header
 
 -- Open so we can call the functions without namespacing
-open ActionsT
+open ActionsM
 
-variable {α : Type}
-variable {mT : (Type -> Type) -> (Type -> Type)}
-variable [ActionsT mT]
-variable [Monad (mT Parser)]
-variable [MonadLift Parser (mT Parser)]
+variable {α : Type} {m : Type -> Type}
+variable [Monad m] [ActionsM m] [MonadLift Parser m]
 
 @[inline]
-def getHeader : ParserM mT Header := read
+def getHeader : HeaderT m Header :=
+  read
 
 @[inline]
-def binary : ParserM mT Bool :=
+def binary : HeaderT m Bool :=
   return (←getHeader).binary
 
 namespace Binary
 
 @[inline]
-def firstInput : ParserM mT Var :=
+def firstInput : HeaderT m Var :=
   return (Var.mk 0)
 
 @[inline]
-def firstLatch : ParserM mT Var :=
+def firstLatch : HeaderT m Var :=
   return (←firstInput).offset (←getHeader).numInputs
 
 @[inline]
-def firstGate : ParserM mT Var :=
+def firstGate : HeaderT m Var :=
   return (←firstLatch).offset (←getHeader).numLatches
 
 end Binary
 
 -- Lean can't automatically convert out of Parsec to our type so we use this
 @[inline]
-def failM (msg : String) : ParserM mT α :=
+def failM (msg : String) : HeaderT m α :=
   (Std.Internal.Parsec.fail msg : Parser _)
 
 @[inline]
-def require {α : Type} (pred : α → Bool) (error : String) (parse : ParserM mT α) : ParserM mT α := do
+def require {α : Type} (pred : α → Bool) (error : String) (parse : HeaderT m α) : HeaderT m α := do
   let n ← parse
   if !(pred n) then
     failM error
   return n
 
 @[inline]
-def asLit (n : Nat) : ParserM mT Lit := do
+def asLit (n : Nat) : HeaderT m Lit := do
   let lit := Lit.ofRaw n
   if lit.var > (←getHeader).maxVar then
     failM "non-zero integer expected"
@@ -210,33 +205,33 @@ def asLit (n : Nat) : ParserM mT Lit := do
 
 -- Validates a literal used to define a gate/latch that must be even and non-zero
 @[inline]
-def asDefiningLit (n : Nat) : ParserM mT Var := do
+def asDefiningLit (n : Nat) : HeaderT m Var := do
   let lit ← asLit n
   if lit.isConstant then
     failM "non-zero integer literal expected"
   lit.defines.getDM <| failM "even integer literal expected"
 
 @[inline]
-def parseLit : ParserM mT Lit := parseNat >>= asLit
+def parseLit : HeaderT m Lit := parseNat >>= asLit
 
 @[inline]
-def parseDefiningLit : ParserM mT Var := parseNat >>= asDefiningLit
+def parseDefiningLit : HeaderT m Var := parseNat >>= asDefiningLit
 
 @[inline]
-def parseNLines (parse : (idx : Nat) -> ParserM mT Unit) (n : Nat) : ParserM mT Unit := do
+def parseNLines (parse : (idx : Nat) -> HeaderT m Unit) (n : Nat) : HeaderT m Unit := do
   for i in [0:n] do
     parse i <* skipNewline
 
 @[inline]
-def parseDefiningLiterals (action : Var -> ParserM mT Unit) (n : Nat) : ParserM mT Unit :=
+def parseDefiningLiterals (action : Var -> HeaderT m Unit) (n : Nat) : HeaderT m Unit :=
   parseNLines (fun _ => parseDefiningLit >>= action) n
 
 @[inline]
-def parseOutputLiterals (action : Lit -> ParserM mT Unit) (n : Nat) : ParserM mT Unit :=
+def parseOutputLiterals (action : Lit -> HeaderT m Unit) (n : Nat) : HeaderT m Unit :=
   parseNLines (fun _ => parseLit >>= action) n
 
 @[inline]
-def parseInputs : ParserM mT Unit := do
+def parseInputs : HeaderT m Unit := do
   let n := (←getHeader).numInputs
   if (←binary) then
     for i in [0:n] do
@@ -245,7 +240,7 @@ def parseInputs : ParserM mT Unit := do
     parseDefiningLiterals addInput n
 
 @[inline]
-def parseLatch (n : Nat) : ParserM mT Unit := do
+def parseLatch (n : Nat) : HeaderT m Unit := do
   let latch ←
     match ←binary with
     | true => pure <| (←Binary.firstLatch).offset n
@@ -257,11 +252,11 @@ def parseLatch (n : Nat) : ParserM mT Unit := do
   addLatch latch next reset
 
 @[inline]
-def parseLatches : ParserM mT Unit := do
+def parseLatches : HeaderT m Unit := do
   parseNLines parseLatch (←getHeader).numLatches
 
 @[inline]
-def parseSymbolLine : Parser (ParserM mT Unit) := do
+def parseSymbolLine : Parser (HeaderT m Unit) := do
   let type : SymbolType ←
     match ← (any : Parser _) <&> Char.ofUInt8 with
     | 'i' => pure SymbolType.input
@@ -284,7 +279,7 @@ def parseSymbolLine : Parser (ParserM mT Unit) := do
   | some sym => pure (addSymbol idx type sym)
 
 @[inline]
-partial def parseSymbols : ParserM mT Unit := do
+partial def parseSymbols : HeaderT m Unit := do
   if let some action ← tryParse parseSymbolLine then
     action
     parseSymbols
@@ -303,24 +298,24 @@ def parseCommentHeader : Parser Unit := do
   skipNewline
 
 @[inline]
-partial def parseComments : ParserM mT Unit :=
+partial def parseComments : HeaderT m Unit :=
   attempt parseCommentHeader *> go
 where
-  go : ParserM mT Unit := do
+  go : HeaderT m Unit := do
     addComment (← attempt parseCommentLine)
     go
 
 namespace ASCII
 
 @[inline]
-def parseGate : ParserM mT Unit := do
+def parseGate : HeaderT m Unit := do
   let lhs ← parseDefiningLit
   let rhs0 ← skipSpace *> parseLit
   let rhs1 ← skipSpace *> parseLit
   addGate lhs rhs0 rhs1
 
 @[inline]
-def parseGates : ParserM mT Unit := do
+def parseGates : HeaderT m Unit := do
   parseNLines (fun _ => parseGate) (←getHeader).numAnds
 
 end ASCII
@@ -376,7 +371,7 @@ partial def parseDelta (var : Nat := 0) (mul : Nat := 1) : Parser Nat := do
 #eval! parseDelta.run [0x87, 0x80, 0x80, 0x80, 0x01].toByteArray
 
 @[inline]
-def parseGate (n : Nat) : ParserM mT Unit := do
+def parseGate (n : Nat) : HeaderT m Unit := do
   let lhs := (←firstGate).offset n
   let lhsLit := lhs.toLit
   let delta0 ← parseDelta
@@ -393,15 +388,15 @@ def parseGate (n : Nat) : ParserM mT Unit := do
   addGate lhs rhs0 rhs1
 
 @[inline]
-def parseGates : ParserM mT Unit := do
+def parseGates : HeaderT m Unit := do
   for i in [0:(←getHeader).numAnds] do
     parseGate i
 
 end Binary
 
 def parse (mT : (Type -> Type) -> (Type -> Type))
-    [ActionsT mT] [Monad (mT Parser)] [MonadLift Parser (mT Parser)]
-    : mT Parser Header := do
+    [ActionsM (mT Parser)] [Monad (mT Parser)] [MonadLift Parser (mT Parser)]
+    : (mT Parser) Header := do
   let header ← parseHeader
 
   -- Run everything within a context where it can read the header
