@@ -3,6 +3,7 @@ import Valaig
 abbrev MyState := Unit
 abbrev MyParseT := StateT MyState
 
+open Valaig.Aig
 open Valaig.Aiger.Parser
 
 instance {m} [Monad m] : ActionsM (MyParseT m) where

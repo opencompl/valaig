@@ -1,4 +1,4 @@
-import Valaig.Aiger.Basic
+import Valaig.Aig.Basic
 import Std.Internal.Parsec
 import Std.Data.Iterators
 
@@ -8,63 +8,9 @@ namespace Aiger.Parser
 open Std.Internal.Parsec.ByteArray
 open Std.Internal.Parsec
 
-structure Var where
-  val : Nat
-deriving Hashable, Repr, DecidableEq, Inhabited, Ord, BEq
-
-instance : LE Var := leOfOrd
-instance : LT Var := ltOfOrd
-
-namespace Var
-
-@[inline]
-def isConstant (v : Var) : Bool :=
-  v.val = 0
-
-@[inline]
-def offset (v : Var) (n : Nat) : Var :=
-  { v with val := v.val + n }
-
-end Var
-
-structure Lit where
-  ofRaw ::
-    val : Nat
-deriving Hashable, Repr, DecidableEq, Inhabited
-
-namespace Lit
-
-@[inline]
-def mk (v : Var) (invert : Bool := false) : Lit :=
-  ⟨v.val * 2 ||| invert.toNat⟩
-
-@[inline]
-def var (l : Lit) : Var := ⟨l.val / 2⟩
-
-@[inline]
-def inverted (l : Lit) : Bool := (l.val &&& 1) != 0
-
-@[inline]
-def defines (l : Lit) : Option Var :=
-  if !l.inverted then some l.var else none
-
-@[inline]
-def isConstant (l : Lit) : Bool :=
-  l.var.isConstant
-
-end Lit
-
-namespace Var
-
-@[inline]
-def toLit (v : Var) : Lit :=
-  Lit.mk v
-
-end Var
-
 structure Header where
   binary : Bool
-  maxVar : Var
+  maxVar : Aig.Var
   numInputs : Nat
   numLatches : Nat
   numOutputs : Nat
@@ -87,14 +33,14 @@ inductive SymbolType where
 abbrev HeaderT := ReaderT Header
 
 class ActionsM (m : Type -> Type) where
-  addInput (var : Var) : HeaderT m Unit
-  addLatch (var : Var) (next : Lit) (reset : Option Lit) : HeaderT m Unit
+  addInput (var : Aig.Var) : HeaderT m Unit
+  addLatch (var : Aig.Var) (next : Aig.Lit) (reset : Option Aig.Lit) : HeaderT m Unit
 
-  addOutput (lit : Lit) : HeaderT m Unit
-  addBad (lit : Lit) : HeaderT m Unit
-  addConstraint (lit : Lit) : HeaderT m Unit
+  addOutput (lit : Aig.Lit) : HeaderT m Unit
+  addBad (lit : Aig.Lit) : HeaderT m Unit
+  addConstraint (lit : Aig.Lit) : HeaderT m Unit
 
-  addGate (lhs : Var) (rhs0 rhs1 : Lit) : HeaderT m Unit
+  addGate (lhs : Aig.Var) (rhs0 rhs1 : Aig.Lit) : HeaderT m Unit
 
   -- The indices of symbols correspond to the Nth call to the corresponding
   -- add function
@@ -138,7 +84,7 @@ def parseHeader : Parser Header := do
 
   let header := {
     binary,
-    maxVar := Var.mk (←nextNat),
+    maxVar := .ofIdx (←nextNat),
     numInputs := ← nextNat,
     numLatches := ← nextNat
     numOutputs := ← nextNat
@@ -171,15 +117,16 @@ def binary : HeaderT m Bool :=
 namespace Binary
 
 @[inline]
-def firstInput : HeaderT m Var :=
-  return (Var.mk 0)
+def firstInput : HeaderT m Aig.Var :=
+  -- 0 is used for constant false
+  return (Aig.Var.ofIdx 1)
 
 @[inline]
-def firstLatch : HeaderT m Var :=
+def firstLatch : HeaderT m Aig.Var :=
   return (←firstInput).offset (←getHeader).numInputs
 
 @[inline]
-def firstGate : HeaderT m Var :=
+def firstGate : HeaderT m Aig.Var :=
   return (←firstLatch).offset (←getHeader).numLatches
 
 end Binary
@@ -190,32 +137,32 @@ def failM (msg : String) : HeaderT m α :=
   (Std.Internal.Parsec.fail msg : Parser _)
 
 @[inline]
-def require {α : Type} (pred : α → Bool) (error : String) (parse : HeaderT m α) : HeaderT m α := do
+def require {α : Type} (pred : α -> Bool) (error : String) (parse : HeaderT m α) : HeaderT m α := do
   let n ← parse
   if !(pred n) then
     failM error
   return n
 
 @[inline]
-def asLit (n : Nat) : HeaderT m Lit := do
-  let lit := Lit.ofRaw n
+def asLit (n : Nat) : HeaderT m Aig.Lit := do
+  let lit := .ofRaw n
   if lit.var > (←getHeader).maxVar then
     failM "non-zero integer expected"
   return lit
 
 -- Validates a literal used to define a gate/latch that must be even and non-zero
 @[inline]
-def asDefiningLit (n : Nat) : HeaderT m Var := do
+def asDefiningLit (n : Nat) : HeaderT m Aig.Var := do
   let lit ← asLit n
   if lit.isConstant then
     failM "non-zero integer literal expected"
   lit.defines.getDM <| failM "even integer literal expected"
 
 @[inline]
-def parseLit : HeaderT m Lit := parseNat >>= asLit
+def parseLit : HeaderT m Aig.Lit := parseNat >>= asLit
 
 @[inline]
-def parseDefiningLit : HeaderT m Var := parseNat >>= asDefiningLit
+def parseDefiningLit : HeaderT m Aig.Var := parseNat >>= asDefiningLit
 
 @[inline]
 def parseNLines (parse : (idx : Nat) -> HeaderT m Unit) (n : Nat) : HeaderT m Unit := do
@@ -223,11 +170,11 @@ def parseNLines (parse : (idx : Nat) -> HeaderT m Unit) (n : Nat) : HeaderT m Un
     parse i <* skipNewline
 
 @[inline]
-def parseDefiningLiterals (action : Var -> HeaderT m Unit) (n : Nat) : HeaderT m Unit :=
+def parseDefiningLiterals (action : Aig.Var -> HeaderT m Unit) (n : Nat) : HeaderT m Unit :=
   parseNLines (fun _ => parseDefiningLit >>= action) n
 
 @[inline]
-def parseOutputLiterals (action : Lit -> HeaderT m Unit) (n : Nat) : HeaderT m Unit :=
+def parseOutputLiterals (action : Aig.Lit -> HeaderT m Unit) (n : Nat) : HeaderT m Unit :=
   parseNLines (fun _ => parseLit >>= action) n
 
 @[inline]
@@ -379,11 +326,11 @@ def parseGate (n : Nat) : HeaderT m Unit := do
 
   if delta0 > lhsLit.val then
     failM "rhs0 delta must be less than lhs"
-  let rhs0 := Lit.ofRaw (lhsLit.val - delta0)
+  let rhs0 := .ofRaw (lhsLit.val - delta0)
 
   if delta1 > rhs0.val then
     failM "rhs1 delta must be less than rhs0"
-  let rhs1 := Lit.ofRaw (rhs0.val - delta1)
+  let rhs1 := .ofRaw (rhs0.val - delta1)
 
   addGate lhs rhs0 rhs1
 
@@ -406,7 +353,7 @@ def parse (mT : (Type -> Type) -> (Type -> Type))
     failM "Justice and Fairness properties not yet supported"
 
   if header.binary then
-    if header.numInputs + header.numLatches + header.numAnds ≠ header.maxVar.val then
+    if header.numInputs + header.numLatches + header.numAnds ≠ header.maxVar.idx then
       failM "number of inputs, latches and ands should sum to max var in binary aiger"
 
   parseInputs
