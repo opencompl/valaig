@@ -14,7 +14,8 @@ instance : LT Var := ltOfOrd
 namespace Var
 
 @[inline]
-def constant : Var := .ofIdx 0
+def constant : Var :=
+  .ofIdx 0
 
 @[inline]
 def offset (v : Var) (n : Nat) : Var :=
@@ -27,25 +28,27 @@ def next (v : Var) : Var :=
 end Var
 
 structure Lit where
-  ofRaw ::
-    val : Nat
+  ofIdx ::
+    idx : Nat
 deriving Hashable, DecidableEq, Repr, Inhabited, BEq
 
 namespace Lit
 
 @[inline]
-def mk (v : Var) : Lit :=
-  .ofRaw <| v.idx * 2
+def mk (v : Var) (invert : Bool := false) : Lit :=
+  .ofIdx <| v.idx * 2 ||| invert.toNat
 
 @[inline]
-def var (l : Lit) : Var := .ofIdx <| l.val / 2
+def var (l : Lit) : Var :=
+  .ofIdx <| l.idx / 2
 
 @[inline]
 def invert (l : Lit) : Lit :=
-  .ofRaw <| l.val ^^^ 1
+  .ofIdx <| l.idx ^^^ 1
 
 @[inline]
-def inverted (l : Lit) : Bool := (l.val &&& 1) != 0
+def inverted (l : Lit) : Bool :=
+  (l.idx &&& 1) != 0
 
 @[inline]
 def defines (l : Lit) : Option Var :=
@@ -55,7 +58,24 @@ def defines (l : Lit) : Option Var :=
 def isConstant (l : Lit) : Bool :=
   l.var = .constant
 
+@[inline]
+def isFalse (l : Lit) : Bool :=
+  l.isConstant ∧ !l.inverted
+
+@[inline]
+def isTrue (l : Lit) : Bool :=
+  l.isConstant ∧ l.inverted
+
+@[inline]
+def ofFanin (fi : Std.Sat.AIG.Fanin) : Lit :=
+  .mk (.ofIdx fi.gate) fi.invert
+
+attribute [coe] ofFanin
+
 end Lit
+
+instance : Coe Std.Sat.AIG.Fanin Lit where
+  coe := Lit.ofFanin
 
 namespace Var
 
@@ -180,22 +200,33 @@ structure Aig where
 namespace Aig
 
 @[inline]
-def size (saig : Aig) : Nat := saig.aig.decls.size
+def size (aig : Aig) : Nat := aig.aig.decls.size
 
 @[inline]
 def numConstants (_ : Aig) : Nat := 1
 
 @[inline]
-def numInputs (saig : Aig) : Nat := saig.inputs.size
+def numInputs (aig : Aig) : Nat := aig.inputs.size
 
 @[inline]
-def numLatches (saig : Aig) : Nat := saig.latches.size
+def numLatches (aig : Aig) : Nat := aig.latches.size
+
+-- Number of inputs and latches
+@[inline]
+def numAtoms (aig : Aig) : Nat := aig.numInputs + aig.numLatches
+
+-- Number of inputs, latches and constants
+@[inline]
+def numLeaves (aig : Aig) : Nat := aig.numAtoms + aig.numConstants
 
 @[inline]
-def numAtoms (saig : Aig) : Nat := saig.numInputs + saig.numLatches
+def numGates (aig : Aig) : Nat := aig.size - aig.numLeaves
 
 @[inline]
-def numLeaves (saig : Aig) : Nat := saig.numAtoms + saig.numConstants
+def numBads (aig : Aig) : Nat := aig.bads.size
+
+@[inline]
+def maxVar (aig : Aig) : Var := .ofIdx (aig.size - 1)
 
 -- [>-
 -- A timeframe in the execution of the model, starting from the initial state at 0
@@ -206,11 +237,11 @@ def numLeaves (saig : Aig) : Nat := saig.numAtoms + saig.numConstants
 --   [>-
 --   The Aig that we are in.
 --   -/
---   saig : Aig α
+--   aig : Aig α
 --   [>-
---   The reference to the node in `saig` that this `Entrypoint` targets.
+--   The reference to the node in `aig` that this `Entrypoint` targets.
 --   -/
---   ref : saig.Ref
+--   ref : aig.Ref
 --   [>-
 --   The timeframe that this `Entrypoint` targets.
 --   -/
@@ -218,7 +249,7 @@ def numLeaves (saig : Aig) : Nat := saig.numAtoms + saig.numConstants
 
 -- @[inline]
 -- def Entrypoint.toAIGEntrypoint (entry : Entrypoint α) : AIG.Entrypoint (Atom α) :=
---   { aig := entry.saig.aig, ref := entry.ref }
+--   { aig := entry.aig.aig, ref := entry.ref }
 
 -- def denote (assign : α -> Frame -> Bool) (entry : Entrypoint α) : Bool :=
 --   sorry
