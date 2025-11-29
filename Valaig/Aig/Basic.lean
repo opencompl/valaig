@@ -67,6 +67,18 @@ def isTrue (l : Lit) : Bool :=
   l.isConstant ∧ l.inverted
 
 @[inline]
+def constant (value : Bool) : Lit :=
+  mk .constant value
+
+@[inline]
+def false : Lit :=
+  constant .false
+
+@[inline]
+def true : Lit :=
+  constant .true
+
+@[inline]
 def ofFanin (fi : Std.Sat.AIG.Fanin) : Lit :=
   .mk (.ofIdx fi.gate) fi.invert
 
