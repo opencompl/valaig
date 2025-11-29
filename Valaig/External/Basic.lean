@@ -18,8 +18,8 @@ class CertifiedSafetyAigerMC (Solver : Type) extends SafetyAigerMC Solver where
 
 def interpretSatExitCode (output : IO.Process.Output) : Result :=
   match output.exitCode with
-  | 20 => .safe
-  | 10 => .unSafe
+  | 20 => .proof
+  | 10 => .counterexample
   | _ => .unknown
 
 def runProcess (args : IO.Process.SpawnArgs) : IO IO.Process.Output := do
