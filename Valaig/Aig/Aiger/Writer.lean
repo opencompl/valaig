@@ -1,6 +1,6 @@
 import Valaig.Aig.Basic
 
-namespace Valaig.Aig.Aiger.Writer
+namespace Valaig.Aig.Aiger
 
 def writeAag (aig : Aig) (file : IO.FS.Stream) : IO Unit := do
   -- Aiger 1.9 Header M I L O A B C J F
@@ -26,7 +26,8 @@ def writeAag (aig : Aig) (file : IO.FS.Stream) : IO Unit := do
       file.putStrLn s!"{lhs.idx} {rhs0.idx} {rhs1.idx}"
 
   -- TODO: Symbols/comments
+  file.flush
 
 -- TODO: Binary writer
 
-end Valaig.Aig.Aiger.Writer
+end Valaig.Aig.Aiger

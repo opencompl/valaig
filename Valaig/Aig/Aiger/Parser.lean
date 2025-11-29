@@ -144,7 +144,7 @@ def require {α : Type} (pred : α -> Bool) (error : String) (parse : HeaderT m 
 
 @[inline]
 def asLit (n : Nat) : HeaderT m Lit := do
-  let lit := .ofRaw n
+  let lit := .ofIdx n
   if lit.var > (←getHeader).maxVar then
     failM "non-zero integer expected"
   return lit
@@ -323,13 +323,13 @@ def parseGate (n : Nat) : HeaderT m Unit := do
   let delta0 ← parseDelta
   let delta1 ← parseDelta
 
-  if delta0 > lhsLit.val then
+  if delta0 > lhsLit.idx then
     failM "rhs0 delta must be less than lhs"
-  let rhs0 := .ofRaw (lhsLit.val - delta0)
+  let rhs0 := .ofIdx (lhsLit.idx - delta0)
 
-  if delta1 > rhs0.val then
+  if delta1 > rhs0.idx then
     failM "rhs1 delta must be less than rhs0"
-  let rhs1 := .ofRaw (rhs0.val - delta1)
+  let rhs1 := .ofIdx (rhs0.idx - delta1)
 
   addGate lhs rhs0 rhs1
 

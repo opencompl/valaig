@@ -72,6 +72,10 @@ def ofFanin (fi : Std.Sat.AIG.Fanin) : Lit :=
 
 attribute [coe] ofFanin
 
+@[inline]
+def ofRef {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α} (ref : aig.Ref) : Lit :=
+  .mk (.ofIdx ref.gate) ref.invert
+
 end Lit
 
 instance : Coe Std.Sat.AIG.Fanin Lit where
@@ -90,7 +94,7 @@ The metadata of an input in the Aig
 -/
 structure Input where
   var : Var
-  symbol : String
+  symbol : String := ""
 deriving Hashable, DecidableEq, Repr, Inhabited
 
 namespace Input
@@ -108,7 +112,7 @@ structure Latch where
   var : Var
   next : Lit
   reset : Lit
-  symbol : String
+  symbol : String := ""
 deriving Hashable, DecidableEq, Repr, Inhabited
 
 namespace Latch
@@ -124,8 +128,8 @@ An atom in the combinational aig is either an input or a latch, which is just
 a reference back to the index in the inputs or latches arrays
 -/
 inductive Atom where
-  | input : Nat -> Atom
-  | latch : Nat -> Atom
+| input : Nat -> Atom
+| latch : Nat -> Atom
 deriving Hashable, DecidableEq, Repr, Inhabited
 
 /--
@@ -134,7 +138,7 @@ nameable nodes in the Aiger format like bad and constraint nodes
 -/
 structure Output where
   lit : Lit
-  symbol : String
+  symbol : String := ""
 deriving Hashable, DecidableEq, Repr, Inhabited
 
 end Aig
@@ -170,7 +174,7 @@ structure Aig where
 
   -- Input atoms map to corresponding indices
   hdecltoinputs :
-    ∀ {iin idecl } (hdecl : idecl < aig.decls.size)
+    ∀ {iin idecl} (hdecl : idecl < aig.decls.size)
       (_ : aig.decls[idecl] = .atom (.input iin)),
     ∃ (hin : iin < inputs.size),
       inputs[iin].idx = idecl
