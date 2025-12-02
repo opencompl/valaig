@@ -34,7 +34,7 @@ def runProcess (args : IO.Process.SpawnArgs) : IO IO.Process.Output := do
   return { exitCode, stdout := stdout, stderr := stderr }
 
 def checkSafety {Solver : Type} (solver : Solver) [mc : SafetyAigerMC Solver]
-    (aig : Aig) : IO Result := do
+    (aig : Aig) (hwf : aig.WF := by trivial) : IO Result := do
   IO.FS.withTempDir fun dir => do
     let path := dir / "model.aag"
     IO.FS.withFile path .write fun handle => do

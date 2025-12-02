@@ -1,6 +1,5 @@
 import Valaig.Aig.Basic
 import Std.Internal.Parsec
-import Std.Data.Iterators
 
 namespace Valaig.Aig.Aiger.Parser
 
@@ -99,9 +98,6 @@ def parseHeader : Parser Header := do
   skipNewline
   return header
 
--- Open so we can call the functions without namespacing
-open ActionsM
-
 variable {α : Type} {m : Type -> Type}
 variable [Monad m] [ActionsM m] [MonadLift Parser m]
 
@@ -181,9 +177,9 @@ def parseInputs : HeaderT m Unit := do
   let n := (←getHeader).numInputs
   if (←binary) then
     for i in [0:n] do
-      addInput ((←Binary.firstInput).offset i)
+      ActionsM.addInput ((←Binary.firstInput).offset i)
   else
-    parseDefiningLiterals addInput n
+    parseDefiningLiterals ActionsM.addInput n
 
 @[inline]
 def parseLatch (n : Nat) : HeaderT m Unit := do
@@ -195,7 +191,7 @@ def parseLatch (n : Nat) : HeaderT m Unit := do
   let next ← parseLit
   let reset ← (←tryParse (skipSpace *> parseNat)) |>.mapM asLit
 
-  addLatch latch next reset
+  ActionsM.addLatch latch next reset
 
 @[inline]
 def parseLatches : HeaderT m Unit := do
@@ -222,7 +218,7 @@ def parseSymbolLine : Parser (HeaderT m Unit) := do
 
   match String.fromUTF8? symb.toByteArray with
   | none => fail "Couldn't decode non-UTF8 symbol"
-  | some sym => pure (addSymbol idx type sym)
+  | some sym => pure (ActionsM.addSymbol idx type sym)
 
 @[inline]
 partial def parseSymbols : HeaderT m Unit := do
@@ -248,7 +244,7 @@ partial def parseComments : HeaderT m Unit :=
   attempt parseCommentHeader *> go
 where
   go : HeaderT m Unit := do
-    addComment (← attempt parseCommentLine)
+    ActionsM.addComment (← attempt parseCommentLine)
     go
 
 namespace ASCII
@@ -258,7 +254,7 @@ def parseGate : HeaderT m Unit := do
   let lhs ← parseDefiningLit
   let rhs0 ← skipSpace *> parseLit
   let rhs1 ← skipSpace *> parseLit
-  addGate lhs rhs0 rhs1
+  ActionsM.addGate lhs rhs0 rhs1
 
 @[inline]
 def parseGates : HeaderT m Unit := do
@@ -331,7 +327,7 @@ def parseGate (n : Nat) : HeaderT m Unit := do
     failM "rhs1 delta must be less than rhs0"
   let rhs1 := .ofIdx (rhs0.idx - delta1)
 
-  addGate lhs rhs0 rhs1
+  ActionsM.addGate lhs rhs0 rhs1
 
 @[inline]
 def parseGates : HeaderT m Unit := do
@@ -357,9 +353,9 @@ def parse (mT : (Type -> Type) -> (Type -> Type))
 
   parseInputs
   parseLatches
-  parseOutputLiterals addOutput header.numOutputs
-  parseOutputLiterals addBad header.numBads
-  parseOutputLiterals addConstraint header.numConstraints
+  parseOutputLiterals ActionsM.addOutput header.numOutputs
+  parseOutputLiterals ActionsM.addBad header.numBads
+  parseOutputLiterals ActionsM.addConstraint header.numConstraints
   -- TODO: Justice
   -- TODO: Fairness
 

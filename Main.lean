@@ -3,8 +3,7 @@ import Valaig
 abbrev MyState := Unit
 abbrev MyParseT := StateT MyState
 
-open Valaig
-open Valaig.Aig
+open Valaig Aig
 
 -- open Valaig.Aig.Aiger.Parser
 
@@ -35,36 +34,18 @@ open Valaig.Aig
 --   | _ => IO.eprintln "<filename>"
 
 def main (args : List String) : IO Unit := do
-  let aig : Std.Sat.AIG _ := .empty
-  let inputs := #[]
+  let aig : Aig := .empty
+  let (aig, i0) := aig.addInput
+  let (aig, i1) := aig.addInput
+  if h : ¬i0.validIn aig ∨ ¬i1.validIn aig then
+    throw <| .userError "i0 or i1 bad!"
+  else
+    let (aig, conj) := aig.addGate i0 i1 (h0 := by omega) (h1 := by omega)
+    let aig := aig.addBad conj
 
-  let res := aig.mkAtomCached (.input 0)
-  let aig := res.aig
-  let i0 := res.ref
-  let inputs := inputs.push <| { var := Lit.ofRef res.ref |>.var }
-
-  let res := aig.mkAtomCached (.input 1)
-  let aig := res.aig
-  let i1 := res.ref
-  let inputs := inputs.push <| { var := Lit.ofRef res.ref |>.var }
-
-  let res := aig.mkGateCached ⟨i1.flip true, i1⟩
-  let aig := res.aig
-  let bad := Lit.ofRef res.ref
-
-  let aig : Aig := {
-    aig,
-    inputs,
-    latches := #[],
-    bads := #[{ lit := bad }],
-    hfalse := sorry,
-    hinputstodecl := sorry,
-    hdecltoinputs := sorry,
-    hlatchestodecl := sorry,
-    hdecltolatches := sorry
-  }
-
-  let ric3 : Valaig.External.rIC3 := {}
-  let res ← Valaig.External.checkSafety ric3 aig
-  IO.println s!"Result: {repr res}"
-
+    if h : aig.numLatches > 0 then
+      throw <| .userError "Has latches!"
+    else
+      let ric3 : Valaig.External.rIC3 := {}
+      let res ← Valaig.External.checkSafety ric3 aig (hwf := by grind [Aig.WF])
+      IO.println s!"Result: {repr res}"

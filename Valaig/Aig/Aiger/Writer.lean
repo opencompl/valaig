@@ -2,7 +2,7 @@ import Valaig.Aig.Basic
 
 namespace Valaig.Aig.Aiger
 
-def writeAag (aig : Aig) (file : IO.FS.Stream) : IO Unit := do
+def writeAag (aig : Aig) (file : IO.FS.Stream) (hwf : aig.WF := by trivial) : IO Unit := do
   -- Aiger 1.9 Header M I L O A B C J F
   file.putStrLn s!"aag {aig.maxVar.idx} {aig.numInputs} {aig.numLatches} 0 {aig.numGates} {aig.numBads} 0 0 0"
 
@@ -11,8 +11,11 @@ def writeAag (aig : Aig) (file : IO.FS.Stream) : IO Unit := do
     file.putStrLn s!"{input.var.toLit.idx}"
 
   -- Latch lines
-  for latch in aig.latches do
-    file.putStrLn s!"{latch.var.toLit.idx} {latch.next.idx} {latch.reset.idx}"
+  for h : latch in aig.latches do
+    file.putStr s!"{latch.var.toLit.idx} {latch.next.get (hwf.hnext h) |>.idx}"
+    if let some reset := latch.reset then
+      file.putStr s!"{reset.idx}"
+    file.putStrLn ""
 
   -- Bad lines
   for bad in aig.bads do
