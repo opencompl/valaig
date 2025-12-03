@@ -33,19 +33,23 @@ open Valaig Aig
 --     | .error e => IO.println s!"err: {e}"
 --   | _ => IO.eprintln "<filename>"
 
-def main (args : List String) : IO Unit := do
+def circ : Aig :=
   let aig : Aig := .empty
-  let (aig, i0) := aig.addInput
-  let (aig, i1) := aig.addInput
-  if h : ¬i0.validIn aig ∨ ¬i1.validIn aig then
-    throw <| .userError "i0 or i1 bad!"
-  else
-    let (aig, conj) := aig.addGate i0 i1 (h0 := by omega) (h1 := by omega)
-    let aig := aig.addBad conj
+  -- TODO: Can we turn this into a macro called leth or something?
+  let (eq:=_) (aig, i0) := aig.addInput
+  let (eq:=_) (aig, i1) := aig.addInput
+  let (eq:=_) (aig, bad) := aig.addGate i0 i1
 
-    if h : aig.numLatches > 0 then
-      throw <| .userError "Has latches!"
-    else
-      let ric3 : Valaig.External.rIC3 := {}
-      let res ← Valaig.External.checkSafety ric3 aig (hwf := by grind [Aig.WF])
-      IO.println s!"Result: {repr res}"
+  let aig := aig.addBad bad
+  aig
+
+def main (args : List String) : IO Unit := do
+  let aig := circ
+
+  -- TODO: Prove that inputs/latches are invariant when they are
+  if h : aig.numLatches > 0 then
+    throw <| .userError "Has latches!"
+  else
+    let ric3 : Valaig.External.rIC3 := {}
+    let res ← Valaig.External.checkSafety ric3 aig (hwf := by grind [Aig.WF])
+    IO.println s!"Result: {repr res}"

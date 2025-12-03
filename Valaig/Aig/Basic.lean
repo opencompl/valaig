@@ -54,7 +54,7 @@ def invert (l : Lit) : Lit :=
 
 @[inline]
 def inverted (l : Lit) : Bool :=
-  (l.idx &&& 1) != 0
+  (l.idx &&& 1) ≠ 0
 
 @[inline]
 def defines (l : Lit) : Option Var :=
@@ -90,13 +90,38 @@ def ofFanin (fi : Std.Sat.AIG.Fanin) : Lit :=
 
 attribute [coe] ofFanin
 
+@[simp]
+theorem mk_var (var : Var) {invert : Bool} :
+    (Lit.mk var invert).var = var := by
+  simp [mk, Lit.var, Nat.or_div_two]
+  have : invert.toNat / 2 = 0 := by
+    have := Bool.toNat_le invert
+    omega
+  simp [this]
+
+@[simp]
+theorem mk_inverted {v : Var} (invert : Bool) :
+    (Lit.mk v invert).inverted = invert := by
+  simp [mk, inverted]
+  decide +revert
+
+section
+variable {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α}
+
 @[inline]
-def ofRef {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α} (ref : aig.Ref) : Lit :=
+def ofRef (ref : aig.Ref) : Lit :=
   .mk (.ofRef ref) ref.invert
 
 @[inline]
-def toRef {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α} (lit : Lit) (h : lit.var.idx < aig.decls.size) : aig.Ref :=
+def toRef (lit : Lit) (h : lit.var.idx < aig.decls.size) : aig.Ref :=
   .mk lit.var.idx lit.inverted h
+
+@[simp]
+theorem ofRef_var_idx_eq_gate (ref : aig.Ref) :
+    (ofRef ref |>.var.idx) = ref.gate := by
+  simp [ofRef]
+
+end
 
 end Lit
 
@@ -106,7 +131,7 @@ instance : Coe Std.Sat.AIG.Fanin Lit where
 namespace Var
 
 @[inline]
-def toLit (v : Var) : Lit :=
+abbrev toLit (v : Var) : Lit :=
   Lit.mk v
 
 end Var
@@ -121,12 +146,12 @@ deriving Hashable, DecidableEq, Repr, Inhabited
 
 namespace Input
 
-@[inline, reducible]
-def idx (input : Input) : Nat :=
+@[inline]
+abbrev idx (input : Input) : Nat :=
   input.var.idx
 
 @[inline]
-def lit (input : Input) : Lit :=
+abbrev lit (input : Input) : Lit :=
   input.var.toLit
 
 end Input
@@ -143,12 +168,12 @@ deriving Hashable, DecidableEq, Repr, Inhabited
 
 namespace Latch
 
-@[inline, reducible]
-def idx (latch : Latch) : Nat :=
+@[inline]
+abbrev idx (latch : Latch) : Nat :=
   latch.var.idx
 
 @[inline]
-def lit (latch : Latch) : Lit :=
+abbrev lit (latch : Latch) : Lit :=
   latch.var.toLit
 
 end Latch
@@ -267,8 +292,8 @@ attribute [grind! .] Aig.hlatchmap
 
 namespace Aig
 
-@[inline]
-def size (aig : Aig) : Nat := aig.aig.decls.size
+@[inline, simp]
+abbrev size (aig : Aig) : Nat := aig.aig.decls.size
 
 @[inline]
 abbrev numConstants (_ : Aig) : Nat := 1
@@ -297,7 +322,7 @@ abbrev numBads (aig : Aig) : Nat := aig.bads.size
 def maxVar (aig : Aig) : Var := .ofIdx (aig.size - 1)
 
 @[inline]
-abbrev Lit.validIn (lit : Lit) (aig : Aig) := lit.var.idx < aig.size
+def Lit.validIn (lit : Lit) (aig : Aig) := lit.var.idx < aig.size
 
 @[inline]
 def empty : Aig :=
@@ -346,25 +371,6 @@ def addInput (aig : Aig) (symbol : String := "") : Aig × Lit :=
   (aig, input.lit)
 
 @[inline]
-def addGate (aig : Aig) (rhs0 rhs1 : Lit) {h0 : rhs0.validIn aig} {h1 : rhs1.validIn aig} :
-    Aig × Lit :=
-  let res := aig.aig.mkAndCached ⟨rhs0.toRef h0, rhs1.toRef h1⟩
-
-  let aig := { aig with
-    aig := res.aig,
-    hfalse := by
-      intro i
-      by_cases i < aig.aig.decls.size
-      · grind
-      · -- For some reason if I remove this grind hits an error
-        have : i ≠ 0 := by grind only [Std.Sat.AIG.hzero]
-        grind,
-    hinputmap := by grind
-    hlatchmap := by grind
-  }
-  (aig, Lit.ofRef res.ref)
-
-@[inline]
 def addLatch (aig : Aig) (next : Lit) (reset : Option Lit := none) (symbol : String := "") : Aig × Lit :=
   -- We don't need to use mkAtomCached as nextLatchIdx_notIn_decls guarantees
   -- it would be a miss
@@ -407,7 +413,27 @@ def addLatch' (aig : Aig) (reset : Option Lit := none) (symbol : String := "") :
   (aig, latch.lit)
 
 @[inline]
-def addBad (aig : Aig) (lit : Lit) (symbol : String := "") : Aig :=
+def addGate (aig : Aig) (rhs0 rhs1 : Lit)
+    (h0 : rhs0.validIn aig := by grind) (h1 : rhs1.validIn aig := by grind) :
+    Aig × Lit :=
+  let res := aig.aig.mkAndCached ⟨rhs0.toRef h0, rhs1.toRef h1⟩
+
+  let aig := { aig with
+    aig := res.aig,
+    hfalse := by
+      intro i
+      by_cases i < aig.size
+      · grind
+      · -- For some reason if I remove this grind hits an error
+        have : i ≠ 0 := by grind only [Std.Sat.AIG.hzero]
+        grind,
+    hinputmap := by grind
+    hlatchmap := by grind
+  }
+  (aig, Lit.ofRef res.ref)
+
+@[inline]
+def addBad (aig : Aig) (lit : Lit) (symbol : String := "") (_h : lit.validIn aig := by grind) : Aig :=
   { aig with bads := aig.bads.push { lit, symbol } }
 
 -- [>-
