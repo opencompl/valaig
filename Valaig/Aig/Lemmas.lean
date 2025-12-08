@@ -184,12 +184,25 @@ theorem finaliseLatches.updateLatches_size_const :
 theorem finaliseLatches.updateLatches_modified_once :
     let state' := (finaliseLatches.updateLatches aig nextState (s := state))
     ∀ {i} (_ : i < state'.latches.size) (_ : i < state.idx),
-      state'.latches[i] = state.latches[i]'(by grind [finaliseLatches.updateLatches_size_const]) := by
+      state'.latches[i] = state.latches[i]'(by grind [updateLatches_size_const]) := by
   induction h : (state.latches.size - state.idx) generalizing state with
   | zero => grind [updateLatches]
   | succ n' ih =>
-    simp only [updateLatches_size_const]
-    grind [updateLatches]
+    simp [finaliseLatches.updateLatches_size_const]
+    intro i h1 h2
+    by_cases i ≠ state.idx
+    · by_cases state.latches[state.idx].next.isSome
+      · simp at ih
+        let state' := { state with idx := state.idx + 1, habove := by grind only }
+        have hn : state'.latches.size - state'.idx = n' := by grind only
+        have := ih hn (i := i) (by grind [updateLatches_size_const]) (by grind only)
+        unfold updateLatches
+        grind only [= Option.isSome_none]
+      · unfold updateLatches
+        simp_all
+        grind only [= Array.size_modify, !hlatchmap, = Array.getElem_modify]
+    · unfold updateLatches
+      grind only
 
 theorem finaliseLatches.updateLatches_next_eq_some :
     let state' := (finaliseLatches.updateLatches aig nextState (s := state))
