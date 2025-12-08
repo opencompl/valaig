@@ -24,7 +24,7 @@ def writeAag (aig : Aig) (file : IO.FS.Stream) (hwf : aig.WF := by trivial) : IO
   -- Gates
   for h : i in [0:aig.aig.decls.size] do
     if let .gate rhs0 rhs1 := aig.aig.decls[i] then
-      let (rhs0, rhs1) : Lit × Lit := (rhs0, rhs1)
+      let (rhs0, rhs1) := (Lit.ofFanin rhs0, Lit.ofFanin rhs1)
       let lhs := Var.ofIdx i |>.toLit
       file.putStrLn s!"{lhs.idx} {rhs0.idx} {rhs1.idx}"
 

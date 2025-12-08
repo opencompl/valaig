@@ -8,10 +8,19 @@ namespace Aig
 structure Var where
   ofIdx ::
     idx : Nat
-deriving Hashable, DecidableEq, Repr, Inhabited, Ord, BEq
+deriving Hashable, DecidableEq, Repr, Inhabited, Ord, BEq, ReflBEq, LawfulBEq
 
 instance : LE Var := leOfOrd
 instance : LT Var := ltOfOrd
+
+instance : EquivBEq Var where
+  symm := by simp [BEq.beq, instBEqVar.beq]; omega
+  trans := by simp [BEq.beq, instBEqVar.beq]; omega
+
+instance : LawfulHashable Var where
+  hash_eq := by
+    simp [BEq.beq, instBEqVar.beq, Hashable.hash, instHashableVar.hash]
+    grind only
 
 namespace Var
 
@@ -88,8 +97,6 @@ def true : Lit :=
 def ofFanin (fi : Std.Sat.AIG.Fanin) : Lit :=
   .mk (.ofIdx fi.gate) fi.invert
 
-attribute [coe] ofFanin
-
 @[simp]
 theorem mk_var (var : Var) {invert : Bool} :
     (Lit.mk var invert).var = var := by
@@ -125,14 +132,15 @@ end
 
 end Lit
 
-instance : Coe Std.Sat.AIG.Fanin Lit where
-  coe := Lit.ofFanin
-
 namespace Var
 
 @[inline]
-abbrev toLit (v : Var) : Lit :=
-  Lit.mk v
+abbrev toLit (v : Var) (invert : Bool := false) : Lit :=
+  Lit.mk v invert
+
+attribute [coe] toLit
+instance : Coe Var Lit where
+  coe := toLit
 
 end Var
 
@@ -152,7 +160,11 @@ abbrev idx (input : Input) : Nat :=
 
 @[inline]
 abbrev lit (input : Input) : Lit :=
-  input.var.toLit
+  input.var
+
+attribute [coe] Input.var
+instance : Coe Input Var where
+  coe := Input.var
 
 end Input
 
@@ -174,7 +186,11 @@ abbrev idx (latch : Latch) : Nat :=
 
 @[inline]
 abbrev lit (latch : Latch) : Lit :=
-  latch.var.toLit
+  latch.var
+
+attribute [coe] Latch.var
+instance : Coe Latch Var where
+  coe := Latch.var
 
 end Latch
 
@@ -336,7 +352,13 @@ abbrev numBads (aig : Aig) : Nat := aig.bads.size
 def maxVar (aig : Aig) : Var := .ofIdx (aig.size - 1)
 
 @[inline]
-def Lit.validIn (lit : Lit) (aig : Aig) := lit.var.idx < aig.size
+def Var.validIn (var : Var) (aig : Aig) := var.idx < aig.size
+
+@[inline]
+abbrev Lit.validIn (lit : Lit) (aig : Aig) := lit.var.validIn aig
+
+abbrev Var.In (aig : Aig) := { var : Var // var.validIn aig }
+abbrev Lit.In (aig : Aig) := { lit : Lit // lit.validIn aig }
 
 @[inline]
 def empty : Aig :=
@@ -367,7 +389,7 @@ theorem nextLatchIdx_notIn_decls (aig : Aig) {i : Nat} (h : i < aig.size) :
   grind
 
 @[inline]
-def addInput (aig : Aig) (symbol : String := "") : Aig × Lit :=
+def addInput (aig : Aig) (symbol : String := "") : Aig × Input :=
   -- We don't need to use mkAtomCached as nextInputIdx_notIn_decls guarantees
   -- it would be a miss
   let res := aig.aig.mkAtom <| .input aig.nextInputIdx
@@ -380,10 +402,10 @@ def addInput (aig : Aig) (symbol : String := "") : Aig × Lit :=
     hinputmap := by grind,
     hlatchmap := by grind,
   }
-  (aig, input.lit)
+  (aig, input)
 
 @[inline]
-def addLatch (aig : Aig) (next : Lit) (reset : Option Lit := none) (symbol : String := "") : Aig × Lit :=
+def addLatch (aig : Aig) (next : Lit) (reset : Option Lit := none) (symbol : String := "") : Aig × Latch :=
   -- We don't need to use mkAtomCached as nextLatchIdx_notIn_decls guarantees
   -- it would be a miss
   let res := aig.aig.mkAtom <| .latch aig.nextLatchIdx
@@ -401,10 +423,10 @@ def addLatch (aig : Aig) (next : Lit) (reset : Option Lit := none) (symbol : Str
     hinputmap := by grind,
     hlatchmap := by grind,
   }
-  (aig, latch.lit)
+  (aig, latch)
 
 @[inline]
-def addLatch' (aig : Aig) (reset : Option Lit := none) (symbol : String := "") : Aig × Lit :=
+def addLatch' (aig : Aig) (reset : Option Lit := none) (symbol : String := "") : Aig × Latch :=
   -- We don't need to use mkAtomCached as nextLatchIdx_notIn_decls guarantees
   -- it would be a miss
   let res := aig.aig.mkAtom <| .latch aig.nextLatchIdx
@@ -422,7 +444,7 @@ def addLatch' (aig : Aig) (reset : Option Lit := none) (symbol : String := "") :
     hinputmap := by grind,
     hlatchmap := by grind,
   }
-  (aig, latch.lit)
+  (aig, latch)
 
 @[inline]
 def addGate (aig : Aig) (rhs0 rhs1 : Lit)
@@ -467,6 +489,38 @@ def addGateUncached (aig : Aig) (rhs0 rhs1 : Lit)
 @[inline]
 def addBad (aig : Aig) (lit : Lit) (symbol : String := "") (_h : lit.validIn aig := by grind) : Aig :=
   { aig with bads := aig.bads.push { lit, symbol } }
+
+@[unbox, grind]
+structure FinaliseLatchesState (aig : Aig) where
+  latches : Latches := aig.latches
+  idx : Nat := 0
+  hsize : latches.size = aig.latches.size := by grind
+  habove : ∀ {i} (_ : i ≥ idx) (_ : i < latches.size), latches[i] = aig.latches[i] := by grind
+  hvar : ∀ {i} (_ : i < latches.size), latches[i].var = aig.latches[i].var := by grind
+
+@[inline]
+def finaliseLatches (aig : Aig) (nextState : (latch : Latch) -> latch ∈ aig.latches -> Lit.In aig) : Aig :=
+  have s := updateLatches
+  { aig with latches := s.latches, hlatchmap := by grind}
+
+where
+  updateLatches (s : FinaliseLatchesState aig := {}) : FinaliseLatchesState aig :=
+    if hidx : s.idx ≥ s.latches.size then
+      s
+    else
+      match s.latches[s.idx].next with
+      | some _ => updateLatches { s with idx := s.idx + 1, habove := by grind }
+      | none =>
+        let next := nextState s.latches[s.idx] (by grind)
+        let latches := s.latches.modify s.idx fun latch => { latch with next }
+        let s := { s with
+          latches,
+          idx := s.idx + 1,
+          hsize := by grind,
+          habove := by grind,
+          hvar := by grind
+        }
+        updateLatches s
 
 -- [>-
 -- A timeframe in the execution of the model, starting from the initial state at 0
