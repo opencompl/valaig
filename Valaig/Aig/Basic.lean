@@ -6,7 +6,7 @@ namespace Valaig
 namespace Aig
 
 structure Var where
-  ofIdx :: 
+  ofIdx ::
     idx : Nat
 deriving Hashable, DecidableEq, Repr, Inhabited, Ord, BEq
 
@@ -201,35 +201,49 @@ abbrev Latches := Array Latch
 abbrev Outputs := Array Output
 
 section
-variable {α : Type} {arr : Array α} {aig : Std.Sat.AIG Atom}
+open Std.Sat AIG
 
 @[simp]
-abbrev AtomInjec (idx : α -> Nat) (atom : Nat -> Atom) : Prop :=
-  ∀ (iarr : Nat) (harrbound : iarr < arr.size),
-  ∃ (hdeclbound : idx arr[iarr] < aig.decls.size),
-    aig.decls[idx arr[iarr]] = .atom (atom iarr)
+abbrev InputsInj (inputs : Inputs) (aig : AIG Atom) : Prop :=
+  ∀ (iin : Nat) (hinbound : iin < inputs.size),
+  ∃ (hdeclbound : inputs[iin].idx  < aig.decls.size),
+    aig.decls[inputs[iin].idx] = .atom (.input iin)
 
 @[simp]
-abbrev AtomSurjec (idx : α -> Nat) (atom : Nat -> Atom) : Prop :=
-  ∀ (idecl : Nat) {iarr } (hdeclbound : idecl < aig.decls.size)
-    (hdecl : aig.decls[idecl] = .atom (atom iarr)),
-  ∃ (harrbound : iarr < arr.size),
-    idx arr[iarr] = idecl
+abbrev InputsSur (inputs : Inputs) (aig : AIG Atom) : Prop :=
+  ∀ (idecl : Nat) (hdeclbound : idecl < aig.decls.size),
+  match aig.decls[idecl] with
+  | .atom (.input iin) =>
+    ∃ (hinbound: iin < inputs.size), inputs[iin].idx = idecl
+  | _ => true
 
 @[grind]
-structure AtomBijec (arr : Array α) (idx : α -> Nat) (aig : Std.Sat.AIG Atom) (atom : Nat -> Atom) : Prop where
-  hinjec : AtomInjec (arr := arr) (aig := aig) idx atom
-  hsurjec : AtomSurjec (arr := arr) (aig := aig) idx atom
+structure InputsBij (inputs : Inputs) (aig : AIG Atom) : Prop where
+  hinjec : InputsInj inputs aig
+  hsurjec : InputsSur inputs aig
 
-attribute [simp] AtomBijec.mk
-
-@[simp]
-abbrev InputBijec (arr : Inputs) (aig : Std.Sat.AIG Atom) : Prop :=
-  AtomBijec arr (·.idx) aig (.input ·)
+attribute [simp] InputsBij.mk
 
 @[simp]
-abbrev LatchBijec (arr : Latches) (aig : Std.Sat.AIG Atom) : Prop :=
-  AtomBijec arr (·.idx) aig (.latch ·)
+abbrev LatchesInj (latches : Latches) (aig : AIG Atom) : Prop :=
+  ∀ (ilat : Nat) (hlatbound : ilat < latches.size),
+  ∃ (hdeclbound : latches[ilat].idx  < aig.decls.size),
+    aig.decls[latches[ilat].idx] = .atom (.latch ilat)
+
+@[simp]
+abbrev LatchesSur (latches : Latches) (aig : AIG Atom) : Prop :=
+  ∀ (idecl : Nat) (hdeclbound : idecl < aig.decls.size),
+  match aig.decls[idecl] with
+  | .atom (.latch idx) =>
+    ∃ (hlatbound: idx < latches.size), latches[idx].idx = idecl
+  | _ => true
+
+@[grind]
+structure LatchesBij (latches : Latches) (aig : AIG Atom) : Prop where
+  hinjec : LatchesInj latches aig
+  hsurjec : LatchesSur latches aig
+
+attribute [simp] LatchesBij.mk
 
 end
 
@@ -259,11 +273,11 @@ structure Aig where
 
   -- There is a bijection between indices in the inputs array and input atoms
   -- in the aig
-  hinputmap : Aig.InputBijec inputs aig
+  hinputmap : Aig.InputsBij inputs aig
 
   -- There is a bijection between indices in the latches array and latch atoms
   -- in the aig
-  hlatchmap : Aig.LatchBijec latches aig
+  hlatchmap : Aig.LatchesBij latches aig
 
   -- Resets are stratified. TODO: This definition doesn't work as the binary
   -- aiger format requires latches come before gates, so you can't define
@@ -344,14 +358,12 @@ abbrev nextInputIdx (aig : Aig) : Nat :=
 abbrev nextLatchIdx (aig : Aig) : Nat :=
   aig.numLatches
 
-theorem nextInputIdx_notIn_decls {aig : Aig} {i : Nat} (h : i < aig.size) :
+theorem nextInputIdx_notIn_decls (aig : Aig) {i : Nat} (h : i < aig.size) :
     aig.aig.decls[i] ≠ .atom (.input aig.nextInputIdx) := by
-  have := aig.hinputmap.hsurjec i (iarr := aig.nextInputIdx) h
   grind
 
-theorem nextLatchIdx_notIn_decls {aig : Aig} {i : Nat} (h : i < aig.size) :
+theorem nextLatchIdx_notIn_decls (aig : Aig) {i : Nat} (h : i < aig.size) :
     aig.aig.decls[i] ≠ .atom (.latch aig.nextLatchIdx) := by
-  have := aig.hlatchmap.hsurjec i (iarr := aig.nextLatchIdx) h
   grind
 
 @[inline]
@@ -417,6 +429,26 @@ def addGate (aig : Aig) (rhs0 rhs1 : Lit)
     (h0 : rhs0.validIn aig := by grind) (h1 : rhs1.validIn aig := by grind) :
     Aig × Lit :=
   let res := aig.aig.mkAndCached ⟨rhs0.toRef h0, rhs1.toRef h1⟩
+
+  let aig := { aig with
+    aig := res.aig,
+    hfalse := by
+      intro i
+      by_cases i < aig.size
+      · grind
+      · -- For some reason if I remove this grind hits an error
+        have : i ≠ 0 := by grind only [Std.Sat.AIG.hzero]
+        grind,
+    hinputmap := by grind
+    hlatchmap := by grind
+  }
+  (aig, Lit.ofRef res.ref)
+
+@[inline]
+def addGateUncached (aig : Aig) (rhs0 rhs1 : Lit)
+    (h0 : rhs0.validIn aig := by grind) (h1 : rhs1.validIn aig := by grind) :
+    Aig × Lit :=
+  let res := aig.aig.mkGate ⟨rhs0.toRef h0, rhs1.toRef h1⟩
 
   let aig := { aig with
     aig := res.aig,

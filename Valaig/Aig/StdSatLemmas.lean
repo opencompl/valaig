@@ -14,7 +14,7 @@ variable {α : Type} [Hashable α] [DecidableEq α]
 `AIG.mkAtom` only appends a single atom to the underlying AIG.
 -/
 @[simp, grind! .]
-theorem mkAtom_eq_decl_push (aig : AIG α) (var : α) :
+theorem mkAtom_eq_decls_push (aig : AIG α) (var : α) :
     (aig.mkAtom var).aig.decls = aig.decls.push (.atom var) := by
   simp [mkAtom]
 
@@ -22,9 +22,21 @@ theorem mkAtom_eq_decl_push (aig : AIG α) (var : α) :
 `AIG.mkAtom` returns a reference to the next element in the underlying AIG
 -/
 @[simp, grind! .]
-theorem mkAtom_ref_eq_decl_size (aig : AIG α) (var : α) :
+theorem mkAtom_ref_eq_decls_size (aig : AIG α) (var : α) :
     (aig.mkAtom var).ref.gate = aig.decls.size := by
   simp [mkAtom]
+
+/--
+- `AIG.mkGate` only potentially appends gates, not atoms/constants
+-/
+@[simp, grind! .]
+theorem mkGate_matches_gate (idx : Nat) (aig : AIG α) (input : aig.BinaryInput)
+    {hlow : idx ≥ aig.decls.size} {hhigh : idx < (aig.mkGate input).aig.decls.size} :
+    (aig.mkGate input).aig.decls[idx] matches .gate _ _ := by
+  grind [mkGate]
+
+attribute [simp, grind! .] mkGate_decl_eq
+attribute [simp, grind! .] mkGate_le_size
 
 /--
 - `AIG.mkGateCached` only potentially appends gates, not atoms/constants
