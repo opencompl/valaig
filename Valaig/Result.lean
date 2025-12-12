@@ -1,4 +1,4 @@
-namespace Valaig.Aig
+namespace Valaig
 
 inductive Result where
 | proof : Result
@@ -6,4 +6,4 @@ inductive Result where
 | unknown : Result
 deriving Hashable, DecidableEq, Repr, Inhabited
 
-end Valaig.Aig
+end Valaig

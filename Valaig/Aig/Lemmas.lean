@@ -4,18 +4,29 @@ namespace Valaig.Aig
 
 variable {aig : Aig} {var : Var}
 
+theorem nextInputIdx_notIn_decls (aig : Aig) {i : Nat} (h : i < aig.size) :
+    aig.aig.decls[i] ≠ .atom (.input aig.nextInputIdx) := by
+  intro heq
+  have := aig.hinputs.hsurjec h (iarr := aig.nextInputIdx) heq
+  grind only [nextInputIdx]
+
+theorem nextLatchIdx_notIn_decls (aig : Aig) {i : Nat} (h : i < aig.size) :
+    aig.aig.decls[i] ≠ .atom (.latch aig.nextLatchIdx) := by
+  intro heq
+  have := aig.hlatches.hsurjec h (iarr := aig.nextLatchIdx) heq
+  grind only [nextLatchIdx]
+
+
 theorem decls_unique_inputs :
     ∀ {i j} (hi : i < aig.size) (hj : j < aig.size),
       aig.aig.decls[i] matches .atom (.input _) ∧ aig.aig.decls[i] = aig.aig.decls[j] →
       i = j := by
-  have := aig.hinputmap.hsurjec
   grind
 
 theorem decls_unique_latches :
     ∀ {i j} (hi : i < aig.size) (hj : j < aig.size),
       aig.aig.decls[i] matches .atom (.latch _) ∧ aig.aig.decls[i] = aig.aig.decls[j] →
       i = j := by
-  have := aig.hlatchmap.hsurjec
   grind
 
 theorem decls_unique_atoms :
@@ -40,16 +51,21 @@ theorem latches_unique :
   grind
 
 @[simp, grind! .]
-theorem empty_inputs_eq_empty :
+theorem empty_inputs :
     empty.inputs = #[] := by
-  simp [empty]
+  simp only [empty]
 
 @[simp, grind! .]
-theorem empty_latches_eq_empty :
+theorem empty_latches :
     empty.latches = #[] := by
-  simp [empty]
+  simp only [empty]
 
 section
+
+attribute [local simp] mkAtom_eq_decls_push
+attribute [local simp] mkAtom_ref_eq_decls_size
+attribute [local simp] Std.Sat.AIG.mkAtom_le_size
+attribute [local simp] Std.Sat.AIG.mkAndCached_le_size
 
 variable {symbol : String}
 variable {rhs0 rhs1 : Lit} {h0 : rhs0.validIn aig} {h1 : rhs1.validIn aig}
@@ -177,55 +193,46 @@ theorem finaliseLatches.updateLatches_size_const :
     let state' := (finaliseLatches.updateLatches aig nextState (s := state))
     state'.latches.size = state.latches.size := by
   intro state'
-  have := state.hsize
-  have := state'.hsize
-  omega
+  simp_all only [state.hsize, state'.hsize]
 
 theorem finaliseLatches.updateLatches_modified_once :
     let state' := (finaliseLatches.updateLatches aig nextState (s := state))
     ∀ {i} (_ : i < state'.latches.size) (_ : i < state.idx),
       state'.latches[i] = state.latches[i]'(by grind [updateLatches_size_const]) := by
   induction h : (state.latches.size - state.idx) generalizing state with
-  | zero => grind [updateLatches]
+  | zero => grind only [updateLatches]
   | succ n' ih =>
-    simp [finaliseLatches.updateLatches_size_const]
+    dsimp only
     intro i h1 h2
     by_cases i ≠ state.idx
     · by_cases state.latches[state.idx].next.isSome
-      · simp at ih
-        let state' := { state with idx := state.idx + 1, habove := by grind only }
-        have hn : state'.latches.size - state'.idx = n' := by grind only
-        have := ih hn (i := i) (by grind [updateLatches_size_const]) (by grind only)
-        unfold updateLatches
-        grind only [= Option.isSome_none]
-      · unfold updateLatches
-        simp_all
-        grind only [= Array.size_modify, !hlatchmap, = Array.getElem_modify]
-    · unfold updateLatches
-      grind only
+      · grind only [updateLatches, hlatches, updateLatches_size_const, Option.isSome_none]
+      · grind only [updateLatches, Array.size_modify, hlatches, Array.getElem_modify]
+    · grind only [updateLatches]
 
 theorem finaliseLatches.updateLatches_next_eq_some :
     let state' := (finaliseLatches.updateLatches aig nextState (s := state))
     ∀ {i} (_ : i < state'.latches.size) (_ : i ≥ state.idx),
       state'.latches[i].next.isSome := by
   induction h : (state.latches.size - state.idx) generalizing state with
-  | zero => grind [updateLatches]
-  | succ n' ih => grind [updateLatches, updateLatches_modified_once]
+  | zero => grind only [updateLatches]
+  | succ n' ih =>
+    grind only [updateLatches, hlatches, updateLatches_modified_once, Option.isSome_some, Array.getElem_modify]
 
 theorem finaliseLatches_WF :
     aig.finaliseLatches nextState |>.WF := by
   constructor
   · simp only [finaliseLatches]
-    grind [finaliseLatches.updateLatches_next_eq_some, List.mem_iff_getElem, Array.mem_def]
+    grind [Array.mem_def, List.mem_iff_getElem, finaliseLatches.updateLatches_next_eq_some]
 
 theorem finaliseLatches_aig_eq :
     (aig.finaliseLatches nextState).aig = aig.aig := by
-  simp [finaliseLatches]
+  simp only [finaliseLatches]
 
 @[grind! .]
 theorem validIn_finaliseLatches (h : var.validIn aig) :
     var.validIn (aig.finaliseLatches nextState) := by
-  simp_all [finaliseLatches_aig_eq, Var.validIn]
+  simp_all only [Var.validIn, Raw.size, finaliseLatches_aig_eq]
 
 end
 

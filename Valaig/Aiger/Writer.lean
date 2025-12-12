@@ -1,8 +1,8 @@
-import Valaig.Aig.Basic
+import Valaig.Aiger.Basic
 
-namespace Valaig.Aig.Aiger
+namespace Valaig.Aiger
 
-def writeAag (aig : Aig) (file : IO.FS.Stream) (hwf : aig.WF := by trivial) : IO Unit := do
+def writeAag (aig : Aiger) (file : IO.FS.Stream) (hwf : aig.WF := by trivial) : IO Unit := do
   -- Aiger 1.9 Header M I L O A B C J F
   file.putStrLn s!"aag {aig.maxVar.idx} {aig.numInputs} {aig.numLatches} 0 {aig.numGates} {aig.numBads} 0 0 0"
 
@@ -33,4 +33,4 @@ def writeAag (aig : Aig) (file : IO.FS.Stream) (hwf : aig.WF := by trivial) : IO
 
 -- TODO: Binary writer
 
-end Valaig.Aig.Aiger
+end Valaig.Aiger

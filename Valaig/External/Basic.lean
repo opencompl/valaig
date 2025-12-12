@@ -1,6 +1,6 @@
 import Valaig.Aig.Basic
-import Valaig.Aig.Aiger.Writer
-import Valaig.Aig.Result
+import Valaig.Aiger.Writer
+import Valaig.Result
 
 namespace Valaig.External
 
@@ -34,11 +34,11 @@ def runProcess (args : IO.Process.SpawnArgs) : IO IO.Process.Output := do
   return { exitCode, stdout := stdout, stderr := stderr }
 
 def checkSafety {Solver : Type} (solver : Solver) [mc : SafetyAigerMC Solver]
-    (aig : Aig) (hwf : aig.WF := by trivial) : IO Result := do
+    (aig : Aiger) (hwf : aig.WF := by trivial) : IO Result := do
   IO.FS.withTempDir fun dir => do
     let path := dir / "model.aag"
     IO.FS.withFile path .write fun handle => do
-      Aiger.writeAag aig <| IO.FS.Stream.ofHandle handle
+      aig.writeAag <| IO.FS.Stream.ofHandle handle
       let out ← runProcess (mc.safetyArgs solver path)
       return mc.interpretOutput solver out
 

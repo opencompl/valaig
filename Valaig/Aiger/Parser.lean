@@ -1,7 +1,7 @@
 import Valaig.Aig.Basic
 import Std.Internal.Parsec
 
-namespace Valaig.Aig.Aiger.Parser
+namespace Valaig.Aiger.Parser
 
 open Std.Internal.Parsec.ByteArray
 open Std.Internal.Parsec
@@ -151,7 +151,9 @@ def asDefiningLit (n : Nat) : HeaderT m Var := do
   let lit ← asLit n
   if lit.isConstant then
     failM "non-zero integer literal expected"
-  lit.defines.getDM <| failM "even integer literal expected"
+  if lit.inverted then
+    failM "even integer literal expected"
+  pure lit.var
 
 @[inline]
 def parseLit : HeaderT m Lit := parseNat >>= asLit
@@ -370,4 +372,4 @@ def parse (mT : (Type -> Type) -> (Type -> Type))
 
   return header
 
-end Valaig.Aig.Aiger.Parser
+end Valaig.Aiger.Parser

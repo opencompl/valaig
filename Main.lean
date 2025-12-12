@@ -33,17 +33,17 @@ open Valaig Aig
 --     | .error e => IO.println s!"err: {e}"
 --   | _ => IO.eprintln "<filename>"
 
-def circ : Aig :=
+def circ : Aiger :=
   let aig : Aig := .empty
   -- TODO: Can we turn this into a macro called leth or something?
   let (eq:=_) (aig, i0) := aig.addInput
   let (eq:=_) (aig, i1) := aig.addInput
   let (eq:=_) (aig, bad) := aig.addGate i0 i1
 
-  let aig := aig.addBad bad
-  aig
+  let aig : Aiger := .ofAig aig
+  aig.addBad bad
 
-def main (args : List String) : IO Unit := do
+def main : IO Unit := do
   let aig := circ
 
   -- TODO: Prove that inputs/latches are invariant when they are
