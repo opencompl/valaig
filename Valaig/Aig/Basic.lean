@@ -195,13 +195,20 @@ structure FinaliseLatchesState (aig : Aig) where
   latches : Latches := aig.latches
   idx : Nat := 0
   hsize : latches.size = aig.latches.size := by grind
-  habove : ∀ {i} (_ : i ≥ idx) (_ : i < latches.size), latches[i] = aig.latches[i] := by grind
-  hvar : ∀ {i} (_ : i < latches.size), latches[i].var = aig.latches[i].var := by grind
+  habove : ∀ {i} (_hge : i ≥ idx) (hlt : i < latches.size), latches[i] = aig.latches[i] := by grind
+  hvar : ∀ {i} (h : i < latches.size), latches[i].var = aig.latches[i].var := by grind
 
 @[inline]
 def finaliseLatches (aig : Aig) (nextState : (latch : Latch) -> latch ∈ aig.latches -> Lit.In aig) : Aig :=
   have s := updateLatches
-  { aig with latches := s.latches, hlatches := by grind}
+  { aig with
+    latches := s.latches,
+    hlatches := by
+      constructor
+      all_goals intro _ h; simp only [VarDef.idx, s.hvar, s.hsize]
+      · apply aig.hlatches.hinjec
+      · apply aig.hlatches.hsurjec
+  }
 
 where
   updateLatches (s : FinaliseLatchesState aig := {}) : FinaliseLatchesState aig :=
@@ -209,19 +216,30 @@ where
       s
     else
       match s.latches[s.idx].next with
-      | some _ => updateLatches { s with idx := s.idx + 1, habove := by grind only }
+      -- If the next value is already set, do nothing and continue
+      | some _ =>
+        updateLatches { s with
+          idx := s.idx + 1,
+          habove := by intro i h; exact s.habove (by omega)
+        }
       | none =>
-        let next := nextState s.latches[s.idx] (by grind)
+        let latch := s.latches[s.idx]
+        have hmem : latch ∈ aig.latches := by
+          subst latch; rw [s.habove]; apply Array.getElem_mem; omega
+
+        let next := nextState s.latches[s.idx] hmem
         let latches := s.latches.modify s.idx fun latch => { latch with next }
+
         let s := { s with
           latches,
           idx := s.idx + 1,
-          hsize := by grind,
-          habove := by grind,
-          hvar := by grind,
+
+          hsize := by subst latches; rw [Array.size_modify, s.hsize]
+          habove := by intros; rw [Array.getElem_modify_of_ne]; apply s.habove; all_goals omega
+          hvar := by intros; rw [Array.getElem_modify]; split <;> apply s.hvar
         }
         updateLatches s
-
+  termination_by s.latches.size - s.idx
 -- [>-
 -- A timeframe in the execution of the model, starting from the initial state at 0
 -- -/
