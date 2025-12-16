@@ -16,7 +16,7 @@ inductive RelabelledAtom (aig : AIG α) where
   : RelabelledAtom aig
 | latch
   (next : aig.Ref)
-  (reset : Option aig.Ref := none)
+  (reset : Bool⊕ Option aig.Ref := .inr none)
   (symbol : String := "")
   : RelabelledAtom aig
 
@@ -110,7 +110,11 @@ where
             go { s with aig, map, atomMap, hmap, hlatch, hatom }
 
           | .latch next reset symbol =>
-            let (eq:=_) (aig, lhs) := s.aig.addLatch' (reset.map Lit.ofRef) symbol
+            let reset := match reset with
+              | .inl bool => Lit.constant bool
+              | .inr var => var.map Lit.ofRef
+
+            let (eq:=_) (aig, lhs) := s.aig.addLatch' reset symbol
             let map := s.map.push lhs.var
             let atomMap := s.atomMap.insert atom lhs
             let latchNexts := s.latchNexts.insert lhs next
