@@ -11,12 +11,8 @@ deriving Hashable, DecidableEq, Repr, Inhabited, BEq
 namespace VarDef
 
 @[inline, simp]
-abbrev idx (self : VarDef) : Nat :=
-  self.var.idx
-
-@[inline, simp]
 abbrev lit (self : VarDef) : Lit :=
-  self.var
+  self.var.toLit
 
 end VarDef
 
@@ -33,6 +29,9 @@ deriving Hashable, DecidableEq, Repr, Inhabited
 instance : Coe Input Var where
   coe := (·.var)
 
+instance : Coe Input Lit where
+  coe := (·.lit)
+
 /--
 The metadata of a latch in the Aig
 -/
@@ -44,13 +43,16 @@ deriving Hashable, DecidableEq, Repr, Inhabited
 instance : Coe Latch Var where
   coe := (·.var)
 
+instance : Coe Latch Lit where
+  coe := (·.lit)
+
 /--
 An atom in the combinational aig is either an input or a latch, which is just
 a reference back to the index in the inputs or latches arrays
 -/
-inductive Atom where
-| input (idx : Nat) : Atom
-| latch (idx : Nat) : Atom
+inductive AtomIdx where
+| input (idx : Nat) : AtomIdx
+| latch (idx : Nat) : AtomIdx
 deriving Hashable, DecidableEq, Repr, Inhabited
 
 /--
@@ -71,18 +73,18 @@ us define the invariants directly on this, rather than on its fields indirectly
 -/
 structure Raw where
   -- The underlying AIG
-  aig : Std.Sat.AIG Aig.Atom
+  aig : Std.Sat.AIG Aig.AtomIdx
 
-  -- A mapping from input indices (Atom.input idx) to their definition
+  -- A mapping from input indices (AtomIdx.input idx) to their definition
   inputs : Inputs
 
-  -- A mapping from latch indices (Atom.latch idx) to their definition
+  -- A mapping from latch indices (AtomIdx.latch idx) to their definition
   latches : Latches
 
 section
 open Std.Sat AIG
 variable {α : Type} (arr : Array α) (idx : α -> Nat)
-variable (decls: Array (Decl Atom)) (mkAtom : Nat -> Atom)
+variable (decls: Array (Decl AtomIdx)) (mkAtom : Nat -> AtomIdx)
 
 @[simp]
 abbrev AtomsInj : Prop :=
@@ -97,7 +99,7 @@ abbrev AtomsSur : Prop :=
   ∃ (harrbound: iarr < arr.size),
     idx arr[iarr] = idecl
 
-@[grind]
+@[scoped grind]
 structure AtomsBij : Prop where
   hinjec : AtomsInj arr idx decls mkAtom
   hsurjec : AtomsSur arr idx decls mkAtom
@@ -110,11 +112,11 @@ namespace Raw
 
 @[simp]
 abbrev InputsBij (aig : Raw) :=
-  AtomsBij aig.inputs (·.idx) aig.aig.decls Atom.input
+  AtomsBij aig.inputs (·.var.idx) aig.aig.decls AtomIdx.input
 
 @[simp]
 abbrev LatchesBij (aig : Raw) :=
-  AtomsBij aig.latches (·.idx) aig.aig.decls Atom.latch
+  AtomsBij aig.latches (·.var.idx) aig.aig.decls AtomIdx.latch
 
 @[simp]
 abbrev SingleFalse (aig : Raw) :=
@@ -143,13 +145,6 @@ structure Aig extends Aig.Raw where
   -- There is a bijection between indices in the latches array and latch atoms
   -- in the aig
   hlatches : toRaw.LatchesBij
-
-attribute [grind] Aig.Raw.aig
-attribute [grind! .] Std.Sat.AIG.hzero
-attribute [grind! .] Std.Sat.AIG.hconst
-attribute [grind! .] Aig.hfalse
-attribute [grind! .] Aig.hinputs
-attribute [grind! .] Aig.hlatches
 
 instance : Coe Aig Aig.Raw where
   coe := (·.toRaw)

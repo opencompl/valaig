@@ -10,6 +10,11 @@ theorem ofRef_idx (ref : aig.Ref) :
     (ofRef ref).idx = ref.gate := by
   simp only [ofRef]
 
+@[grind =_]
+theorem ext_idx (var var' : Var) :
+    var = var' ↔ var.idx = var'.idx := by
+  grind only [Var]
+
 end Var
 
 namespace Lit

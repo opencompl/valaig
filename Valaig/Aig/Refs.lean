@@ -127,10 +127,6 @@ namespace Var
 abbrev toLit (v : Var) (invert : Bool := false) : Lit :=
   .mk v invert
 
-attribute [coe] toLit
-instance : Coe Var Lit where
-  coe := toLit
-
 end Var
 
 end Valaig

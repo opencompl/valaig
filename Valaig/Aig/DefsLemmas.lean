@@ -3,24 +3,6 @@ import Valaig.Aig.StdSatLemmas
 
 namespace Valaig.Aig
 
--- -- When proving a property motive that quantifies over all indices of a pushed
--- -- array, split it into two cases for the indices in the old array and the index
--- -- of the new array. This is designed to be used as apply push_forall_cases h.
--- -- To allow the motive to pattern match, it takes the same form each time but
--- -- we add extra predicates that simp can use to rewrite the motive for each case
--- theorem push_forall_cases {α : Type} {xs : Array α} {x : α}
---     {i : Nat} (hi : i < (xs.push x).size)
---     {motive : (i : Nat) -> i < (xs.push x).size -> Prop}
---     (hlt :
---       ∀ (hi : i < xs.size)
---         {hp : (xs.push x)[i]'(by grind only [Array.size_push]) = xs[i]},
---           motive i (by grind only [Array.size_push]))
---     (heq :
---       ∀ {h : (xs.push x)[xs.size] = x},
---         motive xs.size (by grind only [Array.size_push])) :
---     motive i hi := by
---   grind only [Array.size_push, Array.getElem_push]
-
 section
 variable {aig aig' : Raw}
 
@@ -48,12 +30,12 @@ end
 section
 
 variable {arr arr' : Array α} {idx : α -> Nat}
-variable {decls decls': Array (Std.Sat.AIG.Decl Atom)}
-variable {mkAtom : Nat -> Atom}
+variable {decls decls': Array (Std.Sat.AIG.Decl AtomIdx)}
+variable {mkAtom : Nat -> AtomIdx}
 
 section
 
-variable {atom : Std.Sat.AIG.Decl Atom}
+variable {atom : Std.Sat.AIG.Decl AtomIdx}
 variable (heq : decls' = decls.push atom)
 variable (hatom : ∀ {idx}, atom ≠ .atom (mkAtom idx))
 include heq hatom
@@ -78,7 +60,7 @@ end
 section
 
 variable {item : α}
-variable {atom : Std.Sat.AIG.Decl Atom}
+variable {atom : Std.Sat.AIG.Decl AtomIdx}
 variable (hdecls : decls' = decls.push atom)
 variable (harr : arr' = arr.push item)
 variable (hidx : idx item = decls.size)

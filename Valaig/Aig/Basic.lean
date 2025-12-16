@@ -6,8 +6,8 @@ import Valaig.Aig.RefsLemmas
 
 namespace Valaig.Aig.Raw
 
-@[inline, simp]
-abbrev size (aig : Raw) : Nat := aig.aig.decls.size
+@[inline]
+def size (aig : Raw) : Nat := aig.aig.decls.size
 
 @[inline, simp]
 abbrev numInputs (aig : Raw) : Nat := aig.inputs.size
@@ -35,20 +35,37 @@ def numGates (aig : Raw) : Nat := aig.size - aig.numLeaves
 end Aig.Raw
 
 @[inline]
-def Var.validIn (var : Var) (aig : Aig) :=
+def Var.validIn (var : Var) (aig : Aig.Raw) : Prop :=
   var.idx < aig.size
+deriving Decidable
 
 @[inline, simp]
-abbrev Lit.validIn (lit : Lit) (aig : Aig) := lit.var.validIn aig
+abbrev Lit.validIn (lit : Lit) (aig : Aig.Raw) := lit.var.validIn aig
 
 abbrev Var.In (aig : Aig) := { var : Var // var.validIn aig }
 abbrev Lit.In (aig : Aig) := { lit : Lit // lit.validIn aig }
 
 namespace Aig
 
-instance : GetElem Aig Var (Std.Sat.AIG.Decl Atom) (fun aig var => var.validIn aig) where
-  getElem aig var (h := by grind) :=
-    aig.aig.decls[var.idx]
+instance Raw.instGetElemVar : GetElem Raw Var (Std.Sat.AIG.Decl AtomIdx) (fun aig var => var.validIn aig) where
+  getElem aig var (h := by grind) := aig.aig.decls[var.idx]
+
+@[inline, reducible, simp]
+instance instGetElemVar : GetElem Aig Var (Std.Sat.AIG.Decl AtomIdx) (fun aig var => var.validIn aig) where
+  getElem aig var (h := by grind) := aig.toRaw[var]'h
+
+instance Raw.instMem : Membership (Std.Sat.AIG.Decl AtomIdx) Raw where
+  mem aig decl := decl ∈ aig.aig.decls
+
+@[inline, reducible, simp]
+instance instMem : Membership (Std.Sat.AIG.Decl AtomIdx) Aig where
+  mem aig decl := decl ∈ aig.toRaw
+
+@[inline]
+def VarDef.idx (var : VarDef) (aig : Aig.Raw) (h : var.var.validIn aig := by grind)
+    (hatom : aig[var.var] matches .atom _ := by grind) : AtomIdx :=
+  match aig[var.var], hatom with
+  | .atom idx, _ => idx
 
 @[inline]
 def empty : Aig :=
@@ -143,7 +160,6 @@ def addGate (aig : Aig) (rhs0 rhs1 : Lit)
     Aig × Lit :=
   let res := aig.aig.mkAndCached ⟨rhs0.toRef h0, rhs1.toRef h1⟩
 
-
   let aig := { aig with
     aig := res.aig,
     hfalse := by
@@ -191,12 +207,16 @@ def addGateUncached (aig : Aig) (rhs0 rhs1 : Lit)
   (aig, Lit.ofRef res.ref)
 
 @[unbox, grind]
-structure FinaliseLatchesState (aig : Aig) where
+structure finaliseLatches.State (aig : Aig) where
   latches : Latches := aig.latches
   idx : Nat := 0
   hsize : latches.size = aig.latches.size := by grind
   habove : ∀ {i} (_hge : i ≥ idx) (hlt : i < latches.size), latches[i] = aig.latches[i] := by grind
   hvar : ∀ {i} (h : i < latches.size), latches[i].var = aig.latches[i].var := by grind
+
+@[inline]
+def finaliseLatches.State.empty (aig : Aig) : State aig :=
+  {}
 
 @[inline]
 def finaliseLatches (aig : Aig) (nextState : (latch : Latch) -> latch ∈ aig.latches -> Lit.In aig) : Aig :=
@@ -205,41 +225,50 @@ def finaliseLatches (aig : Aig) (nextState : (latch : Latch) -> latch ∈ aig.la
     latches := s.latches,
     hlatches := by
       constructor
-      all_goals intro _ h; simp only [VarDef.idx, s.hvar, s.hsize]
+      all_goals intro _ h; simp only [s.hvar, s.hsize]
       · apply aig.hlatches.hinjec
       · apply aig.hlatches.hsurjec
   }
 
 where
-  updateLatches (s : FinaliseLatchesState aig := {}) : FinaliseLatchesState aig :=
+  updateLatches (s : finaliseLatches.State aig := .empty aig) : finaliseLatches.State aig :=
     if hidx : s.idx ≥ s.latches.size then
       s
     else
-      match s.latches[s.idx].next with
-      -- If the next value is already set, do nothing and continue
-      | some _ =>
-        updateLatches { s with
-          idx := s.idx + 1,
-          habove := by intro i h; exact s.habove (by omega)
-        }
-      | none =>
-        let latch := s.latches[s.idx]
-        have hmem : latch ∈ aig.latches := by
-          subst latch; rw [s.habove]; apply Array.getElem_mem; omega
+      have next := step s (by omega)
+      have : next.val.latches.size - next.val.idx < s.latches.size - s.idx := by
+        grind only [finaliseLatches.State.hsize]
 
-        let next := nextState s.latches[s.idx] hmem
-        let latches := s.latches.modify s.idx fun latch => { latch with next }
-
-        let s := { s with
-          latches,
-          idx := s.idx + 1,
-
-          hsize := by subst latches; rw [Array.size_modify, s.hsize]
-          habove := by intros; rw [Array.getElem_modify_of_ne]; apply s.habove; all_goals omega
-          hvar := by intros; rw [Array.getElem_modify]; split <;> apply s.hvar
-        }
-        updateLatches s
+      updateLatches next
   termination_by s.latches.size - s.idx
+
+  step (s : finaliseLatches.State aig) (h : s.idx < s.latches.size) : { s' : finaliseLatches.State aig // s'.idx = s.idx + 1 } :=
+    match s.latches[s.idx].next with
+    -- If the next value is already set, do nothing and continue
+    | some _ =>
+      ⟨{ s with
+        idx := s.idx + 1,
+        habove := by intro i h; exact s.habove (by omega)
+      }, by simp only⟩
+    | none =>
+      -- Otherwise get the current latch, compute its new next state and then
+      -- modify in place
+      let latch := s.latches[s.idx]
+      have hmem : latch ∈ aig.latches := by
+        subst latch; rw [s.habove]; apply Array.getElem_mem; omega
+      let next := nextState latch hmem
+      let latches := s.latches.modify s.idx fun latch => { latch with next }
+
+      ⟨{ s with
+        latches,
+        idx := s.idx + 1,
+
+        hsize := by subst latches; rw [Array.size_modify, s.hsize]
+        habove := by intros; rw [Array.getElem_modify_of_ne]; apply s.habove; all_goals omega
+        hvar := by intros; rw [Array.getElem_modify]; split <;> apply s.hvar
+      }, by simp only⟩
+
+
 -- [>-
 -- A timeframe in the execution of the model, starting from the initial state at 0
 -- -/
