@@ -29,8 +29,9 @@ def empty : Aiger :=
 @[inline, simp]
 abbrev numBads(aig : Aiger) : Nat := aig.bads.size
 
+set_option linter.unusedVariables false in
 @[inline]
-def addBad (aig : Aiger) (lit : Lit) (symbol : String := "") (_h : lit.validIn aig := by grind) : Aiger :=
+def addBad (aig : Aiger) (lit : Lit) (symbol : String := "") (h : lit.validIn aig := by grind) : Aiger :=
   { aig with bads := aig.bads.push { lit, symbol } }
 
 end Valaig.Aiger

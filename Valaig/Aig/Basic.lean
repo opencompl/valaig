@@ -42,8 +42,8 @@ deriving Decidable
 @[inline, simp]
 abbrev Lit.validIn (lit : Lit) (aig : Aig.Raw) := lit.var.validIn aig
 
-abbrev Var.In (aig : Aig) := { var : Var // var.validIn aig }
-abbrev Lit.In (aig : Aig) := { lit : Lit // lit.validIn aig }
+abbrev Var.In (aig : Aig.Raw) := { var : Var // var.validIn aig }
+abbrev Lit.In (aig : Aig.Raw) := { lit : Lit // lit.validIn aig }
 
 namespace Aig
 

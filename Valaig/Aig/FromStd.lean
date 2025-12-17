@@ -41,6 +41,8 @@ structure FromStdResult (stdAig : AIG α) where
   refMap : stdAig.Ref -> Lit
   atomMap : α -> Option Var
 
+  hrefvalid : ∀ {ref}, refMap ref |>.validIn aig
+
 def fromStdAIG (stdAig : AIG α) (relabel : α -> RelabelledAtom stdAig) : FromStdResult stdAig :=
   have ⟨state, hstate⟩ := go
 
@@ -56,7 +58,11 @@ def fromStdAIG (stdAig : AIG α) (relabel : α -> RelabelledAtom stdAig) : FromS
 
   let atomMap (atom : α) : Option Var := state.atomMap[atom]?
 
-  { aig, refMap, atomMap }
+  have hrefvalid : ∀ {ref}, refMap ref |>.validIn aig := by
+    simp [refMap]
+    grind only [validIn_finaliseLatches, Array.getElem_mem]
+
+  { aig, refMap, atomMap, hrefvalid }
 
 where
   go (s : FromStdState stdAig := {}) : { s : FromStdState stdAig // s.map.size ≥ stdAig.decls.size } :=
@@ -133,9 +139,10 @@ where
 
 @[inline]
 def fromStdEntrypoint (entry : Entrypoint α) (relabel : α -> RelabelledAtom entry.aig) :
-    FromStdResult entry.aig × Lit :=
+    (result : FromStdResult entry.aig) × (Lit.In result.aig) :=
   let result := fromStdAIG entry.aig relabel
   let lit := result.refMap entry.ref
-  (result, lit)
+  ⟨result, ⟨lit, result.hrefvalid⟩⟩
+
 
 end Valaig.Aig
