@@ -450,7 +450,7 @@ def finaliseLatches.next_eq_some : induction nextState := {
       · rw [Array.getElem_modify_of_ne]
         · apply ha
           grind only
-        · cutsat
+        · lia
 }
 
 theorem finaliseLatches.updateLatches_idx_eq_size_ind (h : state.idx ≤ state.latches.size) :
@@ -464,7 +464,7 @@ theorem finaliseLatches.updateLatches_idx_eq_size_ind (h : state.idx ≤ state.l
     unfold updateLatches
     simp_all
     split
-    · cutsat
+    · lia
     · apply ih
       · simp [State.hsize] at *
         grind

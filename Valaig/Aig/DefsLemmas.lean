@@ -96,6 +96,7 @@ variable
     ∀ {idx}, decls'[i] ≠ .atom (mkAtom idx)}
 include hsize hlt happend
 
+omit happend in
 theorem AtomsInj_unchanged_append (hinjec : AtomsInj arr idx decls mkAtom) :
     AtomsInj arr idx decls' mkAtom := by
   grind only
@@ -107,7 +108,7 @@ theorem AtomsSur_unchanged_append (hsurjec : AtomsSur arr idx decls mkAtom) :
 theorem AtomsBij_unchanged_append (hbijec : AtomsBij arr idx decls mkAtom) :
     AtomsBij arr idx decls' mkAtom := by
   constructor
-  · exact AtomsInj_unchanged_append hbijec.hinjec (hsize := hsize) (hlt := hlt) (happend := happend)
+  · exact AtomsInj_unchanged_append hbijec.hinjec (hsize := hsize) (hlt := hlt)
   · exact AtomsSur_unchanged_append hbijec.hsurjec (hsize := hsize) (hlt := hlt) (happend := happend)
 
 end

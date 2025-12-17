@@ -48,7 +48,7 @@ theorem mkGateCached.go_matches_gate (aig : AIG α) {input : aig.BinaryInput} {i
     {hlow : idx ≥ aig.decls.size} {hhigh : idx < (mkGateCached.go aig input).aig.decls.size} :
     ∃ (lhs rhs : Fanin), (mkGateCached.go aig input).aig.decls[idx] = .gate lhs rhs := by
   generalize hres : (mkGateCached.go aig input).aig.decls = res at *
-  have : aig.decls ≠ res := by cutsat
+  have : aig.decls ≠ res := by lia
   dsimp only [mkGateCached, mkGateCached.go] at hres
   split at hres
   · trivial
