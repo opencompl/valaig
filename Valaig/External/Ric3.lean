@@ -6,6 +6,9 @@ structure rIC3 where
   engine : String := "ic3"
   extraArgs : Array String := #[]
 
+instance : EmptyCollection rIC3 where
+  emptyCollection := {}
+
 instance : ExternalMC rIC3 where
   interpretOutput _ := interpretSatExitCode
 
