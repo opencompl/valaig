@@ -483,6 +483,7 @@ theorem finaliseLatches.updateLatches_next_eq_some :
   apply next_eq_some.lift
   · grind only [updateLatches_idx_eq_size]
 
+@[grind! .]
 theorem finaliseLatches_WF :
     aig.finaliseLatches nextState |>.WF := by
   constructor
