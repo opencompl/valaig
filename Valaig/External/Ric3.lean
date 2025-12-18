@@ -4,7 +4,7 @@ namespace Valaig.External
 
 def rIC3 (engine : String := "ic3") (extraArgs : Array String := #[]) : CertifiedSafetyAigerMC :=
   {
-    interpretOutput := interpretSatExitCode,
+    interpretOutput := interpretSatExitCode "rIC3",
     safetyArgs,
     certifiedSafetyArgs,
   }
