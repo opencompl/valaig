@@ -3,35 +3,21 @@ import Valaig.Aig.Basic
 namespace Valaig
 
 /--
-An extension of the sequential Aig to Aiger outputs
+A thin wrapper over an Aig with additional outputs and invariants for reading/
+writing Aiger files
 -/
-structure Aiger extends Aig where
+structure Aiger where
+  aig : Aig
   bads : Aig.Outputs
+
+  hwf : aig.WF := by grind
+  hbads : ∀ {bad}, bad ∈ bads → bad.lit.validIn aig := by grind
 
   -- TODO: Other properties, invariants for them
 
-instance : Coe Aiger Aig where
-  coe := (·.toAig)
-
 namespace Aiger
-
-@[inline]
-def ofAig (aig : Aig) : Aiger :=
-  {
-    toAig := aig,
-    bads := #[]
-  }
-
-@[inline]
-def empty : Aiger :=
-  ofAig .empty
 
 @[inline, simp]
 abbrev numBads(aig : Aiger) : Nat := aig.bads.size
-
-set_option linter.unusedVariables false in
-@[inline]
-def addBad (aig : Aiger) (lit : Lit) (symbol : String := "") (h : lit.validIn aig := by grind) : Aiger :=
-  { aig with bads := aig.bads.push { lit, symbol } }
 
 end Valaig.Aiger

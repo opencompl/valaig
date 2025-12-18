@@ -115,4 +115,9 @@ end
 
 end
 
+@[simp, grind =]
+theorem Output.mk_lit {lit : Lit} {symbol : String} :
+    (Output.mk lit symbol).lit = lit := by
+  simp [mk]
+
 end Valaig.Aig

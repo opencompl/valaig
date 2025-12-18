@@ -60,8 +60,12 @@ An output of interest in the circuit - this is also used to represent other
 nameable nodes in the Aiger format like bad and constraint nodes
 -/
 structure Output extends WithSymbol where
-  lit : Lit
+  ofRaw ::
+    lit : Lit
 deriving Hashable, DecidableEq, Repr, Inhabited
+
+def Output.mk (lit : Lit) (symbol : String := "") : Output :=
+  { lit, symbol }
 
 abbrev Inputs := Array Input
 abbrev Latches := Array Latch

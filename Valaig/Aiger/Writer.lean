@@ -2,17 +2,17 @@ import Valaig.Aiger.Basic
 
 namespace Valaig.Aiger
 
-def writeAag (aig : Aiger) (file : IO.FS.Stream) (hwf : aig.WF := by trivial) : IO Unit := do
+def writeAag (aig : Aiger) (file : IO.FS.Stream) : IO Unit := do
   -- Aiger 1.9 Header M I L O A B C J F
-  file.putStrLn s!"aag {aig.maxVar.idx} {aig.numInputs} {aig.numLatches} 0 {aig.numGates} {aig.numBads} 0 0 0"
+  file.putStrLn s!"aag {aig.aig.maxVar.idx} {aig.aig.numInputs} {aig.aig.numLatches} 0 {aig.aig.numGates} {aig.numBads} 0 0 0"
 
   -- Input lines
-  for input in aig.inputs do
+  for input in aig.aig.inputs do
     file.putStrLn s!"{input.var.toLit.idx}"
 
   -- Latch lines
-  for h : latch in aig.latches do
-    file.putStr s!"{latch.var.toLit.idx} {latch.next.get (hwf.hnext h) |>.idx}"
+  for h : latch in aig.aig.latches do
+    file.putStr s!"{latch.var.toLit.idx} {latch.next.get (aig.hwf.hnext h) |>.idx}"
     if let some reset := latch.reset then
       file.putStr s!"{reset.idx}"
     file.putStrLn ""
@@ -22,8 +22,8 @@ def writeAag (aig : Aiger) (file : IO.FS.Stream) (hwf : aig.WF := by trivial) : 
     file.putStrLn s!"{bad.lit.idx}"
 
   -- Gates
-  for h : i in [0:aig.aig.decls.size] do
-    if let .gate rhs0 rhs1 := aig.aig.decls[i] then
+  for h : i in [0:aig.aig.aig.decls.size] do
+    if let .gate rhs0 rhs1 := aig.aig.aig.decls[i] then
       let (rhs0, rhs1) := (Lit.ofFanin rhs0, Lit.ofFanin rhs1)
       let lhs := Var.ofIdx i |>.toLit
       file.putStrLn s!"{lhs.idx} {rhs0.idx} {rhs1.idx}"
