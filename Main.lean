@@ -50,6 +50,6 @@ def main : IO Unit := do
   if h : aig.numLatches > 0 then
     throw <| .userError "Has latches!"
   else
-    let ric3 : Valaig.External.rIC3 := {}
+    let ric3 : Valaig.External.rIC3 := ∅
     let res ← Valaig.External.checkSafety ric3 aig (hwf := by grind [Aig.WF])
     IO.println s!"Result: {repr res}"
