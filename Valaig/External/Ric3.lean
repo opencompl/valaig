@@ -2,25 +2,20 @@ import Valaig.External.Basic
 
 namespace Valaig.External
 
-structure rIC3 where
-  engine : String := "ic3"
-  extraArgs : Array String := #[]
-
-instance : EmptyCollection rIC3 where
-  emptyCollection := {}
-
-instance : ExternalMC rIC3 where
-  interpretOutput _ := interpretSatExitCode
-
-instance : SafetyAigerMC rIC3 where
-  safetyArgs (ric3 : rIC3) (problem : System.FilePath) : IO.Process.SpawnArgs :=
+def rIC3 (engine : String := "ic3") (extraArgs : Array String := #[]) : CertifiedSafetyAigerMC :=
+  {
+    interpretOutput := interpretSatExitCode,
+    safetyArgs,
+    certifiedSafetyArgs,
+  }
+where
+  safetyArgs (problem : System.FilePath) : IO.Process.SpawnArgs :=
     let cmd := "rIC3"
-    let args := #["-e", ric3.engine] ++ ric3.extraArgs |>.push problem.toString
+    let args := #["-e", engine] ++ extraArgs |>.push problem.toString
     { cmd, args }
 
-instance : CertifiedSafetyAigerMC rIC3 where
-  certifiedSafetyArgs (ric3 : rIC3) (problem certificate : System.FilePath) : IO.Process.SpawnArgs :=
-    let args := SafetyAigerMC.safetyArgs ric3 problem
+  certifiedSafetyArgs (problem certificate : System.FilePath) : IO.Process.SpawnArgs :=
+    let args := safetyArgs problem
     { args with args := args.args.push certificate.toString }
 
 end Valaig.External
