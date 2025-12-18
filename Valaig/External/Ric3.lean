@@ -2,8 +2,13 @@ import Valaig.External.Basic
 
 namespace Valaig.External
 
-def rIC3 (engine : String := "ic3") (extraArgs : Array String := #[]) : CertifiedSafetyAigerMC :=
+def rIC3
+    (timeoutMs : Option Nat := none)
+    (engine : String := "ic3")
+    (extraArgs : Array String := #[]) :
+    CertifiedSafetyAigerMC :=
   {
+    timeoutMs,
     interpretOutput := interpretSatExitCode "rIC3",
     safetyArgs,
     certifiedSafetyArgs,
