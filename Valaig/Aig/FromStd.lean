@@ -11,14 +11,11 @@ variable {α : Type} [DecidableEq α] [Hashable α]
 open Std.Sat AIG
 
 inductive RelabelledAtom (aig : AIG α) where
-| input
-  (symbol : String := "")
-  : RelabelledAtom aig
+| input (symbol : String := "")
 | latch
   (next : aig.Ref)
   (reset : Bool⊕ Option aig.Ref := .inr none)
   (symbol : String := "")
-  : RelabelledAtom aig
 
 @[unbox, grind]
 private structure FromStdState (stdAig : AIG α) where

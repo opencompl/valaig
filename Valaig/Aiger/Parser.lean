@@ -20,13 +20,14 @@ structure Header where
 deriving Repr, Inhabited
 
 inductive SymbolType where
-| input : SymbolType
-| latch : SymbolType
-| output : SymbolType
-| bad : SymbolType
-| constraint : SymbolType
-| justice : SymbolType
-| fairness : SymbolType
+| input
+| latch
+| output
+| bad
+| constraint
+| justice
+| fairness
+deriving Repr, Inhabited, DecidableEq, BEq, Hashable
 
 abbrev HeaderT := ReaderT Header
 

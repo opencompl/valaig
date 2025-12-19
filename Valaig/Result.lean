@@ -1,13 +1,13 @@
 namespace Valaig
 
 inductive Result where
-| proof : Result
-| counterexample : Result
+| proof
+| counterexample
 deriving Hashable, DecidableEq, Repr, Inhabited
 
 inductive Error where
-| timeout (component : String) (timeMs : Nat) : Error
-| external (msg : String) : Error
+| timeout (component : String) (timeMs : Nat)
+| external (msg : String)
 deriving Hashable, DecidableEq, Repr, Inhabited
 
 instance : ToString Error where

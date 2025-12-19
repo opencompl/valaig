@@ -51,8 +51,8 @@ An atom in the combinational aig is either an input or a latch, which is just
 a reference back to the index in the inputs or latches arrays
 -/
 inductive AtomIdx where
-| input (idx : Nat) : AtomIdx
-| latch (idx : Nat) : AtomIdx
+| input (idx : Nat)
+| latch (idx : Nat)
 deriving Hashable, DecidableEq, Repr, Inhabited
 
 /--
