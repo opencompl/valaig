@@ -4,24 +4,71 @@ namespace Valaig
 
 namespace Var
 
-variable {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α}
-@[simp, grind =]
-theorem ofRef_idx (ref : aig.Ref) :
-    (ofRef ref).idx = ref.gate := by
-  simp only [ofRef]
-
 @[grind =_]
 theorem ext_idx (var var' : Var) :
     var = var' ↔ var.idx = var'.idx := by
   grind only [Var]
 
+@[grind =]
+theorem lt_idx (var var' : Var) :
+    var < var' ↔ var.idx < var'.idx := by
+  simp [instLT, ltOfOrd, instOrdVar.ord, compare]
+
+@[grind =]
+theorem le_idx (var var' : Var) :
+    var ≤ var' ↔ var.idx ≤ var'.idx := by
+  simp [instLE, leOfOrd, instOrdVar.ord, compare, Ordering.isLE, compareOfLessAndEq]
+  grind only
+
+instance : EquivBEq Var where
+  symm := by lia
+  trans := by lia
+
+instance : LawfulHashable Var where
+  hash_eq := by lia
+
+instance : Std.IsLinearOrder Var := by
+  apply Std.IsLinearOrder.of_le
+  <;> constructor
+  <;> grind
+
+instance : Std.LawfulOrderLT Var := by
+  apply Std.LawfulOrderLT.of_le
+  grind
+
+instance : Std.LawfulOrderMin Var := by
+  apply Std.LawfulOrderMin.of_le_min_iff
+  <;> rw [instMin, minOfLe]
+  <;> grind
+
+instance : Std.LawfulOrderMax Var := by
+  apply Std.LawfulOrderMax.of_max_le_iff
+  <;> rw [instMax, maxOfLe]
+  <;> grind
+
+@[simp, grind =]
+theorem ofRef_idx {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α} (ref : aig.Ref) :
+    (ofRef ref).idx = ref.gate := by
+  simp only [ofRef]
+
 end Var
 
 namespace Lit
-variable {lit : Lit} {invert : Bool}
+
+theorem ext_idx (lit lit' : Lit) :
+    lit = lit' ↔ lit.idx = lit'.idx := by
+  grind only [Lit]
+
+instance : EquivBEq Lit where
+  symm := by lia
+  trans := by lia
+
+instance : LawfulHashable Lit where
+  hash_eq := by lia
 
 -- These simp/grind rules are set up to normalize Lit terms to the mk
 -- constructor
+variable {lit : Lit} {invert : Bool}
 
 @[simp, grind =]
 theorem mk_var (var : Var) :
@@ -37,10 +84,6 @@ theorem mk_inverted (var : Var) :
     (Lit.mk var invert).inverted ↔ invert := by
   simp [mk, inverted]
   decide +revert
-
-theorem ext_idx (lit lit' : Lit) :
-    lit = lit' ↔ lit.idx = lit'.idx := by
-  grind only [Lit]
 
 @[grind! .]
 theorem mk_self_eq_self :
@@ -96,12 +139,23 @@ theorem isConstant_iff :
   grind
 
 @[simp, grind =]
-theorem invert_def :
-    lit.invert = mk lit.var ¬lit.inverted := by
-  rw [Lit.ext] <;> simp
+theorem invert_false :
+    lit.invert False = lit := by
+  simp [invert]
+
+@[simp, grind =]
+theorem invert_true :
+    lit.invert True = mk lit.var ¬lit.inverted := by
+  rw [Lit.ext]
+  simp [invert]
   constructor
-  · simp [invert, var, Nat.xor_div_two]
-  · simp [invert, inverted]
+  · simp [var, Nat.xor_div_two]
+  · simp [inverted]
+
+@[simp, grind =]
+theorem invert_def {doInvert : Bool} :
+    lit.invert doInvert = mk lit.var (lit.inverted ≠ doInvert) := by
+  grind
 
 @[simp, grind =]
 theorem strip_def :
@@ -135,5 +189,4 @@ theorem toRef_invert {h : lit.var.idx < aig.decls.size} :
 
 end
 
-end Lit
-end Valaig
+end Valaig.Lit

@@ -10,20 +10,12 @@ structure Var where
     idx : Nat
 deriving Hashable, DecidableEq, Repr, Inhabited, Ord, BEq, ReflBEq, LawfulBEq
 
+namespace Var
+
 instance : LE Var := leOfOrd
 instance : LT Var := ltOfOrd
-
-instance : EquivBEq Var where
-  symm := by simp [BEq.beq, instBEqVar.beq]; omega
-  trans := by simp [BEq.beq, instBEqVar.beq]; omega
-
-instance : LawfulHashable Var where
-  hash_eq := by
-    simp only [BEq.beq, instBEqVar.beq, Hashable.hash, instHashableVar.hash, decide_eq_true_eq]
-    intros
-    congr
-
-namespace Var
+instance : Min Var := minOfLe
+instance : Max Var := maxOfLe
 
 @[inline]
 def constant : Var :=
@@ -49,7 +41,7 @@ Literal: a reference to a variable in an Aig and an inversion
 structure Lit where
   ofIdx ::
     idx : Nat
-deriving Hashable, DecidableEq, Repr, Inhabited, BEq
+deriving Hashable, DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq
 
 namespace Lit
 
@@ -93,9 +85,12 @@ def isTrue (l : Lit) : Prop :=
   l = true
 deriving Decidable
 
-@[inline]
-def invert (l : Lit) : Lit :=
-  .ofIdx <| l.idx ^^^ 1
+@[always_inline]
+def invert (l : Lit) (doInvert : Bool) : Lit :=
+  if doInvert then
+    .ofIdx <| l.idx ^^^ 1
+  else
+    l
 
 -- Clear inverted
 @[inline]

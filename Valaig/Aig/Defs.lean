@@ -33,12 +33,25 @@ instance : Coe Input Lit where
   coe := (·.lit)
 
 /--
-The metadata of a latch in the Aig
+The metadata of a latch in the Aig.
+
+We require all latches to have a next state defined to make it easier to define their semantics,
+even though sometimes this next state can't be known at latch construction time as they are cyclic.
+To accomodate this, the next value should initially be set to a constant, before being subsequently
+overwritten.
+
+We differ from Aiger 1.9 by requiring all latches to have a reset, meaning that all sources of
+nondeterminism in the circuit are due to inputs so are easier to reason about.
+Resets are stratified (acyclic), by requiring that the reset comes before the variable defined by
+this latch. Note that this is not compatible with the binary aiger format, so for binary aiger we
+need to reorder things to prevent this. We prefer this encoding as it is easier to reason about as
+we have an explicit order on variables.
 -/
 structure Latch extends VarDef, WithSymbol where
-  next : Option Lit
-  reset : Option Lit := none
-deriving Hashable, DecidableEq, Repr, Inhabited
+  next : Lit
+  reset : Lit
+  hreset : reset.var < var
+deriving Hashable, DecidableEq, Repr
 
 instance : Coe Latch Var where
   coe := (·.var)
@@ -46,13 +59,16 @@ instance : Coe Latch Var where
 instance : Coe Latch Lit where
   coe := (·.lit)
 
+abbrev InputIdx := Nat
+abbrev LatchIdx := Nat
+
 /--
 An atom in the combinational aig is either an input or a latch, which is just
 a reference back to the index in the inputs or latches arrays
 -/
 inductive AtomIdx where
-| input (idx : Nat)
-| latch (idx : Nat)
+| input (idx : InputIdx)
+| latch (idx : LatchIdx)
 deriving Hashable, DecidableEq, Repr, Inhabited
 
 /--
@@ -111,8 +127,23 @@ structure AtomsBij : Prop where
 attribute [simp] AtomsBij.mk
 
 end
+end Aig
 
-namespace Raw
+@[inline]
+def Aig.Raw.size (aig : Aig.Raw) : Nat := aig.aig.decls.size
+
+@[inline]
+def Var.validIn (var : Var) (aig : Aig.Raw) : Prop :=
+  var.idx < aig.size
+deriving Decidable
+
+@[inline, simp]
+abbrev Lit.validIn (lit : Lit) (aig : Aig.Raw) := lit.var.validIn aig
+
+abbrev Var.In (aig : Aig.Raw) := { var : Var // var.validIn aig }
+abbrev Lit.In (aig : Aig.Raw) := { lit : Lit // lit.validIn aig }
+
+namespace Aig.Raw
 
 @[simp]
 abbrev InputsBij (aig : Raw) :=
@@ -127,8 +158,8 @@ abbrev SingleFalse (aig : Raw) :=
   ∀ {i : Nat} (h : i < aig.aig.decls.size), aig.aig.decls[i] = .false ↔ i = 0
 
 @[simp]
-abbrev NextStateDefined (aig : Raw) :=
-  ∀ {latch} (_ : latch ∈ aig.latches), latch.next.isSome
+abbrev NextsValid (aig : Raw) :=
+  ∀ {i : Nat} (h : i < aig.latches.size), aig.latches[i].next.validIn aig
 
 end Aig.Raw
 
@@ -150,20 +181,10 @@ structure Aig extends Aig.Raw where
   -- in the aig
   hlatches : toRaw.LatchesBij
 
+  -- The next state variable for each latch is valid in this Aig
+  hnexts : toRaw.NextsValid
+
 instance : Coe Aig Aig.Raw where
   coe := (·.toRaw)
-
-structure Aig.WF (aig : Aig) where
-  -- We specify that each latch must have a next state as an external
-  -- well-formedness predicate as
-  hnext : aig.toRaw.NextStateDefined
-
-  -- Resets are stratified. TODO: This definition doesn't work as the binary
-  -- aiger format requires latches come before gates, so you can't define
-  -- interesting reset conditions like this. Instead I think we just want a
-  -- generalized form (maybe we should also be able to switch to a mode where
-  -- this more restrictive constraint is used, it makes checking for cycles etc
-  -- way easier)
-  -- hreset : ∀ {latch}, latch ∈ latches → latch.reset.var < latch.var
 
 end Valaig

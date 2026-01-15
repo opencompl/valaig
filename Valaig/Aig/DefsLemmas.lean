@@ -29,7 +29,7 @@ end
 
 section
 
-variable {arr arr' : Array α} {idx : α -> Nat}
+variable {α : Type} {arr arr' : Array α} {idx : α -> Nat}
 variable {decls decls': Array (Std.Sat.AIG.Decl AtomIdx)}
 variable {mkAtom : Nat -> AtomIdx}
 
@@ -112,12 +112,43 @@ theorem AtomsBij_unchanged_append (hbijec : AtomsBij arr idx decls mkAtom) :
   · exact AtomsSur_unchanged_append hbijec.hsurjec (hsize := hsize) (hlt := hlt) (happend := happend)
 
 end
-
 end
 
 @[simp, grind =]
 theorem Output.mk_lit {lit : Lit} {symbol : String} :
     (Output.mk lit symbol).lit = lit := by
   simp [mk]
+
+end Aig
+
+namespace Var
+variable {var : Var}
+
+theorem validIn_def :
+    var.validIn aig ↔ var.idx < aig.size := by
+  simp only [Var.validIn]
+
+theorem validIn_def' :
+    var.validIn aig ↔ var.idx < aig.aig.decls.size := by
+  simp only [Aig.Raw.size, validIn_def]
+
+end Var
+namespace Aig
+
+@[simp, grind =>]
+theorem validIn_of_aig_eq (aig : Aig.Raw) {aig' : Aig.Raw} {var : Var} (heq : aig'.aig = aig.aig) :
+    var.validIn aig' ↔ var.validIn aig := by
+  simp only [Var.validIn, Aig.Raw.size]
+  lia
+
+theorem validIn_of_ge_size (aig : Aig.Raw) {aig' : Aig.Raw} {var : Var}
+    (hsize : aig'.size ≥ aig.size) (h : var.validIn aig) : var.validIn aig' := by
+  grind [Var.validIn_def]
+
+theorem validIn_push (aig : Aig.Raw) {aig' : Aig.Raw} {var : Var} {decl : Std.Sat.AIG.Decl AtomIdx}
+    (hpush : aig'.aig.decls = aig.aig.decls.push decl) (h : var.validIn aig) : var.validIn aig' := by
+  apply validIn_of_ge_size aig
+  · grind [Aig.Raw.size]
+  · trivial
 
 end Valaig.Aig

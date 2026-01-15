@@ -8,22 +8,27 @@ attribute [local grind! .] Std.Sat.AIG.hconst
 attribute [local grind! .] Aig.hfalse
 attribute [local grind! .] Aig.hinputs
 attribute [local grind! .] Aig.hlatches
+attribute [local grind! .] Aig.hnexts
 
 section
 variable {aig : Aig.Raw}
 
-theorem Var.validIn_def {var : Var} :
-    var.validIn aig ↔ var.idx < aig.size := by
-  simp_all only [Aig.Raw.size, Var.validIn]
-
 @[simp, grind! .]
 theorem Var.constant_validIn : Var.constant.validIn aig := by
-  simp [Var.validIn, Var.constant, aig.aig.hzero, Aig.Raw.size]
+  simp only [Var.validIn, Var.constant, aig.aig.hzero, Aig.Raw.size]
 
 @[simp, grind! .]
 theorem Lit.validIn_mk_validIn {var : Var} (h : var.validIn aig) {invert : Bool} :
     Lit.mk var invert |>.validIn aig := by
   simp_all only [Var.validIn, Aig.Raw.size, Lit.mk_var]
+
+@[simp, grind! .]
+theorem Lit.false_validIn : Lit.false.validIn aig := by
+  simp
+
+@[simp, grind! .]
+theorem Lit.true_validIn : Lit.true.validIn aig := by
+  simp
 
 end
 
@@ -97,7 +102,7 @@ theorem inputs_unique {i j : Nat} (hi : i < aig.numInputs) (hj : j < aig.numInpu
     (heq : aig.inputs[i].var = aig.inputs[j].var) : i = j := by
   grind only [hinputs]
 
-theorem latches_unique {i j : Nat} (hi : i < aig.numLatches) (hj : j < aig.numLatches)
+theorem latches_unique {i j : Nat} {hi : i < aig.numLatches} {hj : j < aig.numLatches}
     (heq : aig.latches[i].var = aig.latches[j].var) : i = j := by
   grind only [hlatches]
 
@@ -134,8 +139,6 @@ theorem latch_mem_matches_latch {latch : Latch} (hmem : latch ∈ aig.latches) :
 section
 variable {aig : Aig} {var : Var}
 variable {symbol : String}
-variable {rhs0 rhs1 : Lit} {h0 : rhs0.validIn aig} {h1 : rhs1.validIn aig}
-variable {next : Lit} {reset : Option Lit}
 
 attribute [local simp] mkAtom_eq_decls_push
 attribute [local simp] mkAtom_ref_eq_decls_size
@@ -155,7 +158,8 @@ theorem validIn_addInput (h : var.validIn aig) :
 
 @[grind! .]
 theorem addInput_validIn :
-    (aig.addInput symbol).snd.var.validIn (aig.addInput symbol).fst := by
+    let (aig', input) := aig.addInput symbol
+    input.var.validIn aig' := by
   simp [addInput, Var.validIn_def]
 
 @[simp]
@@ -205,130 +209,76 @@ theorem addInput_mem_eq {decl} (h : decl ∈ aig) :
   apply addInput_getElem_eq
 
 -- addLatch Lemmas
+section
+variable {next : Lit} {reset : Lit} (hnext : next.validIn aig) (hreset : reset.validIn aig)
 
 theorem addLatch_size_ge :
-    (aig.addLatch next reset symbol).fst.size ≥ aig.size := by
+    (aig.addLatch next reset symbol hnext hreset).fst.size ≥ aig.size := by
   simp [addLatch]
 
 @[grind! .]
 theorem validIn_addLatch (h : var.validIn aig) :
-    var.validIn (aig.addLatch next reset symbol).fst := by
+    var.validIn (aig.addLatch next reset symbol hnext hreset).fst := by
   grind only [addLatch_size_ge, Var.validIn_def]
 
 @[grind! .]
 theorem addLatch_validIn:
-    (aig.addLatch next reset symbol).snd.var.validIn (aig.addLatch next reset symbol).fst := by
+    let (aig', latch) := aig.addLatch next reset symbol hnext hreset
+    latch.var.validIn aig' := by
   simp [addLatch, Var.validIn_def]
 
 @[simp]
 theorem addLatch_latches_eq_push :
-    let (aig', latch) := aig.addLatch next reset symbol
+    let (aig', latch) := aig.addLatch next reset symbol hnext hreset
     aig'.latches = aig.latches.push latch := by
   simp [addLatch]
 
 @[grind! .]
 theorem addLatch_mem_latches :
-    let (aig', latch) := aig.addLatch next reset symbol
+    let (aig', latch) := aig.addLatch next reset symbol hnext hreset
     latch ∈ aig'.latches := by
   grind only [addLatch_latches_eq_push, Array.mem_push]
 
 @[grind! .]
 theorem addLatch_matches_atom_latch :
-    let (eq:=_) (aig', latch) := aig.addLatch next reset symbol
+    let (eq:=_) (aig', latch) := aig.addLatch next reset symbol hnext hreset
     aig'[latch.var]'(by grind only [addLatch_validIn]) matches .atom (.latch _) := by
   apply latch_mem_matches_latch
-  exact addLatch_mem_latches
+  apply addLatch_mem_latches <;> trivial
 
 @[grind! .]
 theorem addLatch_matches_atom :
-    let (eq:=_) (aig', latch) := aig.addLatch next reset symbol
+    let (eq:=_) (aig', latch) := aig.addLatch next reset symbol hnext hreset
     aig'[latch.var]'(by grind only [addLatch_validIn]) matches .atom _ := by
   grind only [addLatch_matches_atom_latch]
 
 @[simp, grind! .]
 theorem addLatch_inputs_eq :
-    (aig.addLatch next reset symbol).fst.inputs = aig.inputs := by
+    (aig.addLatch next reset symbol hnext hreset).fst.inputs = aig.inputs := by
   simp [addLatch]
 
 @[simp, grind! .]
 theorem addLatch_getElem_eq {var : Var} (h : var.validIn aig) :
-    (aig.addLatch next reset symbol).fst[var]'(validIn_addLatch h) = aig[var] := by
+    have hbound := validIn_addLatch hnext hreset h
+    (aig.addLatch next reset symbol hnext hreset).fst[var]'hbound = aig[var] := by
   rw [Var.validIn_def] at h
   simp_all [addLatch, Array.getElem_push_lt]
 
 @[grind! .]
 theorem addLatch_mem_eq {decl} (h : decl ∈ aig) :
-    decl ∈ (aig.addLatch next reset symbol).fst := by
+    decl ∈ (aig.addLatch next reset symbol hnext hreset).fst := by
   rw [mem_iff_getElem] at *
   rcases h with ⟨v, ⟨h, heq⟩⟩
   exists v
-  exists (validIn_addLatch h)
+  exists validIn_addLatch hnext hreset h
   rw [←heq]
   apply addLatch_getElem_eq
 
--- addLatch' Lemmas
-
-theorem addLatch'_size_ge :
-    (aig.addLatch' reset symbol).fst.size ≥ aig.size := by
-  simp [addLatch']
-
-@[grind! .]
-theorem validIn_addLatch' (h : var.validIn aig) :
-    var.validIn (aig.addLatch' reset symbol).fst := by
-  grind only [addLatch'_size_ge, Var.validIn_def]
-
-@[grind! .]
-theorem addLatch'_validIn:
-    (aig.addLatch' reset symbol).snd.var.validIn (aig.addLatch' reset symbol).fst := by
-  simp [addLatch', Var.validIn_def]
-
-@[simp]
-theorem addLatch'_latches_eq_push :
-    let (aig', latch) := aig.addLatch' reset symbol
-    aig'.latches = aig.latches.push latch := by
-  simp [addLatch']
-
-@[grind! .]
-theorem addLatch'_mem_latches :
-    let (aig', latch) := aig.addLatch' reset symbol
-    latch ∈ aig'.latches := by
-  grind only [addLatch'_latches_eq_push, Array.mem_push]
-
-@[grind! .]
-theorem addLatch'_matches_atom_latch :
-    let (eq:=_) (aig', latch) := aig.addLatch' reset symbol
-    aig'[latch.var]'(by grind only [addLatch'_validIn]) matches .atom (.latch _) := by
-  apply latch_mem_matches_latch
-  exact addLatch'_mem_latches
-
-@[grind! .]
-theorem addLatch'_matches_atom :
-    let (eq:=_) (aig', latch) := aig.addLatch' reset symbol
-    aig'[latch.var]'(by grind only [addLatch'_validIn]) matches .atom _ := by
-  grind only [addLatch'_matches_atom_latch]
-
-@[simp, grind! .]
-theorem addLatch'_inputs_eq :
-    (aig.addLatch' reset symbol).fst.inputs = aig.inputs := by
-  simp [addLatch']
-
-@[simp, grind! .]
-theorem addLatch'_getElem_eq {var : Var} (h : var.validIn aig) :
-    (aig.addLatch' reset symbol).fst[var]'(validIn_addLatch' h) = aig[var] := by
-  rw [Var.validIn_def] at h
-  simp_all [addLatch', Array.getElem_push_lt]
-
-@[grind! .]
-theorem addLatch'_mem_eq {decl} (h : decl ∈ aig) :
-    decl ∈ (aig.addLatch' reset symbol).fst := by
-  rw [mem_iff_getElem] at *
-  rcases h with ⟨v, ⟨h, heq⟩⟩
-  exists v
-  exists (validIn_addLatch' h)
-  rw [←heq]
-  apply addLatch'_getElem_eq
+end
 
 -- addGate Lemmas
+section
+variable {rhs0 rhs1 : Lit} {h0 : rhs0.validIn aig} {h1 : rhs1.validIn aig}
 
 theorem addGate_size_ge :
     (aig.addGate rhs0 rhs1 h0 h1).fst.size ≥ aig.size := by
@@ -341,7 +291,8 @@ theorem validIn_addGate (h : var.validIn aig) :
 
 @[grind! .]
 theorem addGate_validIn:
-    (aig.addGate rhs0 rhs1 h0 h1).snd.validIn (aig.addGate rhs0 rhs1 h0 h1).fst := by
+    let (aig', gate) := aig.addGate rhs0 rhs1 h0 h1
+    gate.validIn aig' := by
   simp [addGate, Var.validIn_def]
   have (r : Std.Sat.AIG.Entrypoint Aig.AtomIdx) := r.ref.hgate
   grind only
@@ -373,135 +324,15 @@ theorem addGate_mem_eq {decl} (h : decl ∈ aig) :
 
 end
 
+-- setNexts Lemmas
 section
+variable {f : (latch : Latch) -> latch ∈ aig.latches -> Lit.In aig}
 
--- TODO: These proofs are messy
-
-variable {nextState : (latch : Latch) -> latch ∈ aig.latches -> Lit.In aig}
-variable {init state : finaliseLatches.State aig}
-
-structure finaliseLatches.induction (nextState : (latch : Latch) -> latch ∈ aig.latches -> Lit.In aig) where
-  motive (init state : State aig) : Prop
-  hinit : motive (.empty aig) (.empty aig)
-  htrans (init state : State aig) (hidx : state.idx ≥ init.idx) {h} :
-    motive init state -> motive init (step aig nextState state h)
-
-theorem finaliseLatches.induction.lift' (thm : induction nextState)
-    (hmotive : thm.motive init state) (hidx : state.idx ≥ init.idx) :
-    thm.motive init (updateLatches aig nextState (s := state)) := by
-  induction h : (state.latches.size - state.idx) generalizing state with
-  | zero =>
-    unfold updateLatches
-    grind only
-  | succ n' ih =>
-    unfold updateLatches
-    split
-    · trivial
-    · simp_all
-      apply ih
-      · apply thm.htrans
-        · exact hidx
-        · exact hmotive
-      · grind only [State.hsize]
-      · grind only [State.hsize]
-
-theorem finaliseLatches.induction.lift (thm : induction nextState) :
-    thm.motive (.empty aig) (updateLatches aig nextState (s := .empty aig)) := by
-  apply lift'
-  · exact thm.hinit
-  · omega
-
-theorem finaliseLatches.updateLatches_size_const :
-    let state' := (finaliseLatches.updateLatches aig nextState (s := state))
-    state'.latches.size = state.latches.size := by
-  intro state'
-  simp_all only [state.hsize, state'.hsize]
-
-def finaliseLatches.modified_once : induction nextState := {
-  motive init state := ∀ {i} (_ : i < state.latches.size) (_ : i < init.idx),
-    state.latches[i] = init.latches[i]'(by grind only [updateLatches_size_const])
-
-  hinit := by grind only
-  htrans := by
-    intro init state _ _ _ i
-    unfold step
-    by_cases h : state.latches[state.idx].next.isSome
-    · rcases Option.isSome_iff_exists.mp h with ⟨latch, heq⟩
-      grind only
-    · grind only [Array.getElem_modify]
-}
-
-def finaliseLatches.next_eq_some : induction nextState := {
-  motive init state := 
-    ∀ {i} (_ : i < state.latches.size) (_ : i < state.idx),
-      state.latches[i].next.isSome
-
-  hinit := by grind only [State.empty],
-
-  htrans := by
-    intro init state hidx h ha i hi _
-    unfold step
-    by_cases h : state.latches[state.idx].next.isSome
-    · rcases Option.isSome_iff_exists.mp h with ⟨latch, heq⟩
-      grind only
-    · simp_all
-      by_cases i = state.idx
-      · simp_all [Array.getElem_modify_self]
-      · rw [Array.getElem_modify_of_ne]
-        · apply ha
-          grind only
-        · lia
-}
-
-theorem finaliseLatches.updateLatches_idx_eq_size_ind (h : state.idx ≤ state.latches.size) :
-    let state' := (finaliseLatches.updateLatches aig nextState (s := state))
-    state'.idx = state'.latches.size := by
-  induction h : (state.latches.size - state.idx) generalizing state with
-  | zero =>
-    unfold updateLatches
-    grind only
-  | succ n' ih =>
-    unfold updateLatches
-    simp_all
-    split
-    · lia
-    · apply ih
-      · simp [State.hsize] at *
-        grind
-      · grind only [State.hsize]
-
-theorem finaliseLatches.updateLatches_idx_eq_size :
-    let state' := (finaliseLatches.updateLatches aig nextState)
-    state'.idx = state'.latches.size := by
-  apply updateLatches_idx_eq_size_ind
-  · simp only [State.empty, Nat.zero_le]
-
-theorem finaliseLatches.updateLatches_next_eq_some :
-    let state' := (finaliseLatches.updateLatches aig nextState)
-    ∀ {i} (_ : i < state'.latches.size), state'.latches[i].next.isSome := by
-  intros
-  apply next_eq_some.lift
-  · grind only [updateLatches_idx_eq_size]
-
-@[grind! .]
-theorem finaliseLatches_WF :
-    aig.finaliseLatches nextState |>.WF := by
-  constructor
-  · grind only [finaliseLatches, Array.mem_iff_getElem, finaliseLatches.updateLatches_next_eq_some]
-
-theorem finaliseLatches_aig_eq :
-    (aig.finaliseLatches nextState).aig = aig.aig := by
-  simp only [finaliseLatches]
-
-theorem finaliseLatches_inputs_eq :
-    (aig.finaliseLatches nextState).inputs = aig.inputs := by
-  simp only [finaliseLatches]
-
-@[grind! .]
-theorem validIn_finaliseLatches {var : Var} (h : var.validIn aig) :
-    var.validIn (aig.finaliseLatches nextState) := by
-  simp_all only [Var.validIn, Raw.size, finaliseLatches_aig_eq]
+theorem validIn_setNexts (h : var.validIn aig) :
+    var.validIn (aig.setNexts f) := by
+  simpa only [setNexts, validIn_of_aig_eq aig]
 
 end
 
+end
 end Valaig.Aig

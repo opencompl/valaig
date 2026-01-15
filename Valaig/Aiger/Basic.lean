@@ -10,9 +10,7 @@ structure Aiger where
   aig : Aig
   bads : Aig.Outputs
 
-  hwf : aig.WF := by grind
   hbads : ∀ {bad}, bad ∈ bads → bad.lit.validIn aig := by grind
-
   -- TODO: Other properties, invariants for them
 
 namespace Aiger
