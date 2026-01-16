@@ -86,7 +86,7 @@ def isTrue (l : Lit) : Prop :=
 deriving Decidable
 
 @[always_inline]
-def invert (l : Lit) (doInvert : Bool) : Lit :=
+def invert (l : Lit) (doInvert : Bool := .true) : Lit :=
   if doInvert then
     .ofIdx <| l.idx ^^^ 1
   else

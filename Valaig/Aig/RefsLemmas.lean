@@ -140,12 +140,12 @@ theorem isConstant_iff :
 
 @[simp, grind =]
 theorem invert_false :
-    lit.invert False = lit := by
+    lit.invert .false = lit := by
   simp [invert]
 
 @[simp, grind =]
 theorem invert_true :
-    lit.invert True = mk lit.var ¬lit.inverted := by
+    lit.invert .true = mk lit.var ¬lit.inverted := by
   rw [Lit.ext]
   simp [invert]
   constructor
