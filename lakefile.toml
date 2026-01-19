@@ -2,6 +2,9 @@ name = "valaig"
 version = "0.1.0"
 defaultTargets = ["valaig"]
 
+[leanOptions]
+experimental.module = true
+
 [[lean_lib]]
 name = "Valaig"
 

@@ -1,21 +1,74 @@
-import Std.Sat.AIG.Basic
+module
 
+public import Std.Sat.AIG.Basic
+
+public section
 namespace Valaig
 
 /--
 Variable: a reference to a node in an Aig based on its index
 -/
 structure Var where
-  ofIdx ::
-    idx : Nat
-deriving Hashable, DecidableEq, Repr, Inhabited, Ord, BEq, ReflBEq, LawfulBEq
+  ofIdx :: idx : Nat
 
 namespace Var
 
-instance : LE Var := leOfOrd
-instance : LT Var := ltOfOrd
+deriving instance DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq for Var
+
+instance : EquivBEq Var := by constructor
+
+@[local grind =_]
+theorem ext_idx (var var' : Var) :
+    var = var' ↔ var.idx = var'.idx := by
+  grind only [Var]
+
+-- Instantiate these directly for inlining
+instance : Ord Var where compare := (compare ·.idx ·.idx)
+
+instance : LE Var where le := (·.idx ≤ ·.idx)
+instance : DecidableLE Var := fun a b =>
+  decidable_of_bool (a.idx ≤ b.idx) (by simp [Var.instLE])
+
+@[local grind =]
+theorem le_idx (var var' : Var) :
+    var ≤ var' ↔ var.idx ≤ var'.idx := by
+  simp [instLE]
+
+instance : Std.IsLinearOrder Var := by
+  apply Std.IsLinearOrder.of_le
+  <;> constructor
+  <;> grind
+
+instance : LT Var where lt := (·.idx < ·.idx)
+instance : DecidableLT Var := fun a b =>
+  decidable_of_bool (a.idx < b.idx) (by simp [Var.instLT])
+
+@[local grind =]
+theorem lt_idx (var var' : Var) :
+    var < var' ↔ var.idx < var'.idx := by
+  simp [instLT]
+
+instance : Std.LawfulOrderLT Var := by
+  apply Std.LawfulOrderLT.of_le
+  grind
+
 instance : Min Var := minOfLe
+
+instance : Std.LawfulOrderMin Var := by
+  apply Std.LawfulOrderMin.of_le_min_iff
+  <;> rw [instMin, minOfLe]
+  <;> grind
+
 instance : Max Var := maxOfLe
+
+instance : Std.LawfulOrderMax Var := by
+  apply Std.LawfulOrderMax.of_max_le_iff
+  <;> rw [instMax, maxOfLe]
+  <;> grind
+
+-- Hash the inner value directly to avoid a mixHash use
+instance : Hashable Var where hash := (hash ·.idx)
+instance : LawfulHashable Var where hash_eq := by simp
 
 @[inline]
 def constant : Var :=
@@ -23,7 +76,7 @@ def constant : Var :=
 
 @[inline]
 def offset (v : Var) (n : Nat) : Var :=
-  .ofIdx <| (v.idx + n)
+  .ofIdx (v.idx + n)
 
 @[inline]
 def next (v : Var) : Var :=
@@ -33,17 +86,32 @@ def next (v : Var) : Var :=
 def ofRef {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α} (ref : aig.Ref) : Var :=
   .ofIdx ref.gate
 
+@[simp, grind =]
+theorem ofRef_idx {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α} (ref : aig.Ref) :
+    (ofRef ref).idx = ref.gate := by
+  simp only [ofRef]
+
 end Var
 
 /--
-Literal: a reference to a variable in an Aig and an inversion
+Literal: an invertible reference to a Variable in an Aig
 -/
 structure Lit where
-  ofIdx ::
-    idx : Nat
-deriving Hashable, DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq
+  ofIdx :: idx : Nat
 
 namespace Lit
+
+deriving instance DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq for Lit
+
+instance : EquivBEq Lit := by constructor
+
+theorem ext_idx (lit lit' : Lit) :
+    lit = lit' ↔ lit.idx = lit'.idx := by
+  grind only [Lit]
+
+-- Hash the inner value directly to avoid a mixHash use
+instance : Hashable Lit where hash := (hash ·.idx)
+instance : LawfulHashable Lit where hash_eq := by simp
 
 @[inline]
 def mk (v : Var) (invert : Bool := false) : Lit :=
@@ -85,7 +153,7 @@ def isTrue (l : Lit) : Prop :=
   l = true
 deriving Decidable
 
-@[always_inline]
+@[inline]
 def invert (l : Lit) (doInvert : Bool := .true) : Lit :=
   if doInvert then
     .ofIdx <| l.idx ^^^ 1
@@ -123,5 +191,5 @@ abbrev toLit (v : Var) (invert : Bool := false) : Lit :=
   .mk v invert
 
 end Var
-
 end Valaig
+end
