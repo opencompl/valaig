@@ -87,7 +87,7 @@ def next (v : Var) : Var :=
 def ofRef {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α} (ref : aig.Ref) : Var :=
   .ofIdx ref.gate
 
-@[simp, grind =]
+@[simp, grind! .]
 theorem ofRef_idx {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α} (ref : aig.Ref) :
     (ofRef ref).idx = ref.gate := by
   simp only [ofRef]

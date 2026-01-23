@@ -5,6 +5,8 @@ import Valaig.Aig.DefsLemmas
 import Valaig.Aig.RefsLemmas
 import Valaig.ForStd
 
+open Valaig.Aig.Std
+
 namespace Valaig.Aig.Raw
 
 attribute [local simp, local grind] Raw.size

@@ -1,10 +1,13 @@
-import Std.Sat.AIG.Basic
-import Std.Sat.AIG.Cached
-import Std.Sat.AIG.CachedGates
-import Std.Sat.AIG.CachedLemmas
-import Std.Sat.AIG.CachedGatesLemmas
+module
 
-namespace Valaig.Aig
+public import Std.Sat.AIG.Basic
+public import Std.Sat.AIG.Cached
+public import Std.Sat.AIG.CachedGates
+public import Std.Sat.AIG.CachedLemmas
+public import Std.Sat.AIG.CachedGatesLemmas
+
+public section
+namespace Valaig.Aig.Std
 
 open Std.Sat AIG
 
@@ -25,14 +28,14 @@ theorem mkAtom_size (aig : AIG α) (var : α) :
   simp only [mkAtom_eq_decls_push, Array.size_push]
 
 /--
-`AIG.mkAtom` returns a reference to the next element in the underlying AIG
+`AIG.mkAtom` returns a reference to the next element in the underlying AIG.
 -/
 theorem mkAtom_ref_eq_decls_size (aig : AIG α) (var : α) :
     (aig.mkAtom var).ref.gate = aig.decls.size := by
   simp only [mkAtom]
 
 /--
-- `AIG.mkGate` only potentially appends gates, not atoms/constants
+`AIG.mkGate` only potentially appends gates, not atoms/constants.
 -/
 theorem mkGate_matches_gate (aig : AIG α) {input : aig.BinaryInput} {idx : Nat}
     {hlow : idx ≥ aig.decls.size} {hhigh : idx < (aig.mkGate input).aig.decls.size} :
@@ -44,7 +47,7 @@ theorem mkGate_matches_gate (aig : AIG α) {input : aig.BinaryInput} {idx : Nat}
     exact Nat.eq_of_le_of_lt_succ hlow hhigh
   simp [←hres, heq]
 
-theorem mkGateCached.go_matches_gate (aig : AIG α) {input : aig.BinaryInput} {idx : Nat}
+private theorem mkGateCached.go_matches_gate (aig : AIG α) {input : aig.BinaryInput} {idx : Nat}
     {hlow : idx ≥ aig.decls.size} {hhigh : idx < (mkGateCached.go aig input).aig.decls.size} :
     ∃ (lhs rhs : Fanin), (mkGateCached.go aig input).aig.decls[idx] = .gate lhs rhs := by
   generalize hres : (mkGateCached.go aig input).aig.decls = res at *
@@ -56,7 +59,7 @@ theorem mkGateCached.go_matches_gate (aig : AIG α) {input : aig.BinaryInput} {i
     · grind only [Array.getElem_push]
 
 /--
-- `AIG.mkGateCached` only potentially appends gates, not atoms/constants
+`AIG.mkGateCached` only potentially appends gates, not atoms/constants.
 -/
 theorem mkGateCached_matches_gate (aig : AIG α) {input : aig.BinaryInput} {idx : Nat}
     {hlow : idx ≥ aig.decls.size} {hhigh : idx < (aig.mkGateCached input).aig.decls.size} :
@@ -65,11 +68,11 @@ theorem mkGateCached_matches_gate (aig : AIG α) {input : aig.BinaryInput} {idx 
   split <;> apply mkGateCached.go_matches_gate <;> trivial
 
 /--
-- `AIG.mkAndCached` only potentially appends gates, not atoms/constants
+`AIG.mkAndCached` only potentially appends gates, not atoms/constants.
 -/
 theorem mkAndCached_matches_gate (idx : Nat) (aig : AIG α) (input : aig.BinaryInput)
     {hlow : idx ≥ aig.decls.size} {hhigh : idx < (aig.mkAndCached input).aig.decls.size} :
     ∃ (lhs rhs : Fanin), (aig.mkAndCached input).aig.decls[idx] = .gate lhs rhs := by
   simp_all only [mkAndCached, mkGateCached_matches_gate]
 
-end Valaig.Aig
+end Valaig.Aig.Std

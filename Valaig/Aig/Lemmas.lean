@@ -2,6 +2,8 @@ import Valaig.Aig.Basic
 
 namespace Valaig
 
+open Valaig.Aig.Std
+
 attribute [local grind] Aig.Raw.aig
 attribute [local grind! .] Std.Sat.AIG.hzero
 attribute [local grind! .] Std.Sat.AIG.hconst
