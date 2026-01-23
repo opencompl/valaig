@@ -21,29 +21,31 @@ attribute [local grind] InputIdx LatchIdx
 attribute [local grind =_] Var.ext_idx
 
 section input
+variable {input : InputIdx} {valid : input.validIn aig}
 
 @[simp, grind =]
-theorem InputIdx.setVar_genericIdx_mono (idx : GenericIdx) :
-    idx.validIn (setVar input aig var valid) ↔ idx.validIn aig := by
+theorem InputIdx.setVar_genericIdx_mono {var : Var} (idx : GenericIdx) :
+    idx.validIn (input.setVar aig var valid) ↔ idx.validIn aig := by
   simp
 
 end input
 
 section latch
+variable {latch : LatchIdx} {valid : latch.validIn aig}
 
 @[simp, grind =]
-theorem LatchIdx.setVar_genericIdx_mono (idx : GenericIdx) :
+theorem LatchIdx.setVar_genericIdx_mono {var : Var} (idx : GenericIdx) :
     idx.validIn (setVar latch aig var valid) ↔ idx.validIn aig := by
   simp
 
 @[simp, grind =]
-theorem LatchIdx.setNext_genericIdx_mono (idx : GenericIdx) :
+theorem LatchIdx.setNext_genericIdx_mono {next : Lit} (idx : GenericIdx) :
     idx.validIn (setNext latch aig next valid) ↔ idx.validIn aig := by
   simp
 
 @[simp, grind =]
-theorem LatchIdx.setReset_genericIdx_mono (idx : GenericIdx) :
-    idx.validIn (setReset latch aig next valid) ↔ idx.validIn aig := by
+theorem LatchIdx.setReset_genericIdx_mono {reset : Lit} (idx : GenericIdx) :
+    idx.validIn (setReset latch aig reset valid) ↔ idx.validIn aig := by
   simp
 
 end latch
@@ -74,6 +76,9 @@ theorem Aig.addInput_newInput_validIn :
     aig.addInput.snd.validIn aig.addInput.fst := by
   simp
 
+section latch
+variable {next reset : Lit}
+
 /-
 addLatch Lemmas.
 -/
@@ -96,9 +101,11 @@ theorem Aig.addLatch_newLatch_validIn :
     (aig.addLatch next reset).snd.validIn (aig.addLatch next reset).fst := by
   simp
 
+end latch
 end atom
 
 section gate
+variable {rhs0 rhs1 : Lit} {h0 : rhs0.validIn aig} {h1 : rhs1.validIn aig}
 attribute [local grind! .] Std.Sat.AIG.mkAndCached_le_size
 
 /-
