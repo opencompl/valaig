@@ -33,7 +33,9 @@ abbrev Inputs := Array Input
 abbrev Latches := Array Latch
 
 end Valaig.Aig
-public section pub
+
+-- Switch to public
+public section
 namespace Valaig.Aig
 
 /--
@@ -277,4 +279,3 @@ def addAnd (aig : Aig) (rhs0 rhs1 : Lit)
   (aig, .ofRef res.ref)
 
 end Valaig.Aig
-end pub
