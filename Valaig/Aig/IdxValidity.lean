@@ -1,24 +1,17 @@
 module
 
 public import Valaig.Aig.BasicNew
-public import Valaig.Aig.RefsLemmas
 import all Valaig.Aig.BasicNew
-public import Valaig.Aig.StdSatLemmas
+public import Valaig.Aig.RefsLemmas
 
 public section pub
 namespace Valaig.Aig
 variable {aig : Aig}
 
 -- Let grind/simp see inside all the definitions
+setup_get_set_definitions
 attribute [local simp, local grind]
   Var.validIn Lit.validIn InputIdx.validIn LatchIdx.validIn GenericIdx.validIn
-  InputIdx.setVar InputIdx.getVar
-  LatchIdx.setVar LatchIdx.setNext LatchIdx.setReset
-  LatchIdx.getVar LatchIdx.getNext LatchIdx.getReset
-  Aig.size Aig.addInput Aig.addLatch Aig.addAnd
-
-attribute [local grind] InputIdx LatchIdx
-attribute [local grind =_] Var.ext_idx
 
 section input
 variable {input : InputIdx} {valid : input.validIn aig}
@@ -51,20 +44,18 @@ theorem LatchIdx.setReset_genericIdx_mono {reset : Lit} (idx : GenericIdx) :
 end latch
 
 section atom
-attribute [local simp, local grind =]
-  Std.mkAtom_eq_decls_push Std.mkAtom_size Std.mkAtom_ref_eq_decls_size
 
 /-
 addInput Lemmas.
 -/
 
 @[grind .]
-theorem Aig.addInput_genericIdx_mono_impl (idx : GenericIdx) :
+theorem addInput_genericIdx_mono_impl (idx : GenericIdx) :
     idx.validIn aig → idx.validIn aig.addInput.fst := by
   simp; grind only
 
 @[simp, grind =]
-theorem Aig.addInput_genericIdx_mono (idx : GenericIdx) :
+theorem addInput_genericIdx_mono (idx : GenericIdx) :
     idx.validIn aig.addInput.fst ↔
     (idx.validIn aig
     ∨ idx = .input aig.addInput.snd
@@ -72,24 +63,23 @@ theorem Aig.addInput_genericIdx_mono (idx : GenericIdx) :
   simp; grind
 
 @[grind .]
-theorem Aig.addInput_newInput_validIn :
+theorem addInput_self_validIn :
     aig.addInput.snd.validIn aig.addInput.fst := by
   simp
-
-section latch
-variable {next reset : Lit}
 
 /-
 addLatch Lemmas.
 -/
+section latch
+variable {next reset : Lit}
 
 @[grind .]
-theorem Aig.addLatch_genericIdx_mono_impl (idx : GenericIdx) :
+theorem addLatch_genericIdx_mono_impl (idx : GenericIdx) :
     idx.validIn aig → idx.validIn (aig.addLatch next reset).fst := by
   simp; grind only
 
 @[simp, grind =]
-theorem Aig.addLatch_genericIdx_mono (idx : GenericIdx) :
+theorem addLatch_genericIdx_mono (idx : GenericIdx) :
     idx.validIn (aig.addLatch next reset).fst ↔
     (idx.validIn aig
     ∨ idx = .latch (aig.addLatch next reset).snd
@@ -97,28 +87,26 @@ theorem Aig.addLatch_genericIdx_mono (idx : GenericIdx) :
   simp; grind
 
 @[grind .]
-theorem Aig.addLatch_newLatch_validIn :
+theorem addLatch_self_validIn :
     (aig.addLatch next reset).snd.validIn (aig.addLatch next reset).fst := by
   simp
 
 end latch
 end atom
 
-section gate
-variable {rhs0 rhs1 : Lit} {h0 : rhs0.validIn aig} {h1 : rhs1.validIn aig}
-attribute [local grind! .] Std.Sat.AIG.mkAndCached_le_size
-
 /-
 addAnd Lemmas.
 -/
+section gate
+variable {rhs0 rhs1 : Lit} {h0 : rhs0.validIn aig} {h1 : rhs1.validIn aig}
 
 @[grind .]
-theorem Aig.addAnd_genericIdx_mono_impl (idx : GenericIdx) :
+theorem addAnd_genericIdx_mono_impl (idx : GenericIdx) :
     idx.validIn aig → idx.validIn (aig.addAnd rhs0 rhs1 h0 h1).fst := by
   simp; grind
 
 @[grind .]
-theorem Aig.addAnd_newAnd_validIn :
+theorem addAnd_self_validIn :
     (aig.addAnd rhs0 rhs1 h0 h1).snd.validIn (aig.addAnd rhs0 rhs1 h0 h1).fst := by
   simp
   -- TODO: Whycan't I get grind to see this another way
@@ -126,5 +114,3 @@ theorem Aig.addAnd_newAnd_validIn :
   grind only
 
 end gate
-
-end Valaig.Aig

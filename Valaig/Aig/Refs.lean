@@ -195,4 +195,3 @@ abbrev toLit (v : Var) (invert : Bool := false) : Lit :=
   .mk v invert
 
 end Var
-end Valaig

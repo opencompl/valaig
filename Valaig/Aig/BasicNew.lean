@@ -2,6 +2,7 @@ module
 
 public import Std.Sat.AIG.Basic
 public import Std.Sat.AIG.CachedGates
+public import Valaig.Aig.StdSatLemmas
 public import Valaig.Aig.Refs
 public import Valaig.ForStd
 
@@ -278,4 +279,24 @@ def addAnd (aig : Aig) (rhs0 rhs1 : Lit)
   let aig := { aig with aig := res.aig }
   (aig, .ofRef res.ref)
 
-end Valaig.Aig
+/-
+Macro to mark get/set definitions for simp/grind and lemmas about the functions from Std.Sat.AIG.
+This should only be used in this directory for establishing the external invariants.
+-/
+scoped macro "setup_get_set_definitions" : command => `(
+  attribute [local simp, local grind]
+    Aig.get Aig.size
+    InputIdx.setVar InputIdx.getVar
+    LatchIdx.setVar LatchIdx.setNext LatchIdx.setReset
+    LatchIdx.getVar LatchIdx.getNext LatchIdx.getReset
+    Aig.addInput Aig.addLatch Aig.addAnd
+
+  attribute [local grind] InputIdx LatchIdx
+  attribute [local grind =_] Var.ext_idx
+
+  attribute [local simp, local grind =]
+    Std.mkAtom_eq_decls_push Std.mkAtom_size Std.mkAtom_ref_eq_decls_size
+    Std.Sat.AIG.mkAndCached_decl_eq
+
+  attribute [local grind! .] Std.Sat.AIG.mkAndCached_le_size
+)

@@ -145,4 +145,3 @@ theorem toRef_invert {h : lit.var.idx < aig.decls.size} :
 end
 
 end Lit
-end Valaig
