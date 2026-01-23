@@ -6,10 +6,11 @@ public section
 namespace Valaig
 
 /--
-Variable: a reference to a node in an Aig based on its index
+Variable: a reference to a node in an Aig based on its index.
 -/
 structure Var where
-  ofIdx :: idx : Nat
+  ofIdx ::
+    idx : Nat
 
 namespace Var
 
@@ -94,10 +95,12 @@ theorem ofRef_idx {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α} (re
 end Var
 
 /--
-Literal: an invertible reference to a Variable in an Aig
+Literal: an invertible reference to a Variable in an Aig.
 -/
 structure Lit where
-  ofIdx :: idx : Nat
+  -- TODO: It would be nice to mark this constructor private but the parser uses it currently.
+  ofIdx ::
+    idx : Nat
 
 namespace Lit
 
@@ -165,9 +168,10 @@ def invert (l : Lit) (doInvert : Bool := .true) : Lit :=
 def strip (l : Lit) : Lit :=
   .ofIdx <| l.idx ^^^ (l.idx &&& 1)
 
+-- Currently Lit and Fanin use the same bit stuffing so we can losslessly convert between them
 @[inline]
 def ofFanin (fi : Std.Sat.AIG.Fanin) : Lit :=
-  mk (.ofIdx fi.gate) fi.invert
+  .ofIdx fi.val
 
 section
 variable {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α}

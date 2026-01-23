@@ -108,9 +108,21 @@ theorem strip_def :
   · simp [var, Nat.xor_div_two]
   · simp [inverted]
 
-theorem ofFanin_def (fi : Std.Sat.AIG.Fanin) :
+open Std.Sat.AIG in
+@[simp, grind =]
+theorem ofFanin_def (fi : Fanin) :
     ofFanin fi = mk (.ofIdx fi.gate) fi.invert := by
-  rw [ofFanin]
+  rw [ext]
+  unfold ofFanin Fanin.gate Fanin.invert mk var inverted
+  simp [Nat.or_div_two]
+  constructor
+  · conv =>
+      pattern Bool.toNat _ / 2
+      rw [Nat.div_eq_of_lt]
+      · skip
+      · apply Bool.toNat_lt
+    rw [Nat.or_zero]
+  · grind only [Bool.toNat_true, Bool.toNat_false]
 
 section
 variable {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α}

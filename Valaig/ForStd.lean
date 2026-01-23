@@ -1,4 +1,6 @@
+module
 
+public section
 namespace Array
 
 variable {α : Type}
@@ -8,7 +10,7 @@ variable {α : Type}
 -- performance
 
 @[inline]
-unsafe def modifyMemUnsafe (xs : Array α) (i : Nat) (h : i < xs.size)
+private unsafe def modifyMemUnsafe (xs : Array α) (i : Nat) (h : i < xs.size)
     (f : { a : α // xs[i] = a } → α) : Array α :=
   let v := xs[i]
   -- Replace a[i] by `box(0)`.  This ensures that `v` remains unshared if possible.
@@ -124,3 +126,4 @@ theorem getElem_mapMem {i : Nat} (f : (i : Nat) → (h : i < xs.size) → (a : �
 end
 
 end Array
+end
