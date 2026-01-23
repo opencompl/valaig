@@ -8,6 +8,7 @@ open Valaig.Aig
 
 structure ExternalMC where
   timeoutMs : Option Nat := none
+  supportsAag : Bool := true
   interpretOutput (output : IO.Process.Output) : EResult
 
 structure SafetyAigerMC extends ExternalMC where
@@ -71,9 +72,15 @@ def checkSafety (config : SafetyAigerMC) (aig : Aiger) : IO EResult := do
   IO.FS.withTempDir fun dir => do
     -- Some solvers need the extension to be aag to work correctly so we create
     -- such a file rather than just using withTempFile
-    let path := dir / "model.aag"
-    IO.FS.withFile path .write fun handle => do
+    let aagPath := dir / "model.aag"
+    let aigPath := dir / "model.aig"
+    IO.FS.withFile aagPath .write fun handle => do
       aig.writeAag <| IO.FS.Stream.ofHandle handle
+
+      if ¬config.supportsAag then
+        let _ ← runProcess none { cmd := "aigtoaig", args := #[aagPath.toString, aigPath.toString] }
+
+      let path := if config.supportsAag then aagPath else aigPath
       let out ← runProcess config.timeoutMs (config.safetyArgs path)
       return out >>= config.interpretOutput
 
