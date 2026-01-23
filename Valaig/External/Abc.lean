@@ -2,7 +2,8 @@ import Valaig.External.Basic
 
 namespace Valaig.External
 
-def Abc.dsec (timeoutMs : Option Nat := none) : SafetyAigerMC :=
+-- Currently just an scorr/pdr setup
+def Abc (timeoutMs : Option Nat := none) : SafetyAigerMC :=
   {
     timeoutMs,
     supportsAag := false,
@@ -12,12 +13,14 @@ def Abc.dsec (timeoutMs : Option Nat := none) : SafetyAigerMC :=
 where
   safetyArgs (problem : System.FilePath) : IO.Process.SpawnArgs :=
     let cmd := "abc"
-    let cmdStr := s!"read {problem.toString}; "
+    -- Commands from https://github.com/berkeley-abc/abc/issues/281
+    -- We use scorr before pdr as it helps on the Blase equivalence checking problems
+    let cmdStr := s!"read {problem.toString}; logic; undc; strash; zero; fold; scorr; pdr"
     let args := #["-c", cmdStr]
     { cmd, args }
 
   interpretOutput (out : IO.Process.Output) : EResult := do
-    if out.stdout.contains "Networks are equivalent." then
+    if out.stdout.contains "Property proved." then
       return Result.proof
     else
       return Result.counterexample
