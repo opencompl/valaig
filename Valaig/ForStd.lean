@@ -1,6 +1,6 @@
 module
 
-public section
+public section pub
 namespace Array
 
 variable {α : Type}
@@ -126,4 +126,4 @@ theorem getElem_mapMem {i : Nat} (f : (i : Nat) → (h : i < xs.size) → (a : �
 end
 
 end Array
-end
+end pub

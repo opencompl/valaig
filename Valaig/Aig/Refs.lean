@@ -2,7 +2,7 @@ module
 
 public import Std.Sat.AIG.Basic
 
-public section
+public section pub
 namespace Valaig
 
 /--
@@ -196,4 +196,4 @@ abbrev toLit (v : Var) (invert : Bool := false) : Lit :=
 
 end Var
 end Valaig
-end
+end pub

@@ -3,7 +3,7 @@ module
 public import Valaig.Aig.Refs
 import all Valaig.Aig.Refs
 
-public section
+public section pub
 namespace Valaig
 namespace Lit
 
@@ -146,4 +146,4 @@ end
 
 end Lit
 end Valaig
-end
+end pub

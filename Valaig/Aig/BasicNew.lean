@@ -8,7 +8,7 @@ public import Valaig.ForStd
 namespace Valaig.Aig
 
 /--
-The metadata of an input in the Aig
+The metadata of an input in the Aig.
 -/
 structure Input where
   var : Var
@@ -19,18 +19,6 @@ end Input
 
 /--
 The metadata of a latch in the Aig.
-
-We require all latches to have a next state defined to make it easier to define their semantics,
-even though sometimes this next state can't be known at latch construction time as they are cyclic.
-To accomodate this, the next value should initially be set to a constant, before being subsequently
-overwritten.
-
-We differ from Aiger 1.9 by requiring all latches to have a reset, meaning that all sources of
-nondeterminism in the circuit are due to inputs so are easier to reason about.
-Resets are stratified (acyclic), by requiring that the reset comes before the variable defined by
-this latch. Note that this is not compatible with the binary aiger format, so for binary aiger we
-need to reorder things to prevent this. We prefer this encoding as it is easier to reason about as
-we have an explicit order on variables.
 -/
 structure Latch where
   var : Var
@@ -44,7 +32,6 @@ end Latch
 abbrev Inputs := Array Input
 abbrev Latches := Array Latch
 
--- Switch to public by default
 end Valaig.Aig
 public section pub
 namespace Valaig.Aig
@@ -77,7 +64,7 @@ end LatchIdx
 
 /--
 An atom in the combinational aig is either an input or a latch, which is just
-a reference back to the index in the inputs or latches arrays
+a reference back to the index in the inputs or latches arrays.
 -/
 inductive AtomIdx where
 | input (idx : InputIdx)
@@ -90,7 +77,7 @@ end AtomIdx
 
 /--
 An output of interest in the circuit - this is also used to represent other
-nameable nodes in the Aiger format like bad and constraint nodes
+nameable nodes in the Aiger format like bad and constraint nodes.
 -/
 structure Output where
   lit : Lit
@@ -104,7 +91,8 @@ abbrev Outputs := Array Output
 end Aig
 
 /--
-A sequential Aig without any marked outputs. These should be stored separately
+A sequential And-Inverter Graph consisting of inputs, latches and And gates. Outputs should be
+stored separately as `Lit`s in the `Aig`.
 -/
 structure Aig where
   -- The underlying AIG
@@ -119,8 +107,8 @@ structure Aig where
 namespace Aig
 
 /--
-A representation of the node data stored for a particular variable in the Aig. For
-inputs and latches this requires a further lookup with InputIdx.get or LatchIdx.get
+A representation of the node data stored for a particular variable in an `Aig`. For inputs and
+latches this requires a further lookup with `InputIdx.get` or `LatchIdx.get`.
 -/
 inductive Node where
   | false
@@ -133,7 +121,7 @@ deriving instance Hashable, DecidableEq, Repr, Inhabited for Node
 end Node
 
 /--
-An Aig with just the constant node.
+An `Aig` with just the constant node.
 -/
 def empty : Aig :=
   {
@@ -143,7 +131,7 @@ def empty : Aig :=
   }
 
 /--
-The number of nodes currently allocated in the Aig
+The number of nodes currently allocated in aig.
 -/
 @[local grind]
 def size (aig : Aig) : Nat :=
@@ -229,7 +217,8 @@ def LatchIdx.setReset (idx : Aig.LatchIdx) (aig : Aig) (reset : Lit) (valid : id
   { aig with latches := aig.latches.modifyMem idx.idx (by simp_all) ({ ·.val with reset }) }
 
 /-
-Generic index type that can be Var, InputIdx or LatchIdx used for proof reasoning.
+Generic index type that can be Var, InputIdx or LatchIdx used for proof reasoning, particularly
+when operations invalidate no indices.
 -/
 
 inductive GenericIdx where
@@ -244,16 +233,14 @@ def GenericIdx.validIn (idx : GenericIdx) (aig : Aig) : Prop :=
   | latch idx => idx.validIn aig
 
 namespace GenericIdx
-
 variable {aig : Aig}
-attribute [local simp] validIn
 
 /-
 Lemmas to convert between specific and generic index forms.
 -/
-@[simp, grind =, grind =_] theorem iff_node (var : Var) : (node var).validIn aig ↔ var.validIn aig := by simp
-@[simp, grind =, grind =_] theorem iff_input (idx : InputIdx) : (input idx).validIn aig ↔ idx.validIn aig := by simp
-@[simp, grind =, grind =_] theorem iff_latch (idx : LatchIdx) : (latch idx).validIn aig ↔ idx.validIn aig := by simp
+@[simp, grind =, grind =_] theorem iff_node (var : Var) : (node var).validIn aig ↔ var.validIn aig := by rfl
+@[simp, grind =, grind =_] theorem iff_input (idx : InputIdx) : (input idx).validIn aig ↔ idx.validIn aig := by rfl
+@[simp, grind =, grind =_] theorem iff_latch (idx : LatchIdx) : (latch idx).validIn aig ↔ idx.validIn aig := by rfl
 
 end GenericIdx
 
