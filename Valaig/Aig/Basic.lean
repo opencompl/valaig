@@ -2,7 +2,6 @@ import Std.Sat.AIG.Basic
 import Std.Sat.AIG.CachedGates
 import Valaig.Aig.Defs
 import Valaig.Aig.DefsLemmas
-import Valaig.Aig.RefsLemmas
 import Valaig.ForStd
 
 open Valaig.Aig.Std

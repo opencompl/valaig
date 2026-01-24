@@ -89,7 +89,7 @@ def addInput (s : State aig) (atom : α) (symbol : String) : s.Pushed :=
   let map := s.map.push input
   let atomMap := s.atomMap.insert atom input
 
-  have hmap := by simp; grind only [addInput_matches_atom, Lit.mk_self_eq_self, validIn_addInput, Lit.mk_ext]
+  have hmap := by simp; grind only [addInput_matches_atom, Lit.mk_eq_self, validIn_addInput, Lit.mk_ext]
   have hlatch := by grind only [addInput_latches_eq]
   have hatom := by
     intros
@@ -111,7 +111,7 @@ def addLatch (s : State aig) (atom : α) (next : aig.Ref) (reset : Bool) (symbol
   let atomMap := s.atomMap.insert atom latch
   let latchNexts := s.latchNexts.insert latch next
 
-  have hmap := by simp; grind only [addLatch_matches_atom, Lit.mk_self_eq_self, validIn_addLatch, Lit.mk_ext]
+  have hmap := by simp; grind only [addLatch_matches_atom, Lit.mk_eq_self, validIn_addLatch, Lit.mk_ext]
   have hlatch := by simp; grind only [addLatch_latches_eq_push, Array.mem_push]
   have hatom := by simp; grind only [addLatch_matches_atom, validIn_addLatch, Std.HashMap.getElem_insert, addLatch_getElem_eq]
   ⟨{ aig, map, atomMap, latchNexts, hmap, hlatch, hatom }, by grind only [Array.size_push]⟩
