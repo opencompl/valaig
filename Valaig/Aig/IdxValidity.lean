@@ -2,7 +2,6 @@ module
 
 public import Valaig.Aig.BasicNew
 import all Valaig.Aig.BasicNew
-public import Valaig.Aig.RefsLemmas
 
 public section pub
 namespace Valaig.Aig
@@ -13,23 +12,8 @@ setup_get_set_definitions
 attribute [local simp, local grind]
   Var.validIn Lit.validIn InputIdx.validIn LatchIdx.validIn GenericIdx.validIn
 
-section input
-variable {input : InputIdx} {valid : input.validIn aig}
-
-@[simp, grind =]
-theorem InputIdx.setVar_genericIdx_mono {var : Var} (idx : GenericIdx) :
-    idx.validIn (input.setVar aig var valid) ↔ idx.validIn aig := by
-  simp
-
-end input
-
 section latch
 variable {latch : LatchIdx} {valid : latch.validIn aig}
-
-@[simp, grind =]
-theorem LatchIdx.setVar_genericIdx_mono {var : Var} (idx : GenericIdx) :
-    idx.validIn (setVar latch aig var valid) ↔ idx.validIn aig := by
-  simp
 
 @[simp, grind =]
 theorem LatchIdx.setNext_genericIdx_mono {next : Lit} (idx : GenericIdx) :

@@ -19,8 +19,6 @@ We consider the following getters:
 - LatchIdx.getReset
 
 and the following modifiers:
-- InputIdx.setVar
-- LatchIdx.setVar
 - LatchIdx.setNext
 - LatchIdx.setReset
 - Aig.addInput
@@ -29,72 +27,6 @@ and the following modifiers:
 
 TODO: macro generate these
 -/
-
-/-
-InputIdx.setVar Lemmas.
--/
-section input_setVar
-variable {setIdx : InputIdx} {setValid : setIdx.validIn aig} {newVar : Var}
-
-@[simp, grind =>]
-theorem get_InputIdx_setVar {var : Var} {valid : var.validIn aig} :
-    (setIdx.setVar aig newVar setValid).get var = aig.get var valid := by
-  simp
-
-theorem InputIdx.getVar_InputIdx_setVar {idx : InputIdx} {valid : idx.validIn aig} :
-    idx.getVar (setIdx.setVar aig newVar setValid) =
-    if idx = setIdx then newVar else idx.getVar aig := by
-  simp; grind
-
-@[simp, grind =>]
-theorem LatchIdx.getVar_InputIdx_setVar {idx : LatchIdx} {valid : idx.validIn aig} :
-    idx.getVar (setIdx.setVar aig newVar setValid) = idx.getVar aig := by
-  simp
-
-@[simp, grind =>]
-theorem LatchIdx.getNext_InputIdx_setVar {idx : LatchIdx} {valid : idx.validIn aig} :
-    idx.getNext (setIdx.setVar aig newVar setValid) = idx.getNext aig := by
-  simp
-
-@[simp, grind =>]
-theorem LatchIdx.getReset_InputIdx_setVar {idx : LatchIdx} {valid : idx.validIn aig} :
-    idx.getReset (setIdx.setVar aig newVar setValid) = idx.getReset aig := by
-  simp
-
-end input_setVar
-
-/-
-LatchIdx.setVar Lemmas.
--/
-section latch_setVar
-variable {setIdx : LatchIdx} {setValid : setIdx.validIn aig} {newVar : Var}
-
-@[simp, grind =>]
-theorem get_LatchIdx_setVar {var : Var} {valid : var.validIn aig} :
-    (setIdx.setVar aig newVar setValid).get var = aig.get var valid := by
-  simp
-
-theorem InputIdx.getVar_LatchIdx_setVar {idx : InputIdx} {valid : idx.validIn aig} :
-    idx.getVar (setIdx.setVar aig newVar setValid) = idx.getVar aig := by
-  simp
-
-@[simp, grind =>]
-theorem LatchIdx.getVar_LatchIdx_setVar {idx : LatchIdx} {valid : idx.validIn aig} :
-    idx.getVar (setIdx.setVar aig newVar setValid) =
-    if idx = setIdx then newVar else idx.getVar aig := by
-  simp; grind
-
-@[simp, grind =>]
-theorem LatchIdx.getNext_LatchIdx_setVar {idx : LatchIdx} {valid : idx.validIn aig} :
-    idx.getNext (setIdx.setVar aig newVar setValid) = idx.getNext aig := by
-  simp; grind
-
-@[simp, grind =>]
-theorem LatchIdx.getReset_LatchIdx_setVar {idx : LatchIdx} {valid : idx.validIn aig} :
-    idx.getReset (setIdx.setVar aig newVar setValid) = idx.getReset aig := by
-  simp; grind
-
-end latch_setVar
 
 /-
 LatchIdx.setNext Lemmas.

@@ -182,10 +182,6 @@ deriving Decidable
 def InputIdx.getVar (idx : Aig.InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
   aig.inputs[idx.idx].var
 
-@[inline]
-def InputIdx.setVar (idx : Aig.InputIdx) (aig : Aig) (var : Var) (valid : idx.validIn aig := by grind) : Aig :=
-  { aig with inputs := aig.inputs.modifyMem idx.idx (by simp_all) ({ ·.val with var }) }
-
 /-
 Latch accessors.
 -/
@@ -198,10 +194,6 @@ deriving Decidable
 @[inline]
 def LatchIdx.getVar (idx : Aig.LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
   aig.latches[idx.idx].var
-
-@[inline]
-def LatchIdx.setVar (idx : Aig.LatchIdx) (aig : Aig) (var : Var) (valid : idx.validIn aig := by grind) : Aig :=
-  { aig with latches := aig.latches.modifyMem idx.idx (by simp_all) ({ ·.val with var }) }
 
 @[inline]
 def LatchIdx.getNext (idx : Aig.LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
@@ -285,10 +277,10 @@ This should only be used in this directory for establishing the external invaria
 -/
 scoped macro "setup_get_set_definitions" : command => `(
   attribute [local simp, local grind]
-    Aig.get Aig.size
-    InputIdx.setVar InputIdx.getVar
-    LatchIdx.setVar LatchIdx.setNext LatchIdx.setReset
+    Aig.get Aig.instGetElemVar Aig.size
+    InputIdx.getVar
     LatchIdx.getVar LatchIdx.getNext LatchIdx.getReset
+    LatchIdx.setNext LatchIdx.setReset
     Aig.addInput Aig.addLatch Aig.addAnd
 
   attribute [local grind] InputIdx LatchIdx
