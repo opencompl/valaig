@@ -44,14 +44,23 @@ private def mapMem.step {xs : Array α} (xs' : Array α) (i : Nat)
       (h : ∃ h1 h2, xs'[i]'h1 = xs[i]'h2) : Array α :=
     have hxs : i < xs.size := by lia
     have hxs' : i < xs'.size := by lia
-    xs'.modifyMem i hxs' <| fun ⟨x, p⟩ => f i hxs x (by lia)
+    xs'.modifyMem i hxs' fun ⟨x, p⟩ =>
+      f i hxs x (by simp_all)
 
 private theorem mapMem.step.size_eq : (step xs' i f hstep).size = xs'.size := by
   grind only [step, size_modifyMem]
 
 private theorem mapMem.step.eq_above {j : Nat} (h1 : j > i) (h2 : j < xs'.size) :
-    (step xs' i f hstep)[j]'(by rw [step.size_eq]; omega) = xs'[j] := by
-  grind only [= getElem_set, step, modifyMem_def]
+    have h := by grind only [size_eq]
+    (step xs' i f hstep)[j]'h = xs'[j] := by
+  grind only [getElem_set, step, modifyMem_def]
+
+private theorem mapMem.step.eq_above' {j : Nat} (h1 : j > i) (h2 : j < xs'.size)
+    (h3 : xs.size = xs'.size) (_ : xs[j] = xs'[j]) :
+    have h := by grind only [size_eq]
+    have h' := by grind only [size_eq]
+    (step xs' i f hstep)[j]'h = xs[j]'h' := by
+  grind only [eq_above]
 
 -- TODO: This can be specialized to use usize for the iterator and also made possible to return
 -- different type
@@ -99,13 +108,26 @@ private theorem mapMem.go.getElem {j : Nat} (h : j < xs'.size) :
   | zero => lia
   | succ fuel motive =>
     split
-    · lia
-    · simp
+    · omega
+    · simp only
       unfold go
-      rw [@motive (xs' := step xs' i f (by grind))]
-      · grind only [step, modifyMem_def, getElem_set]
+      rw [@motive (xs' := step xs' i f (by grind only))]
+      · split
+        · rw [hgo (by omega) (by omega)]; lia
+        · simp only [step, modifyMem_def]
+          split
+          · have : i = j := by omega
+            subst this
+            rw [Array.getElem_set_self]
+            have := @hgo i (by omega) (by omega)
+            congr
+          · rw [Array.getElem_set_ne]
+            omega
       · rwa [step.size_eq]
-      · grind only [mapMem.step.eq_above]
+      · intros
+        rw [←hgo (by omega)]
+        apply mapMem.step.eq_above
+        omega
       · rwa [step.size_eq]
       · omega
 
