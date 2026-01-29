@@ -31,7 +31,7 @@ TODO: macro generate these
 /-
 LatchIdx.setNext Lemmas.
 -/
-section latch_setNext
+section setNext
 variable {setIdx : LatchIdx} {setValid : setIdx.validIn aig} {newNext : Lit}
 
 @[simp, grind =>]
@@ -59,12 +59,12 @@ theorem LatchIdx.getReset_LatchIdx_setNext {idx : LatchIdx} {valid : idx.validIn
     idx.getReset (setIdx.setNext aig newNext setValid) = idx.getReset aig := by
   simp; grind
 
-end latch_setNext
+end setNext
 
 /-
 LatchIdx.setReset Lemmas.
 -/
-section latch_setReset
+section setReset
 variable {setIdx : LatchIdx} {setValid : setIdx.validIn aig} {newReset : Lit}
 
 @[simp, grind =>]
@@ -92,7 +92,7 @@ theorem LatchIdx.getReset_LatchIdx_setReset {idx : LatchIdx} {valid : idx.validI
     if idx = setIdx then newReset else idx.getReset aig := by
   simp; grind
 
-end latch_setReset
+end setReset
 
 section aig
 
