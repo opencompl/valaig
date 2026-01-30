@@ -1,7 +1,5 @@
 module
 
-public import Std.Sat.AIG.Basic
-public import Std.Sat.AIG.CachedGates
 public import Valaig.Aig.StdSatLemmas
 public import Valaig.Aig.Refs
 public import Valaig.ForStd
@@ -15,7 +13,7 @@ structure Input where
   var : Var
 
 namespace Input
-deriving instance Hashable, DecidableEq, Repr, Inhabited for Input
+deriving instance Repr, DecidableEq for Input
 end Input
 
 /--
@@ -27,11 +25,24 @@ structure Latch where
   reset : Lit
 
 namespace Latch
-deriving instance Hashable, DecidableEq, Repr, Inhabited for Latch
+deriving instance Repr, DecidableEq for Latch
 end Latch
 
 abbrev Inputs := Array Input
 abbrev Latches := Array Latch
+
+/--
+The generic representation of nodes in the Aig, including inputs, latches and
+gates. These are interpreted relative to their position in the Aig to give
+semantics, see `Aig.get`.
+-/
+structure NodeData where
+  fst : Lit
+  snd : Lit
+
+namespace NodeData
+deriving instance Inhabited, Repr, DecidableEq for NodeData
+end NodeData
 
 end Valaig.Aig
 
@@ -47,7 +58,7 @@ structure InputIdx where
     idx : Nat
 
 namespace InputIdx
-deriving instance DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq for InputIdx
+deriving instance Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq for InputIdx
 instance : Hashable InputIdx where hash := (hash ·.idx)
 instance : LawfulHashable InputIdx where hash_eq := by simp
 end InputIdx
@@ -60,7 +71,7 @@ structure LatchIdx where
     idx : Nat
 
 namespace LatchIdx
-deriving instance DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq for LatchIdx
+deriving instance Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq for LatchIdx
 instance : Hashable LatchIdx where hash := (hash ·.idx)
 instance : LawfulHashable LatchIdx where hash_eq := by simp
 end LatchIdx
@@ -98,8 +109,8 @@ A sequential And-Inverter Graph consisting of inputs, latches and And gates. Out
 stored separately as `Lit`s in the `Aig`.
 -/
 structure Aig where
-  -- The underlying AIG
-  private aig : Std.Sat.AIG Aig.AtomIdx
+  -- The core array of nodes that make up the AIG
+  private nodes : Array Aig.NodeData
 
   -- A mapping from input indices (AtomIdx.input idx) to their definition
   private inputs : Aig.Inputs
@@ -120,7 +131,8 @@ inductive Node where
   | and (lhs rhs : Lit)
 
 namespace Node
-deriving instance Hashable, DecidableEq, Repr, Inhabited for Node
+deriving instance Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq, Hashable for Node
+instance : LawfulHashable Node where hash_eq := by simp
 end Node
 
 /--
@@ -128,7 +140,7 @@ An `Aig` with just the constant node.
 -/
 def empty : Aig :=
   {
-    aig := .empty,
+    nodes := #[Inhabited.default],
     inputs := #[],
     latches := #[],
   }
@@ -138,7 +150,7 @@ The number of nodes currently allocated in aig.
 -/
 @[local grind]
 def size (aig : Aig) : Nat :=
-  aig.aig.decls.size
+  aig.nodes.size
 
 end Aig
 
@@ -156,11 +168,17 @@ deriving Decidable
 
 @[always_inline]
 def Aig.get (aig : Aig) (var : Var) (valid : var.validIn aig := by grind) : Node :=
-  match aig.aig.decls[var.idx] with
-  | .false => .false
-  | .atom (.input idx) => .input idx
-  | .atom (.latch idx) => .latch idx
-  | .gate rhs0 rhs1 => .and (.ofFanin rhs0) (.ofFanin rhs1)
+  if var = .constant then
+    .false
+  else
+    let node := aig.nodes[var.idx]
+    if node.fst.var = var then
+      if ¬node.fst.inverted then
+      .input <| .ofIdx node.snd.idx
+      else
+      .latch <| .ofIdx node.snd.idx
+    else
+      .and node.fst node.snd
 
 @[inline]
 instance Aig.instGetElemVar : GetElem Aig Var Node (fun aig var => var.validIn aig) where
