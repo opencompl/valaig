@@ -12,6 +12,15 @@ setup_get_set_definitions
 attribute [local simp, local grind]
   Var.validIn Lit.validIn InputIdx.validIn LatchIdx.validIn GenericIdx.validIn
 
+-- General theorems about validity
+section
+
+theorem validIn_mono {var var' : Var} (valid : var.validIn aig) (order : var' < var) :
+    var'.validIn aig := by
+  grind [Var.lt_idx]
+
+end
+
 section latch
 variable {latch : LatchIdx} {valid : latch.validIn aig}
 
