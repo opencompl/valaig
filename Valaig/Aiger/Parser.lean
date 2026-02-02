@@ -27,7 +27,7 @@ inductive SymbolType where
 | constraint
 | justice
 | fairness
-deriving Repr, Inhabited, DecidableEq, BEq, Hashable
+deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq, Hashable
 
 abbrev HeaderT := ReaderT Header
 
