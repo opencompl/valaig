@@ -136,7 +136,7 @@ def empty : Aig :=
 /--
 The number of nodes currently allocated in aig.
 -/
-@[local grind]
+@[local grind, local grind unfold]
 def size (aig : Aig) : Nat :=
   aig.aig.decls.size
 
@@ -150,6 +150,7 @@ def Var.validIn (var : Var) (aig : Aig) : Prop :=
   var.idx < aig.size
 deriving Decidable
 
+@[inline, expose, reducible, simp, grind unfold]
 def Lit.validIn (lit : Lit) (aig : Aig) : Prop :=
   lit.var.validIn aig
 deriving Decidable
@@ -162,7 +163,7 @@ def Aig.get (aig : Aig) (var : Var) (valid : var.validIn aig := by grind) : Node
   | .atom (.latch idx) => .latch idx
   | .gate rhs0 rhs1 => .and (.ofFanin rhs0) (.ofFanin rhs1)
 
-@[inline]
+@[inline, expose, reducible, simp, grind unfold]
 instance Aig.instGetElemVar : GetElem Aig Var Node (fun aig var => var.validIn aig) where
   getElem aig var (h := by grind) :=
     aig.get var h
@@ -233,9 +234,9 @@ variable {aig : Aig}
 /-
 Lemmas to convert between specific and generic index forms.
 -/
-@[simp, grind =, grind =_] theorem iff_node (var : Var) : (node var).validIn aig ↔ var.validIn aig := by rfl
-@[simp, grind =, grind =_] theorem iff_input (idx : InputIdx) : (input idx).validIn aig ↔ idx.validIn aig := by rfl
-@[simp, grind =, grind =_] theorem iff_latch (idx : LatchIdx) : (latch idx).validIn aig ↔ idx.validIn aig := by rfl
+@[simp, grind =_] theorem iff_node (var : Var) : (node var).validIn aig ↔ var.validIn aig := by rfl
+@[simp, grind =_] theorem iff_input (idx : InputIdx) : (input idx).validIn aig ↔ idx.validIn aig := by rfl
+@[simp, grind =_] theorem iff_latch (idx : LatchIdx) : (latch idx).validIn aig ↔ idx.validIn aig := by rfl
 
 end GenericIdx
 

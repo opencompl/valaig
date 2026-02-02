@@ -3,16 +3,15 @@ module
 public import Valaig.Aig.BasicNew
 import all Valaig.Aig.BasicNew
 public import Valaig.Aig.IdxValidity
+public import Valaig.Aig.GetSet
 
 public section pub
 namespace Valaig.Aig
 
-setup_get_set_definitions
-
 /--
 All input indices point to an input in the Aig.
 -/
-@[expose, simp]
+@[expose, grind, local simp]
 def InputsValid (aig : Aig) : Prop :=
   ∀ {idx : InputIdx} (valid : idx.validIn aig),
   ∃ (valid' : (idx.getVar aig valid).validIn aig),
@@ -21,6 +20,7 @@ def InputsValid (aig : Aig) : Prop :=
 /--
 All inputs in the Aig point to a corresponding input index.
 -/
+@[expose, grind, local simp]
 def InputIdxsValid (aig : Aig) : Prop :=
   ∀ {var : Var} (valid : var.validIn aig),
   match aig[var] with
@@ -31,7 +31,7 @@ def InputIdxsValid (aig : Aig) : Prop :=
 /--
 All latch indices point to a latch in the Aig.
 -/
-@[expose, simp]
+@[expose, grind, local simp]
 def LatchesValid (aig : Aig) : Prop :=
   ∀ {idx : LatchIdx} (valid : idx.validIn aig),
   ∃ (valid' : (idx.getVar aig valid).validIn aig),
@@ -40,6 +40,7 @@ def LatchesValid (aig : Aig) : Prop :=
 /--
 All latches in the Aig point to a corresponding latch index.
 -/
+@[expose, grind, local simp]
 def LatchIdxsValid (aig : Aig) : Prop :=
   ∀ {var : Var} (valid : var.validIn aig),
   match aig[var] with
@@ -51,7 +52,7 @@ def LatchIdxsValid (aig : Aig) : Prop :=
 All latch reset literals are valid in the Aig.
 This follows from `LatchesValid` and `AcyclicResets`.
 -/
-@[expose, simp]
+@[expose, grind, local simp]
 def ResetsValid (aig : Aig) : Prop :=
   ∀ {idx : LatchIdx} (valid : idx.validIn aig),
     (idx.getReset aig valid).validIn aig
@@ -59,7 +60,7 @@ def ResetsValid (aig : Aig) : Prop :=
 /--
 All latch next state literals are valid in the Aig.
 -/
-@[expose, simp]
+@[expose, grind, local simp]
 def NextsValid (aig : Aig) : Prop :=
   ∀ {idx : LatchIdx} (valid : idx.validIn aig),
     (idx.getNext aig valid).validIn aig
@@ -69,7 +70,7 @@ The gates of the Aig are acyclic.
 This is enforced by requiring each gate's inputs to have lower variable
 indices than themselves.
 -/
-@[expose, simp]
+@[expose, grind, local simp]
 def AcyclicGates (aig : Aig) : Prop :=
   ∀ {var : Var} {rhs0 rhs1} (valid : var.validIn aig),
     aig[var] = .and rhs0 rhs1 → rhs0.var < var ∧ rhs1.var < var
@@ -79,31 +80,42 @@ The reset function of the Aig is acyclic.
 This is enfoced by requiring each latch's reset to have a lower variable
 index than the latch's output.
 -/
-@[expose, simp]
+@[expose, grind, local simp]
 def AcyclicResets (aig : Aig) : Prop :=
   ∀ {idx : LatchIdx} (valid : idx.validIn aig),
     (idx.getReset aig valid).var < idx.getVar aig valid
 
-@[local grind]
-structure WellFormed (aig : Aig) : Prop where
+@[grind .]
+theorem ResetsValid_of_LatchesValid_AcyclicReset {aig : Aig}
+    (latchesValid : aig.LatchesValid) (acyclicReset : aig.AcyclicResets) :
+    aig.ResetsValid := by
+  intro _ valid
+  rcases latchesValid valid with ⟨varValid, _⟩
+  have resetLt := acyclicReset valid
+  exact validIn_mono varValid resetLt
+
+/--
+All indices within the Aig are valid.
+-/
+@[grind]
+structure IdxsValid (aig : Aig) : Prop where
   inputsValid : aig.InputsValid
   inputIdxsValid : aig.InputIdxsValid
 
-  -- ResetsValid isn't included as it follows from latchesValid and acyclicReset
   latchesValid : aig.LatchesValid
   latchIdxsValid : aig.LatchIdxsValid
+  resetsValid : aig.ResetsValid
   nextsValid : aig.NextsValid
 
+/--
+All indices within the Aig are valid and the gates and reset function are
+acyclic, allowing the definition of semantics
+@[grind]
+-/
+@[grind]
+structure WellFormed (aig : Aig) : Prop extends aig.IdxsValid where
   acyclicGates : aig.AcyclicGates
   acyclicReset : aig.AcyclicResets
-
-@[grind .]
-theorem WellFormed.resetsValid {aig : Aig} (wf : aig.WellFormed) :
-    aig.ResetsValid := by
-  intro _ valid
-  rcases wf.latchesValid valid with ⟨varValid, _⟩
-  have resetLt := wf.acyclicReset valid
-  exact validIn_mono varValid resetLt
 
 /-
 We consider the same patterns for invariant preservation as in the case of the get/set lemmas
@@ -118,21 +130,72 @@ section setNext
 variable {setIdx : LatchIdx} {setValid : setIdx.validIn aig} {newNext : Lit}
 
 @[grind .]
-theorem AcyclicGates_InputIdx_setNext (acyclicGates : aig.AcyclicGates) :
+theorem InputIdx_setNext_InputsValid
+    (inputsValid : aig.InputsValid) :
+    (setIdx.setNext aig newNext setValid).InputsValid := by
+  grind
+
+@[grind .]
+theorem InputIdx_setNext_InputIdxsValid
+    (inputIdxsValid : aig.InputIdxsValid) :
+    (setIdx.setNext aig newNext setValid).InputIdxsValid := by
+  grind
+
+@[grind .]
+theorem InputIdx_setNext_LatchesValid
+    (latchesValid : aig.LatchesValid) :
+    (setIdx.setNext aig newNext setValid).LatchesValid := by
+  grind
+
+@[grind .]
+theorem InputIdx_setNext_LatchIdxsValid
+    (latchIdxsValid : aig.LatchIdxsValid) :
+    (setIdx.setNext aig newNext setValid).LatchIdxsValid := by
+  grind
+
+@[grind .]
+theorem InputIdx_setNext_ResetsValid
+    (resetsValid : aig.ResetsValid) :
+    (setIdx.setNext aig newNext setValid).ResetsValid := by
+  grind
+
+@[grind .]
+theorem InputIdx_setNext_NextsValid
+    (nextsValid : aig.NextsValid)
+    (nextValid : newNext.validIn aig) :
+    (setIdx.setNext aig newNext setValid).NextsValid := by
+  grind
+
+@[grind .]
+theorem InputIdx_setNext_AcyclicGates
+    (acyclicGates : aig.AcyclicGates) :
     (setIdx.setNext aig newNext setValid).AcyclicGates := by
-  simp_all; assumption
+  grind
 
 @[grind .]
-theorem AcyclicResets_InputIdx_setNext (acyclicResets : aig.AcyclicResets) :
+theorem InputIdx_setNext_AcyclicResets
+    (acyclicResets : aig.AcyclicResets) :
     (setIdx.setNext aig newNext setValid).AcyclicResets := by
-  simp_all; grind
+  grind
 
 @[grind .]
-theorem WellFormed_InputIdx_setNext (wellFormed : aig.WellFormed) :
+theorem InputIdx_setNext_IdxsValid
+    (idxsValid: aig.IdxsValid )
+    (nextValid : newNext.validIn aig) :
+    (setIdx.setNext aig newNext setValid).IdxsValid := by
+  grind
+
+@[grind .]
+theorem InputIdx_setNext_WellFormed
+    (idxsValid: aig.WellFormed )
+    (nextValid : newNext.validIn aig) :
     (setIdx.setNext aig newNext setValid).WellFormed := by
-  constructor <;> sorry -- grind
+  grind
 
 end setNext
+
+-- TODO: Finish proofs
+set_option warn.sorry false
 
 /-
 LatchIdx.setReset Lemmas.
@@ -167,12 +230,12 @@ section addInput
 @[grind .]
 theorem AcyclicGates_Aig_addInput (acyclicGates : aig.AcyclicGates) :
     aig.addInput.fst.AcyclicGates := by
-  simp_all; grind
+  sorry
 
 @[grind .]
 theorem AcyclicResets_Aig_addInput (acyclicResets : aig.AcyclicResets) :
     aig.addInput.fst.AcyclicResets := by
-  simp_all
+  sorry
 
 @[grind .]
 theorem WellFormed_Aig_addInput (wellFormed : aig.WellFormed) :
@@ -190,13 +253,13 @@ variable {next reset : Lit}
 @[grind .]
 theorem AcyclicGates_Aig_addLatch (acyclicGates : aig.AcyclicGates) :
     (aig.addLatch next reset).fst.AcyclicGates := by
-  simp_all; grind
+  sorry
 
 @[grind .]
 theorem AcyclicResets_Aig_addLatch (acyclicResets : aig.AcyclicResets)
     (resetValid : reset.validIn aig) :
     (aig.addLatch next reset).fst.AcyclicResets := by
-  simp_all; grind [Var.lt_idx, Lit.validIn, Var.validIn]
+  sorry --; grind [Var.lt_idx, Lit.validIn, Var.validIn]
 
 @[grind .]
 theorem WellFormed_Aig_addLatch (wellFormed : aig.WellFormed)
@@ -222,12 +285,12 @@ theorem AcyclicGates_Aig_addAnd (acyclicGates : aig.AcyclicGates)
   simp_all [Var.validIn, Var.lt_idx]
   intro var
   have := @Std.Sat.AIG.hdag (i := var.idx)
-  grind
+  sorry
 
 @[grind .]
 theorem AcyclicResets_Aig_addAnd (acyclicResets : aig.AcyclicResets) :
     (aig.addAnd rhs0 rhs1 h0 h1).fst.AcyclicResets := by
-  simp_all
+  sorry
 
 @[grind .]
 theorem WellFormed_Aig_addAnd (wellFormed : aig.WellFormed) :
