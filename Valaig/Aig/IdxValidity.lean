@@ -42,14 +42,6 @@ section atom
 addInput Lemmas.
 -/
 
-theorem validIn_addInput (idx : GenericIdx) :
-    idx.validIn aig → idx.validIn aig.addInput.fst := by
-  simp; grind only
-
-grind_pattern validIn_addInput => idx.validIn aig.addInput.fst where
-  idx =/= .input aig.addInput.snd
-  idx =/= .node (aig.addInput.snd.getVar aig.addInput.fst)
-
 @[simp, grind .]
 theorem addInput_validIn :
     aig.addInput.snd.validIn aig.addInput.fst := by
@@ -60,19 +52,20 @@ theorem addInput_getVar_validIn :
     (aig.addInput.snd.getVar aig.addInput.fst).validIn aig.addInput.fst := by
   simp
 
+@[simp]
+theorem validIn_addInput (idx : GenericIdx) :
+    idx.validIn aig → idx.validIn aig.addInput.fst := by
+  simp; grind only
+
+grind_pattern validIn_addInput => idx.validIn aig.addInput.fst where
+  idx =/= .input aig.addInput.snd
+  idx =/= .node (aig.addInput.snd.getVar aig.addInput.fst)
+
 /-
 addLatch Lemmas.
 -/
 section latch
 variable {next reset : Lit}
-
-theorem validIn_addLatch (idx : GenericIdx) :
-    idx.validIn aig → idx.validIn (aig.addLatch next reset).fst := by
-  simp; grind only
-
-grind_pattern validIn_addLatch => idx.validIn (aig.addLatch next reset).fst where
-  idx =/= .latch (aig.addLatch next reset).snd
-  idx =/= .node ((aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst)
 
 @[simp, grind .]
 theorem addLatch_validIn :
@@ -85,6 +78,15 @@ theorem addLatch_getVar_validIn :
       (aig.addLatch next reset).fst := by
   simp
 
+@[simp]
+theorem validIn_addLatch (idx : GenericIdx) :
+    idx.validIn aig → idx.validIn (aig.addLatch next reset).fst := by
+  simp; grind only
+
+grind_pattern validIn_addLatch => idx.validIn (aig.addLatch next reset).fst where
+  idx =/= .latch (aig.addLatch next reset).snd
+  idx =/= .node ((aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst)
+
 end latch
 end atom
 
@@ -94,6 +96,7 @@ addAnd Lemmas.
 section gate
 variable {rhs0 rhs1 : Lit} {h0 : rhs0.validIn aig} {h1 : rhs1.validIn aig}
 
+@[simp]
 theorem validIn_addAnd (idx : GenericIdx) :
     idx.validIn aig → idx.validIn (aig.addAnd rhs0 rhs1 h0 h1).fst := by
   simp; grind
