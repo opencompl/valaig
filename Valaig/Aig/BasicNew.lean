@@ -2,6 +2,7 @@ module
 
 public import Std.Sat.AIG.Basic
 public import Std.Sat.AIG.CachedGates
+public meta import Valaig.Prelude
 public import Valaig.Aig.StdSatLemmas
 public import Valaig.Aig.Refs
 public import Valaig.ForStd
@@ -273,23 +274,21 @@ def addAnd (aig : Aig) (rhs0 rhs1 : Lit)
   (aig, .ofRef res.ref)
 
 /-
-Macro to mark get/set definitions for simp/grind and lemmas about the functions from Std.Sat.AIG.
-This should only be used in this directory for establishing the external invariants.
+Setup get/set definitions for use locally as grind/simp rules, with grind_def/
+simp_def tactics to make use of them.
 -/
-scoped macro "setup_get_set_definitions" : command => `(
-  attribute [local simp, local grind]
-    Aig.get Aig.instGetElemVar Aig.size
-    InputIdx.getVar
-    LatchIdx.getVar LatchIdx.getNext LatchIdx.getReset
-    LatchIdx.setNext LatchIdx.setReset
-    Aig.addInput Aig.addLatch Aig.addAnd
+attribute [simp_valaig_defs, grind_valaig_defs]
+  Aig.get Aig.instGetElemVar Aig.size
+  InputIdx.getVar
+  LatchIdx.getVar LatchIdx.getNext LatchIdx.getReset
+  LatchIdx.setNext LatchIdx.setReset
+  Aig.addInput Aig.addLatch Aig.addAnd
 
-  attribute [local grind] InputIdx LatchIdx
-  attribute [local grind =_] Var.ext_idx
+attribute [grind_valaig_defs] InputIdx LatchIdx
+attribute [grind_valaig_defs =_] Var.ext_idx
 
-  attribute [local simp, local grind =]
-    Std.mkAtom_eq_decls_push Std.mkAtom_size Std.mkAtom_ref_eq_decls_size
-    Std.Sat.AIG.mkAndCached_decl_eq
+attribute [simp_valaig_defs, grind_valaig_defs =]
+  Std.mkAtom_eq_decls_push Std.mkAtom_size Std.mkAtom_ref_eq_decls_size
+  Std.Sat.AIG.mkAndCached_decl_eq
 
-  attribute [local grind! .] Std.Sat.AIG.mkAndCached_le_size
-)
+attribute [grind_valaig_defs! .] Std.Sat.AIG.mkAndCached_le_size
