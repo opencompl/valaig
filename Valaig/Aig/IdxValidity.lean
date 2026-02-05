@@ -8,8 +8,7 @@ public section pub
 namespace Valaig.Aig
 variable {aig : Aig}
 
-attribute [local simp, local grind]
-  Var.validIn Lit.validIn InputIdx.validIn LatchIdx.validIn GenericIdx.validIn
+attribute [local simp, local grind] Var.validIn Lit.validIn InputIdx.validIn LatchIdx.validIn
 attribute [local grind =_] Var.ext_idx
 
 -- General theorems about validity
@@ -27,16 +26,57 @@ end
 section latch
 variable {latch : LatchIdx} {valid : latch.validIn aig}
 
+/-
+setNext Lemmas.
+-/
+section setNext
+variable {next : Lit}
+
 @[simp, grind =]
-theorem validIn_setNext_iff {next : Lit} (idx : GenericIdx) :
-    idx.validIn (latch.setNext aig next valid) ↔ idx.validIn aig := by
+theorem input_validIn_setNext_iff {idx : InputIdx} :
+    idx.validIn (latch.setNext aig next valid) ↔
+    idx.validIn aig := by
   simp_defs
 
 @[simp, grind =]
-theorem validIn_setReset_iff {reset : Lit} (idx : GenericIdx) :
-    idx.validIn (latch.setReset aig reset valid) ↔ idx.validIn aig := by
+theorem latch_validIn_setNext_iff {idx : LatchIdx} :
+    idx.validIn (latch.setNext aig next valid) ↔
+    idx.validIn aig := by
   simp_defs
 
+@[simp, grind =]
+theorem var_validIn_setNext_iff {var : Var} :
+    var.validIn (latch.setNext aig next valid) ↔
+    var.validIn aig := by
+  simp_defs
+
+end setNext
+
+/-
+setReset Lemmas.
+-/
+section setReset
+variable {reset : Lit}
+
+@[simp, grind =]
+theorem input_validIn_setReset_iff {idx : InputIdx} :
+    idx.validIn (latch.setReset aig reset valid) ↔
+    idx.validIn aig := by
+  simp_defs
+
+@[simp, grind =]
+theorem latch_validIn_setReset_iff {idx : LatchIdx} :
+    idx.validIn (latch.setReset aig reset valid) ↔
+    idx.validIn aig := by
+  simp_defs
+
+@[simp, grind =]
+theorem var_validIn_setReset_iff {var : Var} :
+    var.validIn (latch.setReset aig reset valid) ↔
+    var.validIn aig := by
+  simp_defs
+
+end setReset
 end latch
 
 section atom

@@ -214,34 +214,6 @@ def LatchIdx.setReset (idx : Aig.LatchIdx) (aig : Aig) (reset : Lit) (valid : id
   { aig with latches := aig.latches.modifyMem idx.idx (by simp_all) ({ ·.val with reset }) }
 
 /-
-Generic index type that can be Var, InputIdx or LatchIdx used for proof reasoning, particularly
-when operations invalidate no indices.
--/
-
-inductive GenericIdx where
-| node (var : Var)
-| input (idx : InputIdx)
-| latch (idx : LatchIdx)
-
-def GenericIdx.validIn (idx : GenericIdx) (aig : Aig) : Prop :=
-  match idx with
-  | node var => var.validIn aig
-  | input idx => idx.validIn aig
-  | latch idx => idx.validIn aig
-
-namespace GenericIdx
-variable {aig : Aig}
-
-/-
-Lemmas to convert between specific and generic index forms.
--/
-@[simp, grind =_] theorem iff_node (var : Var) : (node var).validIn aig ↔ var.validIn aig := by rfl
-@[simp, grind =_] theorem iff_input (idx : InputIdx) : (input idx).validIn aig ↔ idx.validIn aig := by rfl
-@[simp, grind =_] theorem iff_latch (idx : LatchIdx) : (latch idx).validIn aig ↔ idx.validIn aig := by rfl
-
-end GenericIdx
-
-/-
 Node constructors. There is no constant node constructor as the constant node always exists, so constant
 literals can be constructed with `Lit.true`/`Lit.false`.
 -/

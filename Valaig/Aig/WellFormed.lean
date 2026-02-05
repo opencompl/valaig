@@ -446,7 +446,9 @@ theorem addAnd_InputsValid
 theorem addAnd_InputIdxsValid
     (inputIdxsValid : aig.InputIdxsValid) :
     (aig.addAnd rhs0 rhs1 h0 h1).fst.InputIdxsValid := by
-  grind
+  intro var
+  by_cases var.validIn aig
+  <;> grind
 
 theorem addAnd_LatchesValid
     (latchesValid : aig.LatchesValid) :
@@ -456,7 +458,9 @@ theorem addAnd_LatchesValid
 theorem addAnd_LatchIdxsValid
     (latchIdxsValid : aig.LatchIdxsValid) :
     (aig.addAnd rhs0 rhs1 h0 h1).fst.LatchIdxsValid := by
-  grind
+  intro var
+  by_cases var.validIn aig
+  <;> grind
 
 theorem addAnd_ResetsValid
     (resetsValid : aig.ResetsValid) :
