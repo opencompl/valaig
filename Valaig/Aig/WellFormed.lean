@@ -432,30 +432,86 @@ end addLatch
 Aig.addAnd Lemmas.
 -/
 section addAnd
-variable {rhs0 rhs1 : Lit}
 
-set_option warn.sorry false
+-- We currently need h0/h1 as the underlying Aig requires it, but this can be
+-- removed in the future when using a custom Aig without dependent typing
+variable {rhs0 rhs1 : Lit} {h0 : rhs0.validIn aig} {h1 : rhs1.validIn aig}
+attribute [local grind <=] get_addAnd_new_matches_and
 
--- -- We don't currently need acyclicGates as the underlying AIG maintains this, but we will want it
--- -- in the future
--- set_option linter.unusedVariables false in
--- @[grind .]
--- theorem AcyclicGates_Aig_addAnd (acyclicGates : aig.AcyclicGates)
---     (h0 : rhs0.validIn aig) (h1 : rhs1.validIn aig) :
---     (aig.addAnd rhs0 rhs1 h0 h1).fst.AcyclicGates := by
---   simp_all [Var.validIn, Var.lt_idx]
---   intro var
---   have := @Std.Sat.AIG.hdag (i := var.idx)
---   sorry
+theorem addAnd_InputsValid
+    (inputsValid : aig.InputsValid) :
+    (aig.addAnd rhs0 rhs1 h0 h1).fst.InputsValid := by
+  grind
 
--- @[grind .]
--- theorem AcyclicResets_Aig_addAnd (acyclicResets : aig.AcyclicResets) :
---     (aig.addAnd rhs0 rhs1 h0 h1).fst.AcyclicResets := by
---   sorry
+theorem addAnd_InputIdxsValid
+    (inputIdxsValid : aig.InputIdxsValid) :
+    (aig.addAnd rhs0 rhs1 h0 h1).fst.InputIdxsValid := by
+  grind
 
--- @[grind .]
--- theorem WellFormed_Aig_addAnd (wellFormed : aig.WellFormed) :
---     (aig.addAnd rhs0 rhs1 h0 h1).fst.WellFormed := by
---   constructor <;> sorry -- grind
+theorem addAnd_LatchesValid
+    (latchesValid : aig.LatchesValid) :
+    (aig.addAnd rhs0 rhs1 h0 h1).fst.LatchesValid := by
+  grind
+
+theorem addAnd_LatchIdxsValid
+    (latchIdxsValid : aig.LatchIdxsValid) :
+    (aig.addAnd rhs0 rhs1 h0 h1).fst.LatchIdxsValid := by
+  grind
+
+theorem addAnd_ResetsValid
+    (resetsValid : aig.ResetsValid) :
+    (aig.addAnd rhs0 rhs1 h0 h1).fst.ResetsValid := by
+  grind
+
+theorem addAnd_NextsValid
+    (nextsValid : aig.NextsValid) :
+    (aig.addAnd rhs0 rhs1 h0 h1).fst.NextsValid := by
+  grind
+
+-- We don't currently need acyclicGates as the underlying AIG maintains this,
+-- but we will want it in the future
+set_option linter.unusedVariables false in
+theorem addAnd_AcyclicGates
+    (acyclicGates : aig.AcyclicGates)
+    (h0 : rhs0.validIn aig)
+    (h1 : rhs1.validIn aig) :
+    (aig.addAnd rhs0 rhs1 h0 h1).fst.AcyclicGates := by
+  simp_all [Var.lt_idx]
+  simp [addAnd, get]
+  intro var
+  have := @Std.Sat.AIG.hdag (i := var.idx)
+  grind
+
+theorem addAnd_AcyclicResets
+    (acyclicResets : aig.AcyclicResets) :
+    (aig.addAnd rhs0 rhs1 h0 h1).fst.AcyclicResets := by
+  grind
+
+grind_pattern addAnd_InputsValid => (aig.addAnd rhs0 rhs1 h0 h1).fst.InputsValid
+grind_pattern addAnd_InputIdxsValid => (aig.addAnd rhs0 rhs1 h0 h1).fst.InputIdxsValid
+grind_pattern addAnd_LatchesValid => (aig.addAnd rhs0 rhs1 h0 h1).fst.LatchesValid
+grind_pattern addAnd_LatchIdxsValid => (aig.addAnd rhs0 rhs1 h0 h1).fst.LatchIdxsValid
+grind_pattern addAnd_ResetsValid => (aig.addAnd rhs0 rhs1 h0 h1).fst.ResetsValid
+grind_pattern addAnd_NextsValid => (aig.addAnd rhs0 rhs1 h0 h1).fst.NextsValid
+grind_pattern addAnd_AcyclicGates => (aig.addAnd rhs0 rhs1 h0 h1).fst.AcyclicGates
+grind_pattern addAnd_AcyclicResets => (aig.addAnd rhs0 rhs1 h0 h1).fst.AcyclicResets
+
+theorem addAnd_IdxsValid
+    (idxsValid : aig.IdxsValid)
+    (h0 : rhs0.validIn aig)
+    (h1 : rhs1.validIn aig) :
+    (aig.addAnd rhs0 rhs1 h0 h1).fst.IdxsValid := by
+  grind
+
+grind_pattern addAnd_IdxsValid => (aig.addAnd rhs0 rhs1 h0 h1).fst.IdxsValid
+
+theorem addAnd_WellFormed
+    (idxsValid : aig.WellFormed)
+    (h0 : rhs0.validIn aig)
+    (h1 : rhs1.validIn aig) :
+    (aig.addAnd rhs0 rhs1 h0 h1).fst.WellFormed := by
+  grind
+
+grind_pattern addAnd_WellFormed => (aig.addAnd rhs0 rhs1 h0 h1).fst.WellFormed
 
 end addAnd

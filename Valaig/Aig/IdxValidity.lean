@@ -141,13 +141,22 @@ addAnd Lemmas.
 section gate
 variable {rhs0 rhs1 : Lit} {h0 : rhs0.validIn aig} {h1 : rhs1.validIn aig}
 
-@[simp]
-theorem validIn_addAnd (idx : GenericIdx) :
-    idx.validIn aig → idx.validIn (aig.addAnd rhs0 rhs1 h0 h1).fst := by
-  simp_defs; grind_defs
+@[simp, grind =]
+theorem input_validIn_addAnd_iff {idx : InputIdx} :
+    idx.validIn (aig.addAnd rhs0 rhs1 h0 h1).fst ↔
+    idx.validIn aig := by
+  simp_defs
 
-grind_pattern validIn_addAnd => idx.validIn (aig.addAnd rhs0 rhs1 h0 h1).fst where
-  idx =/= .node (aig.addAnd rhs0 rhs1 h0 h1).snd.var
+@[simp, grind =]
+theorem latch_validIn_addAnd_iff {idx : LatchIdx} :
+    idx.validIn (aig.addAnd rhs0 rhs1 h0 h1).fst ↔
+    idx.validIn aig := by
+  simp_defs
+
+@[simp, grind .]
+theorem var_validIn_addAnd {var : Var} :
+    var.validIn aig → var.validIn (aig.addAnd rhs0 rhs1 h0 h1).fst := by
+  grind_defs
 
 @[simp, grind .]
 theorem addAnd_validIn :

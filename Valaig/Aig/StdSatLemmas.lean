@@ -70,7 +70,7 @@ theorem mkGateCached_matches_gate (aig : AIG α) {input : aig.BinaryInput} {idx 
 /--
 `AIG.mkAndCached` only potentially appends gates, not atoms/constants.
 -/
-theorem mkAndCached_matches_gate (idx : Nat) (aig : AIG α) (input : aig.BinaryInput)
+theorem mkAndCached_matches_gate {aig : AIG α} (idx : Nat) (input : aig.BinaryInput)
     {hlow : idx ≥ aig.decls.size} {hhigh : idx < (aig.mkAndCached input).aig.decls.size} :
     ∃ (lhs rhs : Fanin), (aig.mkAndCached input).aig.decls[idx] = .gate lhs rhs := by
   simp_all only [mkAndCached, mkGateCached_matches_gate]

@@ -208,6 +208,14 @@ theorem get_addAnd {var : Var} {valid : var.validIn aig} :
     (aig.addAnd rhs0 rhs1 h0 h1).fst.get var (by grind) = aig.get var valid := by
   simp_grind
 
+@[simp]
+theorem get_addAnd_new_matches_and {var : Var}
+    (notValid : ¬var.validIn aig)
+    (valid : var.validIn (aig.addAnd rhs0 rhs1 h0 h1).fst) :
+    ∃ (lhs rhs : Lit), (aig.addAnd rhs0 rhs1 h0 h1).fst.get var = .and lhs rhs := by
+  simp_all_defs
+  split <;> grind [Std.mkAndCached_matches_gate]
+
 @[simp, grind =]
 theorem input_getVar_addAnd {idx : InputIdx} {valid : idx.validIn aig} :
     idx.getVar (aig.addAnd rhs0 rhs1 h0 h1).fst (by grind) = idx.getVar aig valid := by
