@@ -85,7 +85,6 @@ def AcyclicResets (aig : Aig) : Prop :=
   ∀ {idx : LatchIdx} (valid : idx.validIn aig),
     (idx.getReset aig valid).var < idx.getVar aig valid
 
-@[grind .]
 theorem ResetsValid_of_LatchesValid_AcyclicReset {aig : Aig}
     (latchesValid : aig.LatchesValid)
     (acyclicResets : aig.AcyclicResets) :
@@ -95,7 +94,7 @@ theorem ResetsValid_of_LatchesValid_AcyclicReset {aig : Aig}
 /--
 All indices within the Aig are valid.
 -/
-@[grind]
+@[local grind]
 structure IdxsValid (aig : Aig) : Prop where
   inputsValid : aig.InputsValid
   inputIdxsValid : aig.InputIdxsValid
@@ -110,7 +109,7 @@ All indices within the Aig are valid and the gates and reset function are
 acyclic, allowing the definition of semantics
 @[grind]
 -/
-@[grind]
+@[local grind]
 structure WellFormed (aig : Aig) : Prop extends aig.IdxsValid where
   acyclicGates : aig.AcyclicGates
   acyclicResets : aig.AcyclicResets
@@ -222,7 +221,7 @@ theorem setReset_LatchIdxsValid
     (setIdx.setReset aig newReset setValid).LatchIdxsValid := by
   grind
 
-@[grind .]
+@[local grind .]
 theorem setReset_ResetsValid_of_resetValid
     (resetsValid : aig.ResetsValid)
     (resetValid : newReset.validIn aig) :

@@ -15,11 +15,12 @@ attribute [local grind =_] Var.ext_idx
 -- General theorems about validity
 section
 
-@[grind →]
 theorem validIn_mono {var var' : Var} (valid : var.validIn aig) (order : var' < var) :
     var'.validIn aig := by
   simp_all_defs
   grind [Var.lt_idx]
+
+grind_pattern validIn_mono => var.validIn aig, var'.validIn aig, var' < var
 
 end
 
