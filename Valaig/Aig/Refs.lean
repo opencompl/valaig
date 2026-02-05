@@ -29,12 +29,12 @@ instance : Ord Var where compare := (compare ·.idx ·.idx)
 
 instance : LE Var where le := (·.idx ≤ ·.idx)
 instance : DecidableLE Var := fun a b =>
-  decidable_of_bool (a.idx ≤ b.idx) (by simp [Var.instLE])
+  decidable_of_bool (a.idx ≤ b.idx) (by simp +instances [Var.instLE])
 
 @[local grind =]
 theorem le_idx (var var' : Var) :
     var ≤ var' ↔ var.idx ≤ var'.idx := by
-  simp [instLE]
+  simp +instances [instLE]
 
 instance : Std.IsLinearOrder Var := by
   apply Std.IsLinearOrder.of_le
@@ -43,12 +43,12 @@ instance : Std.IsLinearOrder Var := by
 
 instance : LT Var where lt := (·.idx < ·.idx)
 instance : DecidableLT Var := fun a b =>
-  decidable_of_bool (a.idx < b.idx) (by simp [Var.instLT])
+  decidable_of_bool (a.idx < b.idx) (by simp +instances [Var.instLT])
 
 @[local grind =]
 theorem lt_idx (var var' : Var) :
     var < var' ↔ var.idx < var'.idx := by
-  simp [instLT]
+  simp +instances [instLT]
 
 instance : Std.LawfulOrderLT Var := by
   apply Std.LawfulOrderLT.of_le
