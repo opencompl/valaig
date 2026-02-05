@@ -15,6 +15,7 @@ attribute [local simp, local grind]
 -- General theorems about validity
 section
 
+@[grind →]
 theorem validIn_mono {var var' : Var} (valid : var.validIn aig) (order : var' < var) :
     var'.validIn aig := by
   simp_all_defs
