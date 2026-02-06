@@ -117,7 +117,7 @@ private def findIdx [DecidableEq α] (path : FinPath ts)
   else if h : idx = 0 then
     none
   else
-    findIdx (path := path) state (idx - 1)
+    findIdx path state (idx - 1)
 
 private theorem findIdx_lt :
     match findIdx path state idx bound with
@@ -231,7 +231,7 @@ end removeLoops
 
 set_option linter.unusedVariables false in
 /--
-- For all finite paths, there exists a simple path reaching the same final state
+- For all finite paths, there exists a simple path between the same states
 - that is at most as long (by removing the loops).
 -/
 theorem exists_simple_path [DecidableEq α] {ts : TransSys α} :
@@ -258,4 +258,4 @@ end FinPath
 - state obeys the initial predicate.
 -/
 structure FinTrace {α : Type} (ts : TransSys α) extends FinPath ts where
-  init : ts.init initial
+  init : ts.init toFinPath.initial
