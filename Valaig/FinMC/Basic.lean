@@ -1,5 +1,8 @@
 module
 
+public import Mathlib.Data.Finite.Defs
+public import Mathlib.Data.Finite.Card
+
 public section
 namespace Valaig.FinMC
 
@@ -231,8 +234,8 @@ end removeLoops
 
 set_option linter.unusedVariables false in
 /--
-- For all finite paths, there exists a simple path between the same states
-- that is at most as long (by removing the loops).
+For all finite paths, there exists a simple path between the same states
+that is at most as long (by removing the loops).
 -/
 theorem exists_simple_path [DecidableEq α] {ts : TransSys α} :
     ∀ (path : FinPath ts),
@@ -251,11 +254,28 @@ theorem exists_simple_path [DecidableEq α] {ts : TransSys α} :
     · exact removeLoops_initial_eq
     · exact removeLoops_final_eq
 
+set_option linter.unusedVariables false in
+/--
+All simple paths in a finite transition system are at most as long as the
+cardinality of the domain (as any longer path must revisit states).
+
+We show this by creating an injective mapping from path indices to states, where
+the path indices have a cardinality of `path.size`.
+-/
+theorem finite_simple_size_le_card [Finite α] {ts : TransSys α} :
+  ∀ (path : FinPath ts) (simple : path.Simple),
+    path.size ≤ Nat.card α := by
+  intro path simple
+  rw [←Nat.card_fin path.size]
+  let map : Fin path.size -> α := (path.state ·)
+  apply Nat.card_le_card_of_injective map
+  grind only [Function.Injective]
+
 end FinPath
 
 /--
-- A finite trace on a transition system is a finite path such that the first
-- state obeys the initial predicate.
+A finite trace on a transition system is a finite path such that the first
+state obeys the initial predicate.
 -/
 structure FinTrace {α : Type} (ts : TransSys α) extends FinPath ts where
   init : ts.init toFinPath.initial
