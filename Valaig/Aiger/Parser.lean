@@ -1,6 +1,9 @@
-import Valaig.Aig.Basic
-import Std.Internal.Parsec
+module
 
+public import Valaig.Aig.Basic
+public import Std.Internal.Parsec
+
+public section
 namespace Valaig.Aiger.Parser
 
 open Std.Internal.Parsec.ByteArray

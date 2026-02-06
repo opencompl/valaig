@@ -1,3 +1,6 @@
+module
+
+public section
 namespace Valaig
 
 inductive Result where
@@ -17,5 +20,3 @@ instance : ToString Error where
 
 abbrev EResult := Except Error Result
 abbrev VExcept := Except Error
-
-end Valaig

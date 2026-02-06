@@ -1,7 +1,11 @@
-import Valaig.Aig.Basic
-import Valaig.Aiger.Writer
-import Valaig.Result
+module
 
+public import Valaig.Aig.Basic
+import all Valaig.Aig.Basic
+public import Valaig.Aiger.Writer
+public import Valaig.Result
+
+public section
 namespace Valaig.External
 
 open Valaig.Aig

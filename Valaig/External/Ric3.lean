@@ -1,5 +1,8 @@
-import Valaig.External.Basic
+module
 
+public import Valaig.External.Basic
+
+public section
 namespace Valaig.External
 
 def rIC3

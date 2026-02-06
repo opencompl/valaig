@@ -5,9 +5,11 @@ namespace Array
 
 variable {α : Type}
 
--- `Array.modify` doesn't provide a proof that the element being modified corresponds to the index,
--- but this is often useful so we provide our own implementation, and the unsafe implementation for
--- performance
+/-
+`Array.modify` doesn't provide a proof that the element being modified corresponds to the index,
+but this is often useful so we provide our own implementation, and the unsafe implementation for
+performance
+-/
 
 @[inline]
 private unsafe def modifyMemUnsafe (xs : Array α) (i : Nat) (h : i < xs.size)

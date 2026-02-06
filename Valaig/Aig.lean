@@ -1,5 +1,9 @@
-import Valaig.Aig.Refs
-import Valaig.Aig.Defs
-import Valaig.Aig.Basic
-import Valaig.Aig.Lemmas
-import Valaig.Aig.FromStd
+module
+
+public import Valaig.Aig.Refs
+public import Valaig.Aig.Basic
+public import Valaig.Aig.RefValidIn
+public import Valaig.Aig.GetSet
+public import Valaig.Aig.WellFormed
+public import Valaig.Aig.Iter
+public import Valaig.Aig.FromStd

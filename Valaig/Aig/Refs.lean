@@ -76,6 +76,10 @@ instance : LawfulHashable Var where hash_eq := by simp
 def constant : Var :=
   .ofIdx 0
 
+theorem constant_idx_eq_zero :
+    constant.idx = 0 := by
+  simp [constant]
+
 @[inline]
 def offset (v : Var) (n : Nat) : Var :=
   .ofIdx (v.idx + n)

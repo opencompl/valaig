@@ -1,21 +1,27 @@
-import Valaig.Aig.Basic
+module
 
+public import Valaig.Aig.Basic
+
+-- TODO: This shouldn't be necessary but the module system seems broken:
+-- https://github.com/leanprover/lean4/issues/12337
+import all Valaig.Aig.Basic
+
+public section
 namespace Valaig
 
 /--
 A thin wrapper over an Aig with additional outputs and invariants for reading/
-writing Aiger files
+writing Aiger files.
 -/
 structure Aiger where
   aig : Aig
   bads : Aig.Outputs
 
-  hbads : ∀ {bad}, bad ∈ bads → bad.lit.validIn aig := by grind
-  -- TODO: Other properties, invariants for them
-
 namespace Aiger
 
-@[inline, simp]
-abbrev numBads(aig : Aiger) : Nat := aig.bads.size
+structure WellFormed (aig : Aiger) where
+  badsValid : ∀ {bad}, bad ∈ aig.bads → bad.lit.validIn aig.aig
 
-end Valaig.Aiger
+@[inline, simp]
+abbrev numBads (aig : Aiger) : Nat :=
+  aig.bads.size

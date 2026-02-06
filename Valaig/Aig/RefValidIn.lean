@@ -1,10 +1,10 @@
 module
 
 public meta import Valaig.Prelude
-public import Valaig.Aig.BasicNew
-import all Valaig.Aig.BasicNew
+public import Valaig.Aig.Basic
+import all Valaig.Aig.Basic
 
-public section pub
+public section
 namespace Valaig.Aig
 variable {aig : Aig}
 
@@ -21,7 +21,37 @@ theorem validIn_mono {var var' : Var} (valid : var.validIn aig) (order : var' < 
 
 grind_pattern validIn_mono => var.validIn aig, var'.validIn aig, var' < var
 
+@[simp, grind .]
+theorem constant_validIn :
+    Var.constant.validIn aig := by
+  have := aig.aig.hzero
+  simp [Var.constant_idx_eq_zero]
+  grind_defs
+
 end
+
+/-
+Aig.empty Lemmas.
+-/
+section empty
+
+@[simp, grind .]
+theorem input_not_validIn_empty {idx : InputIdx} :
+    ¬idx.validIn empty := by
+  simp_defs
+
+@[simp, grind .]
+theorem latch_not_validIn_empty {idx : LatchIdx} :
+    ¬idx.validIn empty := by
+  simp_defs
+
+@[simp, grind .]
+theorem var_validIn_empty_iff_eq_constant {var : Var} :
+    var.validIn empty ↔ var = .constant := by
+  simp_defs
+  simp [Var.ext_idx, Var.constant_idx_eq_zero, Std.Sat.AIG.empty]
+
+end empty
 
 section latch
 variable {latch : LatchIdx} {valid : latch.validIn aig}

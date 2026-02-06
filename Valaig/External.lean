@@ -1,2 +1,4 @@
-import Valaig.External.Basic
-import Valaig.External.Ric3
+module
+
+public import Valaig.External.Basic
+public import Valaig.External.Ric3
