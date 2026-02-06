@@ -11,12 +11,38 @@ A theory of Model Checking for finite-state transition systems.
 -/
 
 /--
-A transition system over some domain α has predicates
-defining the initial states and the transition relation between states.
+A transition system over some domain α has predicates defining the
+initial states and the transition relation between states.
 -/
 structure TransSys (α : Type) where
   init : α -> Prop
   trans : α -> α -> Prop
+
+variable {α : Type} {ts : TransSys α}
+
+namespace TransSys
+
+/--
+An uninitialised transition system is one that admits all initial states.
+-/
+def Uninitialised (ts : TransSys α) : Prop :=
+  ∀ {state : α}, ts.init state
+
+/--
+Replace the initial state predicate with one allowing all initial states
+-/
+def uninit (ts : TransSys α) : TransSys α :=
+  { ts with init _ := true }
+
+@[simp, grind! .]
+theorem uninit_Uninitialised : ts.uninit.Uninitialised := by
+  simp [uninit, Uninitialised]
+
+@[simp, grind =]
+theorem uninit_trans_eq : ts.uninit.trans = ts.trans := by
+  simp only [uninit]
+
+end TransSys
 
 /--
 A finite path on a transition system is a finite sequence of states (stored as
@@ -33,7 +59,6 @@ structure FinPath {α : Type} (ts : TransSys α) where
 attribute [grind .] FinPath.sized
 
 namespace FinPath
-variable {α : Type} {ts : TransSys α}
 
 abbrev size (path : FinPath ts) : Nat :=
   path.states.size
@@ -237,7 +262,7 @@ set_option linter.unusedVariables false in
 For all finite paths, there exists a simple path between the same states
 that is at most as long (by removing the loops).
 -/
-theorem exists_simple_path [DecidableEq α] {ts : TransSys α} :
+theorem exists_simple_path [DecidableEq α] :
     ∀ (path : FinPath ts),
     ∃ (path' : FinPath ts)
       (ends : path'.Between path.initial path.final)
@@ -262,7 +287,7 @@ cardinality of the domain (as any longer path must revisit states).
 We show this by creating an injective mapping from path indices to states, where
 the path indices have a cardinality of `path.size`.
 -/
-theorem finite_simple_size_le_card [Finite α] {ts : TransSys α} :
+theorem size_le_card_of_finite_simple [Finite α] :
   ∀ (path : FinPath ts) (simple : path.Simple),
     path.size ≤ Nat.card α := by
   intro path simple
@@ -279,3 +304,50 @@ state obeys the initial predicate.
 -/
 structure FinTrace {α : Type} (ts : TransSys α) extends FinPath ts where
   init : ts.init toFinPath.initial
+
+abbrev FinTrace.path (trace : FinTrace ts) := trace.toFinPath
+
+namespace TransSys
+
+def Reachable (ts : TransSys α) (pred : α -> Prop) : Prop :=
+  ∃ (trace : FinTrace ts), pred trace.final
+
+def Safe (ts : TransSys α) (pred : α -> Prop) : Prop :=
+  ∀ (trace : FinTrace ts), pred trace.final
+
+theorem Safe_iff_not_reachable_not :
+    ts.Safe pred ↔ ¬ts.Reachable (¬pred ·) := by
+  simp [Safe, Reachable]
+
+set_option linter.unusedVariables false in
+def SafeUpTo (ts : TransSys α) (pred : α -> Prop) (bound : Nat) :=
+  ∀ (trace : FinTrace ts) (upto : trace.size ≤ bound),
+    pred trace.final
+
+variable {pred : α -> Prop}
+
+theorem Safe_iff_forall_SafeUpTo :
+    ts.Safe pred ↔ ∀ {n : Nat}, ts.SafeUpTo pred n := by
+  unfold Safe SafeUpTo
+  aesop
+
+theorem Safe_iff_SafeUpTo_card_of_finite [Finite α] [DecidableEq α] :
+    ts.Safe pred ↔ ts.SafeUpTo pred (Nat.card α) := by
+  rw [Safe_iff_forall_SafeUpTo]
+  unfold SafeUpTo
+  constructor
+  · grind
+  · intro h n trace smaller
+    rcases FinPath.exists_simple_path trace.path with ⟨simplePath, ⟨⟨_, _⟩, ⟨simple, hsize⟩⟩⟩
+    let trace' : FinTrace ts :=
+      {
+        toFinPath := simplePath,
+        init := by grind [FinTrace.init]
+      }
+    have := FinPath.size_le_card_of_finite_simple simplePath simple
+    have : trace.final = trace'.final := by grind
+    rw [this]
+    apply h
+    grind
+
+end TransSys
