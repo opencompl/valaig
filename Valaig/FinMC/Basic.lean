@@ -109,6 +109,7 @@ theorem final_def :
 A path between two states is a path such that the initial and final states
 are these states.
 -/
+@[simp, grind]
 def Between (path : FinPath ts) (initial final : α) : Prop :=
   path.initial = initial ∧ path.final = final
 
@@ -435,20 +436,26 @@ def removeLoops [DecidableEq α] (path : FinPath ts) : FinPath ts :=
 section removeLoops
 variable [DecidableEq α] {path : FinPath ts}
 
+@[simp]
 theorem removeLoops_size_le :
     path.removeLoops.size ≤ path.size := by
   unfold removeLoops
   grind only [removeLoops.removeUpTo_size_le]
 
+grind_pattern removeLoops_size_le => path.removeLoops.size
+
+@[simp, grind =]
 theorem removeLoops_initial_eq :
     path.removeLoops.initial = path.initial := by
   unfold removeLoops
   exact removeLoops.removeUpTo_initial_eq_initial
 
+@[simp, grind =]
 theorem removeLoops_final_eq :
     path.removeLoops.final = path.final := by
   grind only [removeLoops, final_def]
 
+@[simp, grind! .]
 theorem removeLoops_Simple :
     path.removeLoops.Simple := by
   unfold removeLoops
@@ -467,14 +474,7 @@ theorem exists_simple_path [DecidableEq α] (path : FinPath ts) :
       (simple : path'.Simple),
       path'.size ≤ path.size := by
   exists path.removeLoops
-  apply Exists.intro ?_
-  apply Exists.intro ?_
-  · exact removeLoops_size_le
-  · exact removeLoops_Simple
-  · unfold Between
-    constructor
-    · exact removeLoops_initial_eq
-    · exact removeLoops_final_eq
+  grind
 
 set_option linter.unusedVariables false in
 /--
@@ -484,12 +484,15 @@ cardinality of the domain (as any longer path must revisit states).
 We show this by creating an injective mapping from path indices to states, where
 the path indices have a cardinality of `path.size`.
 -/
-theorem size_le_card_of_finite_simple [Finite α] (simple : path.Simple) :
+@[simp]
+theorem size_le_card_of_Finite_Simple [Finite α] (simple : path.Simple) :
     path.size ≤ Nat.card α := by
   rw [←Nat.card_fin path.size]
   let map : Fin path.size -> α := (path.state ·)
   apply Nat.card_le_card_of_injective map
   grind [Function.Injective]
+
+grind_pattern size_le_card_of_Finite_Simple => Finite α, path.Simple, path.size
 
 end FinPath
 
@@ -498,9 +501,12 @@ A finite trace on a transition system is a finite path such that the first
 state obeys the initial predicate.
 -/
 structure FinTrace {α : Type} (ts : TransSys α) extends FinPath ts where
-  init : ts.init toFinPath.initial
+  init : ts.init toFinPath.initial := by grind
 
-abbrev FinTrace.path (trace : FinTrace ts) := trace.toFinPath
+attribute [grind! .] FinTrace.init
+
+abbrev FinTrace.path (trace : FinTrace ts) :=
+  trace.toFinPath
 
 namespace TransSys
 
@@ -532,17 +538,11 @@ theorem Safe_iff_SafeUpTo_card_of_finite [Finite α] [DecidableEq α] :
   unfold SafeUpTo
   constructor
   · grind
-  · intro h n trace smaller
-    rcases FinPath.exists_simple_path trace.path with ⟨simplePath, ⟨⟨_, _⟩, ⟨simple, hsize⟩⟩⟩
-    let trace' : FinTrace ts :=
-      {
-        toFinPath := simplePath,
-        init := by grind [FinTrace.init]
-      }
-    have := FinPath.size_le_card_of_finite_simple simple
-    have : trace.final = trace'.final := by grind
+  · intro h _ trace _
+    have : trace.final = (FinTrace.mk trace.removeLoops).final := by
+      rw [FinPath.removeLoops_final_eq]
     rw [this]
     apply h
-    grind
+    simp
 
 end TransSys
