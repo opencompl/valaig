@@ -203,8 +203,10 @@ instance {lit : Lit} {aig : Aig} : Decidable (lit.validIn aig) :=
 
 end Lit
 
+namespace Aig
+
 @[always_inline]
-def Aig.get (aig : Aig) (var : Var) (valid : var.validIn aig := by grind) : Node :=
+def get (aig : Aig) (var : Var) (valid : var.validIn aig := by grind) : Node :=
   match aig.aig.decls[var.idx] with
   | .false => .false
   | .atom (.input idx) => .input idx
@@ -212,80 +214,79 @@ def Aig.get (aig : Aig) (var : Var) (valid : var.validIn aig := by grind) : Node
   | .gate rhs0 rhs1 => .and (.ofFanin rhs0) (.ofFanin rhs1)
 
 @[always_inline, expose, reducible, simp, grind unfold]
-instance Aig.instGetElemVar : GetElem Aig Var Node (fun aig var => var.validIn aig) where
+instance instGetElemVar : GetElem Aig Var Node (fun aig var => var.validIn aig) where
   getElem aig var (h := by grind) :=
     aig.get var h
-
-namespace Aig
 
 /-
 Input accessors.
 -/
+namespace InputIdx
 
 @[local simp]
-def InputIdx.validIn (idx : Aig.InputIdx) (aig : Aig) : Prop :=
+def validIn (idx : InputIdx) (aig : Aig) : Prop :=
   idx.idx < aig.inputs.size
-
-namespace InputIdx
 
 @[always_inline]
 instance {idx : InputIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
   have : idx.validIn aig ↔ idx.idx < aig.numInputs := by
-    simp [InputIdx.validIn, numInputs]
+    simp [validIn, numInputs]
   decidable_of_iff' _ this
 
-end InputIdx
+abbrev In (aig : Aig) := { idx : InputIdx // idx.validIn aig }
 
 @[always_inline]
-def InputIdx.getVar (idx : Aig.InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
+def getVar (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
   aig.inputs[idx.idx].var
 
 @[always_inline, simp]
-abbrev InputIdx.getLit (idx : Aig.InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
+abbrev getLit (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
   idx.getVar aig valid |>.toLit
+
+end InputIdx
 
 /-
 Latch accessors.
 -/
+namespace LatchIdx
 
 @[local simp]
-def LatchIdx.validIn (idx : Aig.LatchIdx) (aig : Aig) : Prop :=
+def validIn (idx : LatchIdx) (aig : Aig) : Prop :=
   idx.idx < aig.latches.size
-deriving Decidable
-
-namespace LatchIdx
 
 @[always_inline]
 instance {idx : LatchIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
   have : idx.validIn aig ↔ idx.idx < aig.numLatches := by
-    simp [LatchIdx.validIn, numLatches]
+    simp [validIn, numLatches]
   decidable_of_iff' _ this
 
-end LatchIdx
+abbrev In (aig : Aig) := { idx : LatchIdx // idx.validIn aig }
 
 @[always_inline]
-def LatchIdx.getVar (idx : Aig.LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
+def getVar (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
   aig.latches[idx.idx].var
 
 @[always_inline, simp]
-abbrev LatchIdx.getLit (idx : Aig.LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
+abbrev getLit (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
   idx.getVar aig valid |>.toLit
 
 @[always_inline]
-def LatchIdx.getNext (idx : Aig.LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
+def getNext (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
   aig.latches[idx.idx].next
 
 @[always_inline]
-def LatchIdx.setNext (idx : Aig.LatchIdx) (aig : Aig) (next : Lit) (valid : idx.validIn aig := by grind) : Aig :=
+def setNext (idx : LatchIdx) (aig : Aig) (next : Lit) (valid : idx.validIn aig := by grind) : Aig :=
   { aig with latches := aig.latches.modifyMem idx.idx (by simp_all) ({ ·.val with next }) }
 
 @[always_inline]
-def LatchIdx.getReset (idx : Aig.LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
+def getReset (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
   aig.latches[idx.idx].reset
 
 @[always_inline]
-def LatchIdx.setReset (idx : Aig.LatchIdx) (aig : Aig) (reset : Lit) (valid : idx.validIn aig := by grind) : Aig :=
+def setReset (idx : LatchIdx) (aig : Aig) (reset : Lit) (valid : idx.validIn aig := by grind) : Aig :=
   { aig with latches := aig.latches.modifyMem idx.idx (by simp_all) ({ ·.val with reset }) }
+
+end LatchIdx
 
 /-
 Arbitrary index validity and accessors, defined as abbreviations
@@ -293,25 +294,27 @@ Arbitrary index validity and accessors, defined as abbreviations
 namespace AtomIdx
 
 @[simp]
-abbrev validIn (idx : Aig.AtomIdx) (aig : Aig) : Prop :=
+abbrev validIn (idx : AtomIdx) (aig : Aig) : Prop :=
   match idx with
   | .input idx => idx.validIn aig
   | .latch idx => idx.validIn aig
 
 @[always_inline]
-instance {idx : Aig.AtomIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
+instance {idx : AtomIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
   match idx with
   | .input _ => inferInstance
   | .latch _ => inferInstance
 
+abbrev In (aig : Aig) := { idx : AtomIdx // idx.validIn aig }
+
 @[always_inline, simp]
-abbrev getVar (idx : Aig.AtomIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
+abbrev getVar (idx : AtomIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
   match idx with
   | .input idx => idx.getVar aig
   | .latch idx => idx.getVar aig
 
 @[always_inline, simp]
-abbrev getLit (idx : Aig.AtomIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
+abbrev getLit (idx : AtomIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
   match idx with
   | .input idx => idx.getLit aig
   | .latch idx => idx.getLit aig

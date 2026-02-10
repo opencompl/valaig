@@ -72,6 +72,15 @@ instance : Std.LawfulOrderMax Var := by
 instance : Hashable Var where hash := (hash ·.idx)
 instance : LawfulHashable Var where hash_eq := by simp
 
+instance : WellFoundedRelation Var where
+  rel := (· < ·)
+  wf := by
+    constructor
+    have {var : Var} : Acc (· < ·) var := by
+      induction h : var.idx generalizing var
+      <;> grind [Acc]
+    apply this
+
 @[inline]
 def constant : Var :=
   .ofIdx 0

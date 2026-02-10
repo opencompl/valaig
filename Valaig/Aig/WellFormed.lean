@@ -92,7 +92,7 @@ theorem ResetsValid_of_LatchesValid_AcyclicReset {aig : Aig}
 /--
 All indices within the Aig are valid.
 -/
-@[local grind]
+@[grind]
 structure IdxsValid (aig : Aig) : Prop where
   inputsValid : aig.InputsValid
   inputIdxsValid : aig.InputIdxsValid
@@ -107,7 +107,7 @@ All indices within the Aig are valid and the gates and reset function are
 acyclic, allowing the definition of semantics
 @[grind]
 -/
-@[local grind]
+@[grind]
 structure WellFormed (aig : Aig) : Prop extends aig.IdxsValid where
   acyclicGates : aig.AcyclicGates
   acyclicResets : aig.AcyclicResets
