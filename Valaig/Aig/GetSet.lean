@@ -3,7 +3,7 @@ module
 import Valaig.Prelude
 public import Valaig.Aig.Basic
 import all Valaig.Aig.Basic
-public import Valaig.Aig.RefValidIn
+public import Valaig.Aig.ValidIn
 
 public section
 namespace Valaig.Aig
