@@ -125,7 +125,8 @@ structure Result (stdAig : AIG α) where
   refMap : stdAig.Ref -> Lit
   atomMap : α -> Option AtomIdx
 
-  hrefvalid : ∀ {ref}, refMap ref |>.validIn aig
+  refValid : ∀ {ref}, refMap ref |>.validIn aig
+  wellFormed : aig.WellFormed
 
 end FromStd
 
@@ -137,7 +138,9 @@ def fromStdAIG (stdAig : AIG α) (relabel : α -> RelabelledAtom stdAig) : Resul
     have := ref.hgate
     state.map[ref.gate]'(by omega) |>.invert ref.invert
 
-  { aig := state.aig, refMap, atomMap := (state.atomMap[·]?), hrefvalid := by grind }
+  let atomMap := (state.atomMap[·]?)
+  have refValid := by grind
+  { aig := state.aig, refMap, atomMap, refValid, wellFormed := state.hwf }
 
 where
   go (s : State stdAig := {}) (h : s.map.size ≤ stdAig.decls.size := by grind) :
