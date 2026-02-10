@@ -1,12 +1,9 @@
 module
 
 public import Valaig.Prelude
-public import Valaig.Aig.Basic
 -- TODO: This shouldn't be necessary but the module system seems broken:
 -- https://github.com/leanprover/lean4/issues/12337
 import all Valaig.Aig.Basic
-public import Valaig.Aig.ValidIn
-public import Valaig.Aig.GetSet
 public import Valaig.Aig.WellFormed
 public import Std.Sat.AIG.Basic
 
