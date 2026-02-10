@@ -20,6 +20,11 @@ structure GenericIter {α : Type} (mk : Nat -> α) (size : Nat) (valid : α -> P
 
 namespace GenericIter
 
+/--
+The parameters to GenericIter are lawful if valid corresponds to the index
+being below the size. This is separated outside GenericIter to make it easier
+to infer.
+-/
 class LawfulValid {α : Type} (mk : Nat -> α) (size : Nat) (valid : α -> Prop) : Prop where
   hvalid : ∀ {out : α}, valid out ↔ ∃ (n : Nat) (_ : out = mk n), n < size
 
@@ -30,14 +35,11 @@ variable {m : Type -> Type u} [Pure m]
 @[inline]
 instance instIterator : Std.Iterator (GenericIter mk size valid) m α where
   IsPlausibleStep it step :=
+    let idx := it.internalState.idx
     match step with
-    | .yield it' out =>
-      it.internalState.idx < size ∧
-      it'.internalState.idx = it.internalState.idx + 1 ∧
-      out = mk it.internalState.idx
+    | .yield it' out => idx < size ∧ it'.internalState.idx = idx + 1 ∧ out = mk idx
     | .skip _ => False
-    | .done => 
-      it.internalState.idx ≥ size
+    | .done => idx ≥ size
 
   step it := pure <| .deflate <|
     let s := it.internalState
@@ -46,29 +48,22 @@ instance instIterator : Std.Iterator (GenericIter mk size valid) m α where
     else
       .done (by grind)
 
-attribute [local grind =] Std.IterM.Step.toPure_yield
-attribute [local grind =] Std.IterM.Step.toPure_skip
-attribute [local grind =] Std.IterM.Step.toPure_done
-attribute [local grind unfold] Std.PlausibleIterStep.yield
-attribute [local grind unfold] Std.PlausibleIterStep.skip
-attribute [local grind unfold] Std.PlausibleIterStep.done
-attribute [local grind =] Std.IterStep.successor_yield
-attribute [local grind =] Std.IterStep.successor_skip
-attribute [local grind =] Std.IterStep.successor_done
+attribute [local grind =] Std.IterM.Step.toPure_yield Std.IterM.Step.toPure_skip Std.IterM.Step.toPure_done
+attribute [local grind unfold] Std.PlausibleIterStep.yield Std.PlausibleIterStep.skip Std.PlausibleIterStep.done
+attribute [local grind =] Std.IterStep.successor_yield Std.IterStep.successor_skip Std.IterStep.successor_done
+attribute [local grind =] Std.IterStep.mapIterator_yield
 attribute [local simp, local grind unfold] Std.Iterator.step Std.Iter.step Std.IterM.step
 attribute [local simp, local grind unfold] Std.Iter.toIterM Std.IterM.toIter
 attribute [local grind =] Std.Shrink.inflate_deflate
 attribute [local grind .] Std.Iter.IsPlausibleIndirectOutput.direct
 attribute [local grind .] Std.Iter.IsPlausibleIndirectOutput.indirect
-attribute [local simp, local grind unfold] Std.IterM.IsPlausibleSuccessorOf
 attribute [local simp, local grind unfold] Std.IterM.IsPlausibleStep
 attribute [local simp, local grind unfold] Std.Iter.IsPlausibleStep
 attribute [local simp, local grind unfold] Std.Iterator.IsPlausibleStep
 attribute [local simp] Std.Iter.IsPlausibleOutput
 attribute [local simp] Std.Iter.IsPlausibleSuccessorOf
-attribute [local simp, local grind unfold] Std.IterM.IsPlausibleSuccessorOf
 attribute [local simp, local grind unfold] Std.IterM.IsPlausibleOutput
-attribute [local grind =] Std.IterStep.mapIterator_yield
+attribute [local simp, local grind unfold] Std.IterM.IsPlausibleSuccessorOf
 
 open Std.Iterators in
 private def instFinitenessRelation : FinitenessRelation (GenericIter mk size valid) m where
@@ -76,7 +71,7 @@ private def instFinitenessRelation : FinitenessRelation (GenericIter mk size val
   wf := InvImage.wf _ WellFoundedRelation.wf
   subrelation {it it'} h := by simp_wf; grind
 
-instance instFinite [Pure m] : Std.Iterators.Finite (GenericIter mk size valid) m := by
+instance instFinite : Std.Iterators.Finite (GenericIter mk size valid) m := by
   exact .of_finitenessRelation instFinitenessRelation
 
 @[always_inline]
@@ -148,6 +143,9 @@ abbrev InputIterator (aig : Aig) := GenericIter InputIdx.ofIdx aig.numInputs (·
 instance {aig : Aig} : GenericIter.LawfulValid InputIdx.ofIdx aig.numInputs (·.validIn aig) where
   hvalid := by grind [InputIdx.validIn, numInputs]
 
+/--
+A forward iterator over inputs in the Aig.
+-/
 @[inline]
 def inputIter (aig : Aig) : @Std.Iter (InputIterator aig) InputIdx :=
   ⟨⟨0⟩⟩
@@ -156,6 +154,9 @@ abbrev LatchIterator (aig : Aig) := GenericIter LatchIdx.ofIdx aig.numLatches (�
 instance {aig : Aig} : GenericIter.LawfulValid LatchIdx.ofIdx aig.numLatches (·.validIn aig) where
   hvalid := by grind [LatchIdx.validIn, numLatches]
 
+/--
+A forward iterator over latches in the Aig.
+-/
 @[inline]
 def latchIter (aig : Aig) : @Std.Iter (LatchIterator aig) LatchIdx :=
   ⟨⟨0⟩⟩
@@ -164,6 +165,9 @@ abbrev VarIterator (aig : Aig) := GenericIter Var.ofIdx aig.size (·.validIn aig
 instance {aig : Aig} : GenericIter.LawfulValid Var.ofIdx aig.size (·.validIn aig) where
   hvalid := by grind [Var.validIn]
 
+/--
+A forward iterator over variables in the Aig.
+-/
 @[inline]
 def iter (aig : Aig) : @Std.Iter (VarIterator aig) Var :=
   ⟨⟨0⟩⟩
