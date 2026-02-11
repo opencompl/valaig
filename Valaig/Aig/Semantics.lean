@@ -6,26 +6,66 @@ public import Valaig.Aig.WellFormed
 public section
 namespace Valaig.Aig
 
+/--
+An timeframe (step) index of the model.
+-/
 abbrev Frame := Nat
 
+attribute [local grind .] validIn_mono
+
+/--
+A combinational Aig has no latches.
+-/
+@[expose, reducible]
+def Combinational (aig : Aig) :=
+  aig.numLatches = 0
+
+mutual
+
+/--
+Denotation of the combinational semantics of the Aig, taking a function to assign values to the
+input/latches.
+
+The deontation is provided leaves along with a proof that the leaves don't appear after the node
+being denoted in the graph to help with termination proofs.
+-/
 @[expose]
-def denote (aig : Aig) (lit : Lit) (frame : Frame) (input : InputIdx.In aig -> Frame -> Bool)
+def denoteComb (aig : Aig) (lit : Lit)
+    (denoteLeaf : (leaf : LeafIdx.In aig) -> (leaf.val.getVar aig ≤ lit.var) -> Bool)
     (valid : lit.validIn aig := by grind) (wf : aig.WellFormed := by grind) : Bool :=
-  let val :=
-    match h : aig[lit.var] with
-    | .false => false
-    | .input idx => input ⟨idx, by grind⟩ frame
+  denote lit
+where
+  denote (cur : Lit) (lt : cur.var ≤ lit.var := by grind) : Bool :=
+    have : cur.validIn aig := by grind
+    let val :=
+      match h : aig[cur.var] with
+      | .false => false
+      | .input idx => denoteLeaf ⟨.input idx, by grind⟩ (by grind)
+      | .latch idx => denoteLeaf ⟨.latch idx, by grind⟩ (by grind)
+      | .and rhs0 rhs1 => (denote rhs0) ∧ (denote rhs1)
+    val ^^ cur.inverted
+  termination_by cur.var
+  decreasing_by all_goals grind
+
+/--
+Denotation of the sequential semantics of the Aig in each timeframe, taking a function to assign
+values to the inputs in each frame.
+-/
+@[expose]
+def denote (aig : Aig) (lit : Lit) (frame : Frame) (denoteInput : InputIdx.In aig -> Frame -> Bool)
+    (valid : lit.validIn aig := by grind) (wf : aig.WellFormed := by grind) : Bool :=
+  aig.denoteComb lit (denoteLeaf frame)
+where
+  denoteLeaf {lit : Lit} (frame : Frame) (leaf : LeafIdx.In aig) (leafLt : leaf.val.getVar aig ≤ lit.var) : Bool :=
+    match h : leaf.val with
+    | .input idx => denoteInput ⟨idx, by grind⟩ frame
     | .latch idx =>
-      if h0 : frame = 0 then
-        aig.denote (idx.getReset aig) 0 input
+      if h : frame = 0 then
+        aig.denoteComb (idx.getReset aig) (denoteLeaf 0)
       else
-        aig.denote (idx.getNext aig) (frame - 1) input
-    | .and rhs0 rhs1 =>
-      let v0 := aig.denote rhs0 frame input
-      let v1 := aig.denote rhs1 frame input
-      v0 && v1
+        aig.denoteComb (idx.getNext aig) (denoteLeaf  (frame - 1))
 
-  val ^^ lit.inverted
+  termination_by (frame, lit.var)
+  decreasing_by all_goals grind
 
-termination_by (frame, lit.var)
-decreasing_by all_goals grind
+end -- mutual
