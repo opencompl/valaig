@@ -41,7 +41,7 @@ public section
 namespace Valaig.Aig
 
 /--
-An index to an input definition in the Aig input array.
+An index to an input definition in the Aig input array. These inputs are primary inputs (PIs).
 -/
 structure InputIdx where
   ofIdx ::
@@ -67,17 +67,18 @@ instance : LawfulHashable LatchIdx where hash_eq := by simp
 end LatchIdx
 
 /--
-An atom in the combinational aig is either an input or a latch, which is just
-a reference back to the index in the inputs or latches arrays.
+A leaf in the combinational aig is either an input or a latch, which is just a reference back to
+the index in the inputs or latches arrays.
+These are what abc calls Combinational Inputs (CIs).
 -/
-inductive AtomIdx where
+inductive LeafIdx where
 | input (idx : InputIdx)
 | latch (idx : LatchIdx)
 
-namespace AtomIdx
-deriving instance Hashable, DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq for AtomIdx
-instance : LawfulHashable AtomIdx where hash_eq := by simp
-end AtomIdx
+namespace LeafIdx
+deriving instance Hashable, DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq for LeafIdx
+instance : LawfulHashable LeafIdx where hash_eq := by simp
+end LeafIdx
 
 /--
 An output of interest in the circuit - this is also used to represent other
@@ -100,12 +101,12 @@ stored separately as `Lit`s in the `Aig`.
 -/
 structure Aig where
   -- The underlying AIG
-  private aig : Std.Sat.AIG Aig.AtomIdx
+  private aig : Std.Sat.AIG Aig.LeafIdx
 
-  -- A mapping from input indices (AtomIdx.input idx) to their definition
+  -- A mapping from input indices (LeafIdx.input idx) to their definition
   private inputs : Aig.Inputs
 
-  -- A mapping from latch indices (AtomIdx.latch idx) to their definition
+  -- A mapping from latch indices (LeafIdx.latch idx) to their definition
   private latches : Aig.Latches
 
 namespace Aig
@@ -291,42 +292,42 @@ end LatchIdx
 /-
 Arbitrary index validity and accessors, defined as abbreviations
 -/
-namespace AtomIdx
+namespace LeafIdx
 
 @[simp]
-abbrev validIn (idx : AtomIdx) (aig : Aig) : Prop :=
+abbrev validIn (idx : LeafIdx) (aig : Aig) : Prop :=
   match idx with
   | .input idx => idx.validIn aig
   | .latch idx => idx.validIn aig
 
 @[always_inline]
-instance {idx : AtomIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
+instance {idx : LeafIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
   match idx with
   | .input _ => inferInstance
   | .latch _ => inferInstance
 
-abbrev In (aig : Aig) := { idx : AtomIdx // idx.validIn aig }
+abbrev In (aig : Aig) := { idx : LeafIdx // idx.validIn aig }
 
 @[always_inline, simp]
-abbrev getVar (idx : AtomIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
+abbrev getVar (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
   match idx with
   | .input idx => idx.getVar aig
   | .latch idx => idx.getVar aig
 
 @[always_inline, simp]
-abbrev getLit (idx : AtomIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
+abbrev getLit (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
   match idx with
   | .input idx => idx.getLit aig
   | .latch idx => idx.getLit aig
 
-end AtomIdx
+end LeafIdx
 
 @[always_inline]
-instance : Coe InputIdx AtomIdx where
+instance : Coe InputIdx LeafIdx where
   coe := (.input ·)
 
 @[always_inline]
-instance : Coe LatchIdx AtomIdx where
+instance : Coe LatchIdx LeafIdx where
   coe := (.latch ·)
 
 /-

@@ -109,7 +109,7 @@ theorem var_validIn_setReset_iff {var : Var} :
 end setReset
 end latch
 
-section atom
+section leaf
 
 /-
 addInput Lemmas.
@@ -203,7 +203,7 @@ theorem var_validIn_addLatch_iff {var : Var} :
   grind [Std.mkAtom_ref_eq_decls_size]
 
 end latch
-end atom
+end leaf
 
 /-
 addAnd Lemmas.
@@ -232,7 +232,7 @@ theorem var_validIn_addAnd {var : Var} :
 theorem addAnd_validIn :
     (aig.addAnd rhs0 rhs1 h0 h1).snd.validIn (aig.addAnd rhs0 rhs1 h0 h1).fst := by
   simp_defs
-  have {aig : Std.Sat.AIG AtomIdx} {entry: aig.Ref} := entry.hgate
+  have {aig : Std.Sat.AIG LeafIdx} {entry: aig.Ref} := entry.hgate
   grind only
 
 end gate

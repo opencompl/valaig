@@ -17,7 +17,7 @@ variable {α : Type} [DecidableEq α] [Hashable α]
 
 namespace FromStd
 
-inductive RelabelledAtom (aig : AIG α) where
+inductive Leaf (aig : AIG α) where
 | input
 | latch (next : aig.Ref) (reset : Bool)
 
@@ -28,8 +28,8 @@ private structure State (stdAig : AIG α) where
   -- A map from variable indices in stdAig (Ref.gate) to Lits in aig
   map : Array Lit := #[]
 
-  -- A map from atoms in the original AIG to their canonical variable in aig
-  atomMap : Std.HashMap α Aig.AtomIdx := .emptyWithCapacity
+  -- A map from atoms in the original AIG to their canonical leaf index in aig
+  atomMap : Std.HashMap α Aig.LeafIdx := .emptyWithCapacity
 
   -- A map from the variable defined by each latch to its ref in stdAig, to
   -- allow latch finalisation once all nodes have been visited
@@ -120,7 +120,7 @@ end State
 structure Result (stdAig : AIG α) where
   aig : Aig
   refMap : stdAig.Ref -> Lit
-  atomMap : α -> Option AtomIdx
+  atomMap : α -> Option LeafIdx
 
   refValid : ∀ {ref}, refMap ref |>.validIn aig
   wellFormed : aig.WellFormed
@@ -128,7 +128,7 @@ structure Result (stdAig : AIG α) where
 end FromStd
 
 open FromStd in
-def fromStdAIG (stdAig : AIG α) (relabel : α -> RelabelledAtom stdAig) : Result stdAig :=
+def fromStdAIG (stdAig : AIG α) (relabel : α -> Leaf stdAig) : Result stdAig :=
   have ⟨state, hstate⟩ := go
 
   let refMap (ref : stdAig.Ref) : Lit :=
