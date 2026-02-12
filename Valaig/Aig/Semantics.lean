@@ -77,6 +77,14 @@ where
 
 end -- mutual
 
+/--
+Denotation of the reset semantics of the Aig, taking a function to assign values to the free
+inputs/reset values.
+-/
+abbrev denoteReset (aig : Aig) (lit : Lit) (denoteInput : InputIdx.In aig -> Bool)
+    (valid : lit.validIn aig := by grind) (wf : aig.WellFormed := by grind) : Bool :=
+  aig.denote lit 0 (fun idx _ => denoteInput idx) valid wf
+
 variable {lit : Lit} {frame : Frame}
 variable {valid : lit.validIn aig} {wf : aig.WellFormed}
 
