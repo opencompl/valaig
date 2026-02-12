@@ -6,6 +6,8 @@ public import Valaig.Aig.WellFormed
 public section
 namespace Valaig.Aig
 
+variable {aig : Aig}
+
 /--
 An timeframe (step) index of the model.
 -/
@@ -16,9 +18,14 @@ attribute [local grind .] validIn_mono
 /--
 A combinational Aig has no latches.
 -/
-@[expose, reducible]
+@[expose, simp, grind]
 def Combinational (aig : Aig) :=
   aig.numLatches = 0
+
+@[grind =]
+theorem Combinational_iff_forall_latch_not_valid :
+    aig.Combinational ↔ ∀ {latch : LatchIdx}, ¬latch.validIn aig := by
+  grind [LatchIdx.numLatches_eq_zero_iff_forall_not_validIn]
 
 mutual
 
@@ -69,3 +76,13 @@ where
   decreasing_by all_goals grind
 
 end -- mutual
+
+variable {lit : Lit} {frame : Frame}
+variable {valid : lit.validIn aig} {wf : aig.WellFormed}
+
+theorem denoteComb_eq_denote_of_Combinational {denoteInput : InputIdx.In aig -> Bool}
+    (comb : aig.Combinational) :
+    aig.denoteComb lit (fun idx _ => denoteInput ⟨idx.val.getInput, by grind⟩) valid wf =
+    aig.denote lit 0 (fun idx _ => denoteInput ⟨idx.val, by grind⟩) valid wf := by
+  congr
+  grind [denote.denoteLeaf]

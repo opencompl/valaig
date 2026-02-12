@@ -78,6 +78,31 @@ inductive LeafIdx where
 namespace LeafIdx
 deriving instance Hashable, DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq for LeafIdx
 instance : LawfulHashable LeafIdx where hash_eq := by simp
+
+@[inline]
+def getInput (idx : LeafIdx) (h : idx matches .input _ := by grind) : InputIdx :=
+  match idx, h with
+  | .input idx, _ => idx
+
+@[simp, grind =]
+theorem getInput_eq_input {idx : LeafIdx} (h : idx matches .input _) :
+    idx.getInput h =
+    match idx, h with
+    | .input idx, _ => idx := by
+  rfl
+
+@[inline]
+def getLatch (idx : LeafIdx) (h : idx matches .latch _ := by grind) : LatchIdx :=
+  match idx, h with
+  | .latch idx, _ => idx
+
+@[simp, grind =]
+theorem getLatch_eq_latch {idx : LeafIdx} (h : idx matches .latch _) :
+    idx.getLatch h =
+    match idx, h with
+    | .latch idx, _ => idx := by
+  rfl
+
 end LeafIdx
 
 /--
@@ -206,6 +231,8 @@ end Lit
 
 namespace Aig
 
+variable {aig : Aig}
+
 @[always_inline]
 def get (aig : Aig) (var : Var) (valid : var.validIn aig := by grind) : Node :=
   match aig.aig.decls[var.idx] with
@@ -236,6 +263,16 @@ instance {idx : InputIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
 
 abbrev In (aig : Aig) := { idx : InputIdx // idx.validIn aig }
 
+@[grind =]
+theorem numInputs_eq_zero_iff_forall_not_validIn :
+    aig.numInputs = 0 ↔ ∀ (idx : InputIdx), ¬idx.validIn aig := by
+  simp
+  constructor
+  · grind
+  · intro h
+    have := h (.ofIdx 0)
+    grind
+
 @[always_inline]
 def getVar (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
   aig.inputs[idx.idx].var
@@ -262,6 +299,16 @@ instance {idx : LatchIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
   decidable_of_iff' _ this
 
 abbrev In (aig : Aig) := { idx : LatchIdx // idx.validIn aig }
+
+@[grind =]
+theorem numLatches_eq_zero_iff_forall_not_validIn :
+    aig.numLatches = 0 ↔ ∀ (idx : LatchIdx), ¬idx.validIn aig := by
+  simp
+  constructor
+  · grind
+  · intro h
+    have := h (.ofIdx 0)
+    grind
 
 @[always_inline]
 def getVar (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=

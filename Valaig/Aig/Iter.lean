@@ -213,16 +213,6 @@ theorem inputIter_toList_ne_of_ne :
       aig.inputIter.toList[i]'(by simpa) ≠ aig.inputIter.toList[j]'(by simpa) := by
   simp
 
-theorem numInputs_eq_zero_iff_forall_not_validIn :
-    aig.numInputs = 0 ↔ ∀ (idx : InputIdx), ¬idx.validIn aig := by
-  rw [←length_inputIter_eq_numInputs]
-  simp [InputIdx.validIn]
-  constructor
-  · grind
-  · intro h
-    have := h (.ofIdx 0)
-    grind
-
 end input
 
 section latch
@@ -252,16 +242,6 @@ theorem latchIter_toList_ne_of_ne :
     ∀ {i j : Nat} (hi : i < aig.numLatches) (hj : j < aig.numLatches) (_ : i ≠ j),
       aig.latchIter.toList[i]'(by simpa) ≠ aig.latchIter.toList[j]'(by simpa) := by
   simp
-
-theorem numLatches_eq_zero_iff_forall_not_validIn :
-    aig.numLatches = 0 ↔ ∀ (idx : LatchIdx), ¬idx.validIn aig := by
-  rw [←length_latchIter_eq_numLatches]
-  simp [LatchIdx.validIn]
-  constructor
-  · grind
-  · intro h
-    have := h (.ofIdx 0)
-    grind
 
 end latch
 
