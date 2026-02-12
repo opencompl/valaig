@@ -8,7 +8,7 @@ public section
 namespace Valaig.Aig
 variable {aig : Aig}
 
-attribute [local simp, local grind] Var.validIn Lit.validIn InputIdx.validIn LatchIdx.validIn
+attribute [local simp, local grind] Var.validIn Lit.validIn InputIdx.validIn LatchIdx.validIn numInputs numLatches
 attribute [local grind =_] Var.ext_idx
 
 -- General theorems about validity

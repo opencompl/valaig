@@ -139,7 +139,7 @@ def empty : Aig :=
 /--
 The number of nodes currently allocated in aig.
 -/
-@[always_inline, local grind, local grind unfold]
+@[always_inline]
 def size (aig : Aig) : Nat :=
   aig.aig.decls.size
 
@@ -167,7 +167,7 @@ def numLatches (aig : Aig) : Nat :=
 /--
 The number of gate nodes in the aig.
 -/
-@[always_inline, local simp, local grind unfold]
+@[always_inline]
 abbrev numGates (aig : Aig) : Nat :=
   aig.size - aig.numInputs - aig.numLatches - 1
 
@@ -226,12 +226,12 @@ namespace InputIdx
 
 @[local simp]
 def validIn (idx : InputIdx) (aig : Aig) : Prop :=
-  idx.idx < aig.inputs.size
+  idx.idx < aig.numInputs
 
 @[always_inline]
 instance {idx : InputIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
   have : idx.validIn aig ↔ idx.idx < aig.numInputs := by
-    simp [validIn, numInputs]
+    simp [validIn]
   decidable_of_iff' _ this
 
 abbrev In (aig : Aig) := { idx : InputIdx // idx.validIn aig }
@@ -253,12 +253,12 @@ namespace LatchIdx
 
 @[local simp]
 def validIn (idx : LatchIdx) (aig : Aig) : Prop :=
-  idx.idx < aig.latches.size
+  idx.idx < aig.numLatches
 
 @[always_inline]
 instance {idx : LatchIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
   have : idx.validIn aig ↔ idx.idx < aig.numLatches := by
-    simp [validIn, numLatches]
+    simp [validIn]
   decidable_of_iff' _ this
 
 abbrev In (aig : Aig) := { idx : LatchIdx // idx.validIn aig }
@@ -277,7 +277,7 @@ def getNext (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) :
 
 @[always_inline]
 def setNext (idx : LatchIdx) (aig : Aig) (next : Lit) (valid : idx.validIn aig := by grind) : Aig :=
-  { aig with latches := aig.latches.modifyMem idx.idx (by simp_all) ({ ·.val with next }) }
+  { aig with latches := aig.latches.modifyMem idx.idx (by simp_all [numLatches]) ({ ·.val with next }) }
 
 @[always_inline]
 def getReset (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
@@ -285,7 +285,7 @@ def getReset (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) 
 
 @[always_inline]
 def setReset (idx : LatchIdx) (aig : Aig) (reset : Lit) (valid : idx.validIn aig := by grind) : Aig :=
-  { aig with latches := aig.latches.modifyMem idx.idx (by simp_all) ({ ·.val with reset }) }
+  { aig with latches := aig.latches.modifyMem idx.idx (by simp_all [numLatches]) ({ ·.val with reset }) }
 
 end LatchIdx
 

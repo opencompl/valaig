@@ -27,9 +27,8 @@ to infer.
 class LawfulValid {α : Type} (mk : Nat -> α) (size : Nat) (valid : α -> Prop) : Prop where
   hvalid : ∀ {out : α}, valid out ↔ ∃ (n : Nat) (_ : out = mk n), n < size
 
-universe u
 variable {α : Type} {mk : Nat -> α} {size : Nat} {valid : α -> Prop}
-variable {m : Type -> Type u} [Pure m]
+variable {m : Type -> Type _} [Pure m] {n : Type _ -> Type _}
 
 @[inline]
 instance instIterator : Std.Iterator (GenericIter mk size valid) m α where
@@ -80,6 +79,25 @@ instance instIteratorLoop [Monad m] [Monad n] :
 
 variable {it : @Std.Iter (GenericIter mk size valid) α} {out : α}
 
+@[simp]
+theorem successor_isSome_iff_idx_lt_size :
+    it.step.val.successor.isSome ↔ it.internalState.idx < size := by
+  grind
+
+local grind_pattern successor_isSome_iff_idx_lt_size => it.step.val.successor
+
+@[simp, grind =]
+theorem successor_idx_eq_idx_add_one (lt : it.internalState.idx < size) :
+    (it.step.val.successor.get (by grind) |>.internalState.idx) = it.internalState.idx + 1 := by
+  grind
+
+@[simp]
+theorem successor_eq_idx_add_one (lt : it.internalState.idx < size) :
+    it.step.val.successor.get (by grind) = ⟨⟨it.internalState.idx + 1⟩⟩ := by
+  grind
+
+local grind_pattern successor_eq_idx_add_one => it.step.val.successor
+
 @[simp, grind =]
 theorem IsPlausibleOutput_iff :
     it.IsPlausibleOutput out ↔
@@ -96,13 +114,9 @@ theorem IsPlausibleSuccessorOf_iff {it' : @Std.Iter (GenericIter mk size valid) 
   constructor
   · grind [Std.Iter.IsPlausibleSuccessorOf]
   · rw [Std.Iter.isPlausibleSuccessorOf_iff_exists]
-    intro h
-    exists .yield ⟨⟨it.internalState.idx + 1⟩⟩ (mk it.internalState.idx)
-    constructor
-    · simp
-      congr
-      grind
-    · grind
+    intros
+    exists it.step.val
+    grind [Std.Iter, GenericIter]
 
 @[simp, grind =]
 theorem IsPlausibleIndirectOutput_iff :
@@ -115,12 +129,8 @@ theorem IsPlausibleIndirectOutput_iff :
     induction h : (size - it.internalState.idx) generalizing it
     case zero => grind
     case succ n' ih =>
-      by_cases n = it.internalState.idx
-      · grind
-      · let it' := it.step.val.successor.get <| by grind
-        apply Std.Iter.IsPlausibleIndirectOutput.indirect (it' := it')
-        · grind
-        · apply ih <;> grind
+      let it' := it.step.val.successor.get <| by grind
+      grind [Std.Iter.IsPlausibleIndirectOutput.indirect (it' := it')]
 
 @[simp, grind =]
 theorem IsPlausibleIndirectOutput_toIterM_iff :
@@ -136,7 +146,46 @@ instance instForIn' [Monad n] [lawful : LawfulValid mk size valid] :
     Std.IteratorLoop.finiteForIn' (fun _ _ f c => f c.run) |>.forIn' it.toIterM init
       fun out h acc => f out (by grind [lawful.hvalid]) acc
 
+@[local grind =]
+private theorem length_eq_size_sub_idx :
+    it.length = size - it.internalState.idx := by
+  induction hi : size - it.internalState.idx generalizing it
+  <;> grind [Std.Iter.length_eq_match_step]
+
+/-
+This isn't public as the ordering of elements is an implementation detail, we may wish to
+move to hashmaps or similar for inputs/latches.
+-/
+@[simp, grind =]
+private theorem toList_eq_ofFn_mk_idx_add :
+    it.toList = List.ofFn (fun (n : Fin it.length) => mk (it.internalState.idx + n)) := by
+  rw [length_eq_size_sub_idx]
+  induction hi : size - it.internalState.idx generalizing it
+  · grind [Std.Iter.toList_eq_match_step]
+  · rw [Std.Iter.toList_eq_match_step]
+    split
+    · simp; grind
+    · grind
+    · grind
+
+@[simp, grind =]
+private theorem mem_toList_iff_valid_of_idx_eq_zero [lawful : LawfulValid mk size valid] {idx : α}
+    (h : it.internalState.idx = 0) :
+    idx ∈ it.toList ↔ valid idx := by
+  constructor
+  · grind [@Fin.is_lt, @lawful.hvalid]
+  · simp
+    intro h
+    rw [lawful.hvalid] at h
+    rcases h with ⟨n, _⟩
+    exists ⟨n, by grind⟩
+    grind
+
 end GenericIter
+
+variable {aig : Aig}
+
+section input
 
 abbrev InputIterator (aig : Aig) := GenericIter InputIdx.ofIdx aig.numInputs (·.validIn aig)
 instance {aig : Aig} : GenericIter.LawfulValid InputIdx.ofIdx aig.numInputs (·.validIn aig) where
@@ -149,6 +198,35 @@ A forward iterator over inputs in the Aig.
 def inputIter (aig : Aig) : @Std.Iter (InputIterator aig) InputIdx :=
   ⟨⟨0⟩⟩
 
+@[simp, grind =]
+theorem length_inputIter_eq_numInputs :
+    aig.inputIter.length = aig.numInputs := by
+  simp [inputIter, GenericIter.length_eq_size_sub_idx]
+
+@[simp, grind =]
+theorem mem_inputIter_toList_iff_valid {idx : InputIdx} :
+    idx ∈ aig.inputIter.toList ↔ idx.validIn aig := by
+  grind [inputIter]
+
+theorem inputIter_toList_ne_of_ne :
+    ∀ {i j : Nat} (hi : i < aig.numInputs) (hj : j < aig.numInputs) (_ : i ≠ j),
+      aig.inputIter.toList[i]'(by simpa) ≠ aig.inputIter.toList[j]'(by simpa) := by
+  simp
+
+theorem numInputs_eq_zero_iff_forall_not_validIn :
+    aig.numInputs = 0 ↔ ∀ (idx : InputIdx), ¬idx.validIn aig := by
+  rw [←length_inputIter_eq_numInputs]
+  simp [InputIdx.validIn]
+  constructor
+  · grind
+  · intro h
+    have := h (.ofIdx 0)
+    grind
+
+end input
+
+section latch
+
 abbrev LatchIterator (aig : Aig) := GenericIter LatchIdx.ofIdx aig.numLatches (·.validIn aig)
 instance {aig : Aig} : GenericIter.LawfulValid LatchIdx.ofIdx aig.numLatches (·.validIn aig) where
   hvalid := by grind [LatchIdx.validIn, numLatches]
@@ -160,6 +238,38 @@ A forward iterator over latches in the Aig.
 def latchIter (aig : Aig) : @Std.Iter (LatchIterator aig) LatchIdx :=
   ⟨⟨0⟩⟩
 
+@[simp, grind =]
+theorem length_latchIter_eq_numLatches :
+    aig.latchIter.length = aig.numLatches := by
+  simp [latchIter, GenericIter.length_eq_size_sub_idx]
+
+@[simp, grind =]
+theorem mem_latchIter_toList_iff_valid {idx : LatchIdx} :
+    idx ∈ aig.latchIter.toList ↔ idx.validIn aig := by
+  grind [latchIter]
+
+theorem latchIter_toList_ne_of_ne :
+    ∀ {i j : Nat} (hi : i < aig.numLatches) (hj : j < aig.numLatches) (_ : i ≠ j),
+      aig.latchIter.toList[i]'(by simpa) ≠ aig.latchIter.toList[j]'(by simpa) := by
+  simp
+
+theorem numLatches_eq_zero_iff_forall_not_validIn :
+    aig.numLatches = 0 ↔ ∀ (idx : LatchIdx), ¬idx.validIn aig := by
+  rw [←length_latchIter_eq_numLatches]
+  simp [LatchIdx.validIn]
+  constructor
+  · grind
+  · intro h
+    have := h (.ofIdx 0)
+    grind
+
+end latch
+
+/-
+Forward iterators over variables
+-/
+section var
+
 abbrev VarIterator (aig : Aig) := GenericIter Var.ofIdx aig.size (·.validIn aig)
 instance {aig : Aig} : GenericIter.LawfulValid Var.ofIdx aig.size (·.validIn aig) where
   hvalid := by grind [Var.validIn]
@@ -170,3 +280,25 @@ A forward iterator over variables in the Aig.
 @[inline]
 def iter (aig : Aig) : @Std.Iter (VarIterator aig) Var :=
   ⟨⟨0⟩⟩
+
+@[simp, grind =]
+theorem length_iter_eq_size :
+    aig.iter.length = aig.size := by
+  simp [iter, GenericIter.length_eq_size_sub_idx]
+
+@[simp, grind =]
+theorem mem_iter_toList_iff_valid {var : Var} :
+    var ∈ aig.iter.toList ↔ var.validIn aig := by
+  grind [iter]
+
+theorem iter_toList_ne_of_ne :
+    ∀ {i j : Nat} (hi : i < aig.size) (hj : j < aig.size) (_ : i ≠ j),
+      aig.iter.toList[i]'(by simpa) ≠ aig.iter.toList[j]'(by simpa) := by
+  simp
+
+theorem iter_toList_lt_of_lt :
+    ∀ {i j : Nat} (hi : i < aig.size) (hj : j < aig.size) (_ : i < j),
+      aig.iter.toList[i]'(by simpa) < aig.iter.toList[j]'(by simpa) := by
+  simp [Var.lt_idx]
+
+end var

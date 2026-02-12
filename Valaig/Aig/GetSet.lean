@@ -126,6 +126,7 @@ section aig
 
 -- These are needed for grind to reason about index validity
 attribute [local simp, local grind] Var.validIn InputIdx.validIn LatchIdx.validIn
+attribute [local simp, local grind] Aig.numInputs Aig.numLatches
 
 /-
 Aig.addInput Lemmas.
