@@ -6,79 +6,205 @@ public import Valaig.Aig.GetSet
 public section
 namespace Valaig.Aig
 
+variable {aig : Aig}
+
+/-
+To try to prevent too much pollution of grind patterns, we try to set up the following strategy:
+- WellFormed and individual wellformedness predicates (e.g. InputsValid) should automatically
+  propagate forwards and backwards over terms preserving them, however WellFormed should not
+  automatically cast to individual predicates.
+- Specific uses of each predicate are defined as theorems that require that predicate as argument
+  and match on specific outputs.
+- Theorems to bridge from WellFormed to each predicate exist but are only triggered if both
+  parts appear (as should have been triggered by the above rules).
+-/
+
 /--
 All input indices point to an input in the Aig.
 -/
-@[expose, grind, local simp]
+@[expose, local grind, local simp]
 def InputsValid (aig : Aig) : Prop :=
   ∀ {idx : InputIdx} (valid : idx.validIn aig),
   ∃ (valid' : (idx.getVar aig valid).validIn aig),
-    aig[idx.getVar aig valid] = .input idx
+    aig.get (idx.getVar aig valid) valid' = .input idx
+
+@[simp]
+theorem input_getVar_validIn {inputsValid : aig.InputsValid} {idx : InputIdx} (valid : idx.validIn aig) :
+    idx.getVar aig valid |>.validIn aig := by
+  grind
+
+grind_pattern input_getVar_validIn => idx.getVar aig valid |>.validIn aig
+
+@[simp]
+theorem get_input_getVar {inputsValid : aig.InputsValid} {idx : InputIdx} (valid : idx.validIn aig) :
+    aig.get (idx.getVar aig valid) = .input idx := by
+  grind
+
+grind_pattern get_input_getVar => aig.get (idx.getVar aig valid)
 
 /--
 All inputs in the Aig point to a corresponding input index.
 -/
-@[expose, grind, local simp]
+@[expose, local grind, local simp]
 def InputIdxsValid (aig : Aig) : Prop :=
   ∀ {var : Var} (valid : var.validIn aig),
-  match aig[var] with
+  match aig.get var valid with
   | .input idx =>
     ∃ (valid' : idx.validIn aig), idx.getVar aig valid' = var
-  | _ => True
+  | _ => true
+
+@[simp]
+theorem validIn_of_get_eq_input {inputIdxsValid : aig.InputIdxsValid} {var : Var} {idx : InputIdx}
+    (valid : var.validIn aig) (eq : aig.get var valid = .input idx) :
+    idx.validIn aig := by
+  grind
+
+grind_pattern validIn_of_get_eq_input => idx.validIn aig, Node.input idx, aig.get var valid
+
+@[simp]
+theorem input_getVar_get {inputIdxsValid : aig.InputIdxsValid} {var : Var} {idx : InputIdx}
+    (valid : var.validIn aig) (eq : aig.get var valid = .input idx) :
+    idx.getVar aig = var := by
+  grind
+
+grind_pattern input_getVar_get => idx.getVar aig, Node.input idx, aig.get var valid
 
 /--
 All latch indices point to a latch in the Aig.
 -/
-@[expose, grind, local simp]
+@[expose, local grind, local simp]
 def LatchesValid (aig : Aig) : Prop :=
   ∀ {idx : LatchIdx} (valid : idx.validIn aig),
   ∃ (valid' : (idx.getVar aig valid).validIn aig),
-    aig[idx.getVar aig valid] = .latch idx
+    aig.get (idx.getVar aig valid) = .latch idx
+
+@[simp]
+theorem latch_getVar_validIn {latchesValid : aig.LatchesValid} {idx : LatchIdx} (valid : idx.validIn aig) :
+    idx.getVar aig valid |>.validIn aig := by
+  grind
+
+grind_pattern latch_getVar_validIn => idx.getVar aig valid |>.validIn aig
+
+@[simp]
+theorem get_latch_getVar {latchesValid : aig.LatchesValid} {idx : LatchIdx} (valid : idx.validIn aig) :
+    aig.get (idx.getVar aig valid) = .latch idx := by
+  grind
+
+grind_pattern get_latch_getVar => aig.get (idx.getVar aig valid)
+
+/-
+Equivalent theorem on leaves
+-/
+@[simp]
+theorem leaf_getVar_validIn {inputsValid : aig.InputsValid} {latchesValid : aig.LatchesValid}
+    {idx : LeafIdx} (valid : idx.validIn aig) :
+    idx.getVar aig valid |>.validIn aig := by
+  grind
+
+grind_pattern leaf_getVar_validIn => idx.getVar aig valid |>.validIn aig
 
 /--
 All latches in the Aig point to a corresponding latch index.
 -/
-@[expose, grind, local simp]
+@[expose, local grind, local simp]
 def LatchIdxsValid (aig : Aig) : Prop :=
   ∀ {var : Var} (valid : var.validIn aig),
-  match aig[var] with
+  match aig.get var valid with
   | .latch idx =>
     ∃ (valid' : idx.validIn aig), idx.getVar aig valid' = var
-  | _ => True
+  | _ => true
+
+@[simp]
+theorem validIn_of_get_eq_latch {latchIdxsValid : aig.LatchIdxsValid} {var : Var} {idx : LatchIdx}
+    (valid : var.validIn aig) (eq : aig.get var valid = .latch idx) :
+    idx.validIn aig := by
+  grind
+
+grind_pattern validIn_of_get_eq_latch => idx.validIn aig, Node.latch idx, aig.get var valid
+
+@[simp]
+theorem latch_getVar_get {latchIdxsValid : aig.LatchIdxsValid} {var : Var} {idx : LatchIdx}
+    (valid : var.validIn aig) (eq : aig.get var valid = .latch idx) :
+    idx.getVar aig = var := by
+  grind
+
+grind_pattern latch_getVar_get => idx.getVar aig, Node.latch idx, aig.get var valid
 
 /--
 All latch reset literals are valid in the Aig.
 This follows from `LatchesValid` and `AcyclicResets`.
 -/
-@[expose, grind, local simp]
+@[expose, local grind, local simp]
 def ResetsValid (aig : Aig) : Prop :=
   ∀ {idx : LatchIdx} (valid : idx.validIn aig),
     (idx.getReset aig valid).validIn aig
 
+@[simp]
+theorem getReset_validIn {resetsValid : aig.ResetsValid} {idx : LatchIdx} (valid : idx.validIn aig) :
+    idx.getReset aig valid |>.validIn aig := by
+  grind
+
+grind_pattern getReset_validIn => idx.getReset aig valid |>.validIn aig
+
 /--
 All latch next state literals are valid in the Aig.
 -/
-@[expose, grind, local simp]
+@[expose, local grind, local simp]
 def NextsValid (aig : Aig) : Prop :=
   ∀ {idx : LatchIdx} (valid : idx.validIn aig),
     (idx.getNext aig valid).validIn aig
+
+@[simp]
+theorem getNext_validIn {nextsValid : aig.NextsValid} {idx : LatchIdx} (valid : idx.validIn aig) :
+    idx.getNext aig valid |>.validIn aig := by
+  grind
+
+grind_pattern getNext_validIn => idx.getNext aig valid |>.validIn aig
 
 /--
 The gates of the Aig are acyclic.
 This is enforced by requiring each gate's inputs to have lower variable
 indices than themselves.
 -/
-@[expose, grind, local simp]
+@[expose, local grind, local simp]
 def AcyclicGates (aig : Aig) : Prop :=
   ∀ {var : Var} {rhs0 rhs1} (valid : var.validIn aig),
-    aig[var] = .and rhs0 rhs1 → rhs0.var < var ∧ rhs1.var < var
+    aig.get var valid = .and rhs0 rhs1 → rhs0.var < var ∧ rhs1.var < var
+
+@[simp]
+theorem rhs0_lt_of_get_eq_and {acyclicGates : aig.AcyclicGates} {var : Var} {rhs0 rhs1 : Lit}
+    (valid : var.validIn aig) (eq : aig.get var valid = .and rhs0 rhs1) :
+    rhs0.var < var := by
+  grind
+
+@[simp]
+theorem rhs1_lt_of_get_eq_and {acyclicGates : aig.AcyclicGates} {var : Var} {rhs0 rhs1 : Lit}
+    (valid : var.validIn aig) (eq : aig.get var valid = .and rhs0 rhs1) :
+    rhs1.var < var := by
+  grind
+
+theorem rhs0_lt_of_get_eq_and_lt {acyclicGates : aig.AcyclicGates} {var var' : Var} {rhs0 rhs1 : Lit}
+    (valid : var.validIn aig) (eq : aig.get var valid = .and rhs0 rhs1) (lt : var ≤ var') :
+    rhs0.var < var' := by
+  grind
+
+grind_pattern rhs0_lt_of_get_eq_and_lt => rhs0.var < var', Node.and rhs0 rhs1, aig.get var valid
+grind_pattern rhs0_lt_of_get_eq_and_lt => rhs0.var ≤ var', Node.and rhs0 rhs1, aig.get var valid
+
+theorem rhs1_lt_of_get_eq_and_lt {acyclicGates : aig.AcyclicGates} {var var' : Var} {rhs0 rhs1 : Lit}
+    (valid : var.validIn aig) (eq : aig.get var valid = .and rhs0 rhs1) (lt : var ≤ var') :
+    rhs1.var < var' := by
+  grind
+
+grind_pattern rhs1_lt_of_get_eq_and_lt => rhs1.var < var', Node.and rhs0 rhs1, aig.get var valid
+grind_pattern rhs1_lt_of_get_eq_and_lt => rhs1.var ≤ var', Node.and rhs0 rhs1, aig.get var valid
 
 /--
 The reset function of the Aig is acyclic.
 This is enfoced by requiring each latch's reset to have a lower variable
 index than the latch's output.
 -/
-@[expose, grind, local simp]
+@[expose, local grind, local simp]
 def AcyclicResets (aig : Aig) : Prop :=
   ∀ {idx : LatchIdx} (valid : idx.validIn aig),
     (idx.getReset aig valid).var < idx.getVar aig valid
@@ -89,11 +215,25 @@ theorem ResetsValid_of_LatchesValid_AcyclicReset {aig : Aig}
     aig.ResetsValid := by
   grind
 
+@[simp]
+theorem getReset_lt_getVar (acyclicResets : aig.AcyclicResets) {idx : LatchIdx} (valid : idx.validIn aig) :
+    (idx.getReset aig valid).var < idx.getVar aig valid := by
+  grind
+
+theorem getReset_lt_getVar_of_lt (acyclicResets : aig.AcyclicResets) {var : Var} {idx : LatchIdx}
+    (valid : idx.validIn aig) (lt : idx.getVar aig valid ≤ var) :
+    (idx.getReset aig valid).var < var := by
+  grind
+
+grind_pattern getReset_lt_getVar_of_lt => (idx.getReset aig valid).var < var
+grind_pattern getReset_lt_getVar_of_lt => (idx.getReset aig valid).var ≤ var
+
 /--
-All indices within the Aig are valid.
+All indices within the Aig are valid and the gates and reset function are
+acyclic, allowing the definition of semantics
 -/
-@[grind]
-structure IdxsValid (aig : Aig) : Prop where
+@[local grind]
+structure WellFormed (aig : Aig) : Prop where
   inputsValid : aig.InputsValid
   inputIdxsValid : aig.InputIdxsValid
 
@@ -102,21 +242,40 @@ structure IdxsValid (aig : Aig) : Prop where
   resetsValid : aig.ResetsValid
   nextsValid : aig.NextsValid
 
-/--
-All indices within the Aig are valid and the gates and reset function are
-acyclic, allowing the definition of semantics
-@[grind]
--/
-@[grind]
-structure WellFormed (aig : Aig) : Prop extends aig.IdxsValid where
   acyclicGates : aig.AcyclicGates
   acyclicResets : aig.AcyclicResets
+
+section triggers
+
+theorem InputsValid_of_WellFormed (wf : aig.WellFormed) : aig.InputsValid := wf.inputsValid
+grind_pattern InputsValid_of_WellFormed => aig.WellFormed, aig.InputsValid
+
+theorem InputIdxsValid_of_WellFormed (wf : aig.WellFormed) : aig.InputIdxsValid := wf.inputIdxsValid
+grind_pattern InputIdxsValid_of_WellFormed => aig.WellFormed, aig.InputIdxsValid
+
+theorem LatchesValid_of_WellFormed (wf : aig.WellFormed) : aig.LatchesValid := wf.latchesValid
+grind_pattern LatchesValid_of_WellFormed => aig.WellFormed, aig.LatchesValid
+
+theorem LatchIdxsValid_of_WellFormed (wf : aig.WellFormed) : aig.LatchIdxsValid := wf.latchIdxsValid
+grind_pattern LatchIdxsValid_of_WellFormed => aig.WellFormed, aig.LatchIdxsValid
+
+theorem ResetsValid_of_WellFormed (wf : aig.WellFormed) : aig.ResetsValid := wf.resetsValid
+grind_pattern ResetsValid_of_WellFormed => aig.WellFormed, aig.ResetsValid
+
+theorem NextsValid_of_WellFormed (wf : aig.WellFormed) : aig.NextsValid := wf.nextsValid
+grind_pattern NextsValid_of_WellFormed => aig.WellFormed, aig.NextsValid
+
+theorem AcyclicGates_of_WellFormed (wf : aig.WellFormed) : aig.AcyclicGates := wf.acyclicGates
+grind_pattern AcyclicGates_of_WellFormed => aig.WellFormed, aig.AcyclicGates
+
+theorem AcyclicResets_of_WellFormed (wf : aig.WellFormed) : aig.AcyclicResets := wf.acyclicResets
+grind_pattern AcyclicResets_of_WellFormed => aig.WellFormed, aig.AcyclicResets
+
+end triggers
 
 /-
 We consider the same patterns for invariant preservation as in the case of the get/set lemmas
 -/
-
-variable {aig : Aig}
 
 /-
 Aig.empty Lemmas.
@@ -171,13 +330,6 @@ grind_pattern ResetsValid_empty => empty.ResetsValid
 grind_pattern NextsValid_empty => empty.NextsValid
 grind_pattern AcyclicGates_empty => empty.AcyclicGates
 grind_pattern AcyclicResets_empty => empty.AcyclicResets
-
-@[simp]
-theorem IdxsValid_empty :
-    empty.IdxsValid := by
-  grind
-
-grind_pattern IdxsValid_empty => empty.IdxsValid
 
 @[simp]
 theorem WellFormed_empty :
@@ -254,15 +406,6 @@ grind_pattern ResetsValid_setNext => (setIdx.setNext aig newNext setValid).Reset
 grind_pattern NextsValid_setNext => (setIdx.setNext aig newNext setValid).NextsValid
 grind_pattern AcyclicGates_setNext => (setIdx.setNext aig newNext setValid).AcyclicGates
 grind_pattern AcyclicResets_setNext => (setIdx.setNext aig newNext setValid).AcyclicResets
-
-@[simp]
-theorem IdxsValid_setNext
-    (idxsValid : aig.IdxsValid)
-    (nextValid : newNext.validIn aig) :
-    (setIdx.setNext aig newNext setValid).IdxsValid := by
-  grind
-
-grind_pattern IdxsValid_setNext => (setIdx.setNext aig newNext setValid).IdxsValid
 
 @[simp]
 theorem WellFormed_setNext
@@ -349,15 +492,6 @@ grind_pattern AcyclicGates_setReset => (setIdx.setReset aig newReset setValid).A
 grind_pattern AcyclicResets_setReset => (setIdx.setReset aig newReset setValid).AcyclicResets
 
 @[simp]
-theorem IdxsValid_setReset
-    (idxsValid : aig.IdxsValid)
-    (resetValid : newReset.validIn aig) :
-    (setIdx.setReset aig newReset setValid).IdxsValid := by
-  grind
-
-grind_pattern IdxsValid_setReset => (setIdx.setReset aig newReset setValid).IdxsValid
-
-@[simp]
 theorem WellFormed_setReset
     (wellFormed : aig.WellFormed)
     (resetValid : newReset.var < setIdx.getVar aig setValid) :
@@ -429,14 +563,6 @@ grind_pattern ResetsValid_addInput => aig.addInput.fst.ResetsValid
 grind_pattern NextsValid_addInput => aig.addInput.fst.NextsValid
 grind_pattern AcyclicGates_addInput => aig.addInput.fst.AcyclicGates
 grind_pattern AcyclicResets_addInput => aig.addInput.fst.AcyclicResets
-
-@[simp]
-theorem IdxsValid_addInput
-    (idxsValid : aig.IdxsValid) :
-    aig.addInput.fst.IdxsValid := by
-  grind
-
-grind_pattern IdxsValid_addInput => aig.addInput.fst.IdxsValid
 
 @[simp]
 theorem WellFormed_addInput
@@ -513,16 +639,6 @@ grind_pattern ResetsValid_addLatch => (aig.addLatch next reset).fst.ResetsValid
 grind_pattern NextsValid_addLatch => (aig.addLatch next reset).fst.NextsValid
 grind_pattern AcyclicGates_addLatch => (aig.addLatch next reset).fst.AcyclicGates
 grind_pattern AcyclicResets_addLatch => (aig.addLatch next reset).fst.AcyclicResets
-
-@[simp]
-theorem IdxsValid_addLatch
-    (idxsValid : aig.IdxsValid)
-    (resetValid : reset.validIn aig)
-    (nextValid : next.validIn aig) :
-    (aig.addLatch next reset).fst.IdxsValid := by
-  grind
-
-grind_pattern IdxsValid_addLatch => (aig.addLatch next reset).fst.IdxsValid
 
 @[simp]
 theorem WellFormed_addLatch
@@ -615,16 +731,6 @@ grind_pattern ResetsValid_addAnd => (aig.addAnd rhs0 rhs1 h0 h1).fst.ResetsValid
 grind_pattern NextsValid_addAnd => (aig.addAnd rhs0 rhs1 h0 h1).fst.NextsValid
 grind_pattern AcyclicGates_addAnd => (aig.addAnd rhs0 rhs1 h0 h1).fst.AcyclicGates
 grind_pattern AcyclicResets_addAnd => (aig.addAnd rhs0 rhs1 h0 h1).fst.AcyclicResets
-
-@[simp]
-theorem IdxsValid_addAnd
-    (idxsValid : aig.IdxsValid)
-    (h0 : rhs0.validIn aig)
-    (h1 : rhs1.validIn aig) :
-    (aig.addAnd rhs0 rhs1 h0 h1).fst.IdxsValid := by
-  grind
-
-grind_pattern IdxsValid_addAnd => (aig.addAnd rhs0 rhs1 h0 h1).fst.IdxsValid
 
 @[simp]
 theorem WellFormed_addAnd

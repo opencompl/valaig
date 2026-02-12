@@ -13,8 +13,6 @@ An timeframe (step) index of the model.
 -/
 abbrev Frame := Nat
 
-attribute [local grind .] validIn_mono
-
 /--
 A combinational Aig has no latches.
 -/
@@ -43,7 +41,7 @@ def denoteComb (aig : Aig) (lit : Lit)
   denote lit
 where
   denote (cur : Lit) (lt : cur.var ≤ lit.var := by grind) : Bool :=
-    have : cur.validIn aig := by grind
+    have : cur.validIn aig := by grind [validIn_mono]
     let val :=
       match h : aig[cur.var] with
       | .false => false
@@ -90,7 +88,7 @@ variable {valid : lit.validIn aig} {wf : aig.WellFormed}
 
 theorem denoteComb_eq_denote_of_Combinational {denoteInput : InputIdx.In aig -> Bool}
     (comb : aig.Combinational) :
-    aig.denoteComb lit (fun idx _ => denoteInput ⟨idx.val.getInput, by grind⟩) valid wf =
+    aig.denoteComb lit (fun idx _ => denoteInput ⟨idx.val.getInput, by simp; grind⟩) valid wf =
     aig.denote lit 0 (fun idx _ => denoteInput ⟨idx.val, by grind⟩) valid wf := by
   congr
   grind [denote.denoteLeaf]
