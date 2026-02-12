@@ -171,33 +171,50 @@ def AcyclicGates (aig : Aig) : Prop :=
   ∀ {var : Var} {rhs0 rhs1} (valid : var.validIn aig),
     aig.get var valid = .and rhs0 rhs1 → rhs0.var < var ∧ rhs1.var < var
 
+section AcyclicGates
+variable {acyclicGates : aig.AcyclicGates} {var var' : Var} {rhs0 rhs1 : Lit}
+variable (valid : var.validIn aig) (eq : aig.get var valid = .and rhs0 rhs1)
+include acyclicGates valid eq
+
 @[simp]
-theorem rhs0_lt_of_get_eq_and {acyclicGates : aig.AcyclicGates} {var : Var} {rhs0 rhs1 : Lit}
-    (valid : var.validIn aig) (eq : aig.get var valid = .and rhs0 rhs1) :
+theorem rhs0_lt_of_get_eq_and :
     rhs0.var < var := by
   grind
 
 @[simp]
-theorem rhs1_lt_of_get_eq_and {acyclicGates : aig.AcyclicGates} {var : Var} {rhs0 rhs1 : Lit}
-    (valid : var.validIn aig) (eq : aig.get var valid = .and rhs0 rhs1) :
+theorem rhs1_lt_of_get_eq_and :
     rhs1.var < var := by
   grind
 
-theorem rhs0_lt_of_get_eq_and_lt {acyclicGates : aig.AcyclicGates} {var var' : Var} {rhs0 rhs1 : Lit}
-    (valid : var.validIn aig) (eq : aig.get var valid = .and rhs0 rhs1) (lt : var ≤ var') :
+theorem rhs0_lt_of_get_eq_and_lt (lt : var ≤ var') :
     rhs0.var < var' := by
   grind
 
 grind_pattern rhs0_lt_of_get_eq_and_lt => rhs0.var < var', Node.and rhs0 rhs1, aig.get var valid
 grind_pattern rhs0_lt_of_get_eq_and_lt => rhs0.var ≤ var', Node.and rhs0 rhs1, aig.get var valid
 
-theorem rhs1_lt_of_get_eq_and_lt {acyclicGates : aig.AcyclicGates} {var var' : Var} {rhs0 rhs1 : Lit}
-    (valid : var.validIn aig) (eq : aig.get var valid = .and rhs0 rhs1) (lt : var ≤ var') :
+theorem rhs1_lt_of_get_eq_and_lt (lt : var ≤ var') :
     rhs1.var < var' := by
   grind
 
 grind_pattern rhs1_lt_of_get_eq_and_lt => rhs1.var < var', Node.and rhs0 rhs1, aig.get var valid
 grind_pattern rhs1_lt_of_get_eq_and_lt => rhs1.var ≤ var', Node.and rhs0 rhs1, aig.get var valid
+
+@[simp]
+theorem rhs0_validIn_of_get_eq_and :
+    rhs0.var.validIn aig := by
+  grind
+
+grind_pattern rhs0_validIn_of_get_eq_and => rhs0.var.validIn aig, Node.and rhs0 rhs1, aig.get var valid
+
+@[simp]
+theorem rhs1_validIn_of_get_eq_and :
+    rhs1.var.validIn aig := by
+  grind
+
+grind_pattern rhs1_validIn_of_get_eq_and => rhs1.var.validIn aig, Node.and rhs0 rhs1, aig.get var valid
+
+end AcyclicGates
 
 /--
 The reset function of the Aig is acyclic.

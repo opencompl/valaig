@@ -122,7 +122,7 @@ variable {lit : Lit}
 deriving instance DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq for Lit
 instance : EquivBEq Lit := by constructor
 
-theorem ext_idx (lit lit' : Lit) :
+theorem ext_idx {lit' : Lit} :
     lit = lit' ↔ lit.idx = lit'.idx := by
   grind only [Lit]
 
@@ -213,6 +213,14 @@ def false : Lit :=
 theorem false_def :
     false = constant .false := by
   simp [constant, false]
+
+/--
+Sometimes useful for induction. TODO: How much do we want to expose these?
+-/
+theorem idx_lt_of_var_lt {lit' : Lit} (lt : lit.var < lit'.var) :
+    lit.idx < lit'.idx := by
+  simp +instances [var, Var.instLT] at lt
+  omega
 
 /--
 The (single) true literal.
@@ -315,7 +323,7 @@ theorem invert_false :
 @[simp, local grind =]
 theorem invert_true :
     lit.invert .true = mk lit.var ¬lit.inverted := by
-  simp [Lit.ext, invert]
+  simp [ext, invert]
   simp [var, inverted, Nat.xor_div_two]
 
 @[simp, grind =]
@@ -335,7 +343,7 @@ def strip (l : Lit) : Lit :=
 @[simp, grind =]
 theorem strip_def :
     lit.strip = mk lit.var .false := by
-  rw [strip, Lit.ext] <;> simp
+  rw [strip, ext] <;> simp
   simp [var, inverted, Nat.xor_div_two]
 
 @[inline]
@@ -361,6 +369,32 @@ theorem ofFanin_def (fi : Fanin) :
     simp [Nat.or_zero, Nat.shiftLeft_eq]
   · grind only [Bool.toNat_true, Bool.toNat_false]
 
+@[inline]
+def toFanin (lit : Lit) : Std.Sat.AIG.Fanin :=
+  .ofRaw lit.idx
+
+open Std.Sat.AIG in
+@[simp, grind =]
+theorem toFanin_gate :
+    lit.toFanin.gate = lit.var.idx := by
+  simp [toFanin, Fanin.gate, var]
+
+open Std.Sat.AIG in
+@[simp, grind =]
+theorem toFanin_invert :
+    lit.toFanin.invert = lit.inverted := by
+  simp [toFanin, Fanin.invert, inverted]
+
+@[simp, grind =]
+theorem toFanin_ofFanin {fi : Std.Sat.AIG.Fanin} :
+    (Lit.ofFanin fi).toFanin = fi := by
+  simp [ofFanin, toFanin]
+
+@[simp, grind =]
+theorem ofFanin_toFanin :
+    Lit.ofFanin lit.toFanin = lit := by
+  simp [ofFanin, toFanin]
+
 section
 variable {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α}
 
@@ -378,15 +412,19 @@ def toRef (lit : Lit) (h : lit.var.idx < aig.decls.size) : aig.Ref :=
   .mk lit.var.idx lit.inverted h
 
 @[simp, grind =]
-theorem toRef_gate {h : lit.var.idx < aig.decls.size} :
+theorem toRef_gate (h : lit.var.idx < aig.decls.size) :
     (toRef lit h).gate = lit.var.idx := by
   rw [toRef]
 
 @[simp, grind =]
-theorem toRef_invert {h : lit.var.idx < aig.decls.size} :
+theorem toRef_invert (h : lit.var.idx < aig.decls.size) :
     (toRef lit h).invert = lit.inverted := by
   simp [toRef]
 
+@[simp, grind =]
+theorem toRef_invert_eq_decide_inverted (h : lit.var.idx < aig.decls.size) :
+    (toRef lit h).invert = decide lit.inverted := by
+  simp [toRef]
 
 end
 

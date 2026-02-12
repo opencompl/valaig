@@ -36,8 +36,8 @@ local macro "simp_grind" : tactic => `(tactic| ((try simp_defs) <;> grind_defs))
 
 @[simp, grind =]
 theorem get_constant :
-    empty.get .constant = .false := by
-  have := empty.aig.hconst
+    aig.get .constant = .false := by
+  have := aig.aig.hconst
   simp_all_defs
   simp [Var.constant_idx_eq_zero, this]
 

@@ -2,6 +2,7 @@ module
 
 import all Valaig.Aig.Basic
 public import Valaig.Aig.WellFormed
+import all Std.Sat.AIG.Basic
 
 public section
 namespace Valaig.Aig
@@ -40,7 +41,7 @@ def denoteComb (aig : Aig) (lit : Lit)
     (valid : lit.validIn aig := by grind) (wf : aig.WellFormed := by grind) : Bool :=
   denote lit
 where
-  denote (cur : Lit) (lt : cur.var ≤ lit.var := by grind) : Bool :=
+  denote (cur : Lit) (le : cur.var ≤ lit.var := by grind) : Bool :=
     have : cur.validIn aig := by grind [validIn_mono]
     let val :=
       match h : aig[cur.var] with
@@ -92,3 +93,54 @@ theorem denoteComb_eq_denote_of_Combinational {denoteInput : InputIdx.In aig -> 
     aig.denote lit 0 (fun idx _ => denoteInput ⟨idx.val, by grind⟩) valid wf := by
   congr
   grind [denote.denoteLeaf]
+
+@[local simp]
+private theorem get_decls_def {var : Var} (valid : var.validIn aig) :
+    have : var.idx < aig.aig.decls.size := by simp_all [Var.validIn, Aig.size]
+    aig.aig.decls[var.idx]'(by simp_all [Var.validIn, Aig.size]) =
+    match aig.get var with
+    | .false     => .false
+    | .input idx => .atom (.input idx)
+    | .latch idx => .atom (.latch idx)
+    | .and rhs0 rhs1 => .gate rhs0.toFanin rhs1.toFanin := by
+  grind [Aig.get]
+
+local grind_pattern get_decls_def => aig.aig.decls[var.idx]
+
+open Std.Sat AIG in
+private theorem denoteComb.denote_eq_std_denote {denoteInput : LeafIdx -> Bool}
+    {output : Lit} (valid : output.validIn aig) (le : lit.var ≤ output.var) :
+    Aig.denoteComb.denote aig output (fun idx _ => denoteInput idx.val) valid wf lit =
+    AIG.denote denoteInput (Entrypoint.mk aig.aig <| lit.toRef <| by simp_all [Var.validIn, Aig.size]) := by
+  simp [AIG.denote]
+  induction h : lit.idx using WellFounded.induction generalizing lit
+  · apply WellFoundedRelation.wf
+  next ih =>
+    rw [denote, denote.go]
+    simp_all only [WellFoundedRelation.rel, InvImage]
+    split
+    · clear ih; grind only [usr get_decls_def]
+    · clear ih; grind only [usr get_decls_def]
+    · clear ih; grind only [usr get_decls_def]
+    · split
+      · clear ih; grind only [usr get_decls_def]
+      · clear ih; grind only [usr get_decls_def]
+      · simp_all
+        rename_i litl litr _ _ _ _
+        congr
+        · have :=
+            @ih litl.idx (by grind [Lit.idx_lt_of_var_lt, Lit]) litl
+              (by clear ih; grind) (by clear ih; grind) (by rfl)
+          grind only [usr get_decls_def, = Lit.toFanin_invert, = Lit.toFanin_gate]
+        · have :=
+            @ih litr.idx (by grind [Lit.idx_lt_of_var_lt, Lit]) litr
+              (by clear ih; grind) (by clear ih; grind) (by rfl)
+          grind only [usr get_decls_def, = Lit.toFanin_invert, = Lit.toFanin_gate]
+
+open Std.Sat AIG in
+private theorem denoteComb_eq_std_denote {denoteInput : LeafIdx -> Bool} :
+    aig.denoteComb lit (fun idx _ => denoteInput idx.val) =
+    AIG.denote denoteInput (Entrypoint.mk aig.aig (lit.toRef (by simp_all [Var.validIn, Aig.size]))) := by
+  rw [denoteComb, denoteComb.denote_eq_std_denote]
+  · simp
+  · trivial
