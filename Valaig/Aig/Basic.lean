@@ -85,10 +85,8 @@ def getInput (idx : LeafIdx) (h : idx matches .input _ := by grind) : InputIdx :
   | .input idx, _ => idx
 
 @[simp, grind =]
-theorem getInput_eq_input {idx : LeafIdx} (h : idx matches .input _) :
-    idx.getInput h =
-    match idx, h with
-    | .input idx, _ => idx := by
+theorem getInput_of_input {idx : InputIdx} :
+    (input idx).getInput = idx := by
   rfl
 
 @[inline]
@@ -97,10 +95,8 @@ def getLatch (idx : LeafIdx) (h : idx matches .latch _ := by grind) : LatchIdx :
   | .latch idx, _ => idx
 
 @[simp, grind =]
-theorem getLatch_eq_latch {idx : LeafIdx} (h : idx matches .latch _) :
-    idx.getLatch h =
-    match idx, h with
-    | .latch idx, _ => idx := by
+theorem getLatch_of_latch {idx : LatchIdx} :
+    (latch idx).getLatch = idx := by
   rfl
 
 end LeafIdx
@@ -341,31 +337,74 @@ Arbitrary index validity and accessors, defined as abbreviations
 -/
 namespace LeafIdx
 
-@[simp]
-abbrev validIn (idx : LeafIdx) (aig : Aig) : Prop :=
+def validIn (idx : LeafIdx) (aig : Aig) : Prop :=
   match idx with
   | .input idx => idx.validIn aig
   | .latch idx => idx.validIn aig
 
+@[simp]
+theorem validIn_def {idx : LeafIdx} :
+    idx.validIn aig ↔
+    match idx with
+    | .input idx => idx.validIn aig
+    | .latch idx => idx.validIn aig := by
+  grind [validIn]
+
+-- Only unfold with this pattern when not trivially an input or latch
+grind_pattern validIn_def => idx.validIn aig where
+  idx =/= .input _
+  idx =/= .latch _
+
+@[simp, grind =]
+theorem validIn_input {idx : InputIdx} :
+    (input idx).validIn aig ↔ idx.validIn aig := by
+  grind [validIn]
+
+@[simp, grind =]
+theorem validIn_latch {idx : LatchIdx} :
+    (latch idx).validIn aig ↔ idx.validIn aig := by
+  grind [validIn]
+
 @[always_inline]
-instance {idx : LeafIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
+instance {idx : LeafIdx} {aig : Aig} : Decidable (idx.validIn aig) := by
+  rw [validIn_def]
   match idx with
-  | .input _ => inferInstance
-  | .latch _ => inferInstance
+  | .input idx => infer_instance
+  | .latch idx => infer_instance
 
 abbrev In (aig : Aig) := { idx : LeafIdx // idx.validIn aig }
 
-@[always_inline, simp]
-abbrev getVar (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
+@[always_inline]
+def getVar (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
   match idx with
   | .input idx => idx.getVar aig
   | .latch idx => idx.getVar aig
 
-@[always_inline, simp]
-abbrev getLit (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
-  match idx with
-  | .input idx => idx.getLit aig
-  | .latch idx => idx.getLit aig
+@[simp]
+theorem getVar_def {idx : LeafIdx} (valid : idx.validIn aig) :
+    idx.getVar aig valid =
+    match idx with
+    | .input idx => idx.getVar aig
+    | .latch idx => idx.getVar aig := by
+  grind [getVar]
+
+grind_pattern getVar_def => idx.getVar aig where
+  idx =/= .input _
+  idx =/= .latch _
+
+@[simp, grind =]
+theorem getVar_input {idx : InputIdx} (valid : (input idx).validIn aig) :
+    (input idx).getVar aig = idx.getVar aig := by
+  grind [getVar]
+
+@[simp, grind =]
+theorem getVar_latch {idx : LatchIdx} (valid : (latch idx).validIn aig) :
+    (latch idx).getVar aig = idx.getVar aig := by
+  grind [getVar]
+
+@[always_inline, expose, simp, grind unfold]
+def getLit (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
+  idx.getVar aig valid |>.toLit
 
 end LeafIdx
 

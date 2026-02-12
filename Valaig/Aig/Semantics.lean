@@ -88,7 +88,7 @@ variable {valid : lit.validIn aig} {wf : aig.WellFormed}
 
 theorem denoteComb_eq_denote_of_Combinational {denoteInput : InputIdx.In aig -> Bool}
     (comb : aig.Combinational) :
-    aig.denoteComb lit (fun idx _ => denoteInput ⟨idx.val.getInput, by simp; grind⟩) valid wf =
+    aig.denoteComb lit (fun idx _ => denoteInput ⟨idx.val.getInput, by grind⟩) valid wf =
     aig.denote lit 0 (fun idx _ => denoteInput ⟨idx.val, by grind⟩) valid wf := by
   congr
   grind [denote.denoteLeaf]
