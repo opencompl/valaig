@@ -17,7 +17,7 @@ abbrev Frame := Nat
 /--
 A combinational Aig has no latches.
 -/
-@[expose, simp, grind]
+@[expose, grind]
 def Combinational (aig : Aig) :=
   aig.numLatches = 0
 
@@ -139,7 +139,7 @@ private theorem denoteComb.denote_eq_std_denote {denoteInput : LeafIdx -> Bool}
 
 open Std.Sat AIG in
 private theorem denoteComb_eq_std_denote {denoteInput : LeafIdx -> Bool} :
-    aig.denoteComb lit (fun idx _ => denoteInput idx.val) =
+    aig.denoteComb lit (fun idx _ => denoteInput idx.val) validIn wf =
     AIG.denote denoteInput (Entrypoint.mk aig.aig (lit.toRef (by simp_all [Var.validIn, Aig.size]))) := by
   rw [denoteComb, denoteComb.denote_eq_std_denote]
   · simp
