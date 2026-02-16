@@ -461,7 +461,7 @@ attribute [simp_valaig_defs, grind_valaig_defs]
   Aig.addInput Aig.addLatch Aig.addAnd
 
 attribute [grind_valaig_defs] InputIdx LatchIdx
-attribute [grind_valaig_defs =_] Var.ext_idx
+attribute [simp_valaig_defs] Var.ext_idx
 
 attribute [simp_valaig_defs, grind_valaig_defs =]
   Std.mkAtom_eq_decls_push Std.mkAtom_size Std.mkAtom_ref_eq_decls_size

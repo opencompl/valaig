@@ -122,11 +122,11 @@ def firstInput : HeaderT m Var :=
 
 @[inline]
 def firstLatch : HeaderT m Var :=
-  return (←firstInput).offset (←getHeader).numInputs
+  return (←firstInput) + (←getHeader).numInputs
 
 @[inline]
 def firstGate : HeaderT m Var :=
-  return (←firstLatch).offset (←getHeader).numLatches
+  return (←firstLatch) + (←getHeader).numLatches
 
 end Binary
 
@@ -183,7 +183,7 @@ def parseInputs : HeaderT m Unit := do
   let n := (←getHeader).numInputs
   if (←binary) then
     for i in [0:n] do
-      ActionsM.addInput ((←Binary.firstInput).offset i)
+      ActionsM.addInput <| (←Binary.firstInput) + i
   else
     parseDefiningLiterals ActionsM.addInput n
 
@@ -191,7 +191,7 @@ def parseInputs : HeaderT m Unit := do
 def parseLatch (n : Nat) : HeaderT m Unit := do
   let latch ←
     match ←binary with
-    | true => pure <| (←Binary.firstLatch).offset n
+    | true => pure <| (←Binary.firstLatch) + n
     | false => parseDefiningLit <* skipSpace
 
   let next ← parseLit
@@ -320,7 +320,7 @@ partial def parseDelta (var : Nat := 0) (mul : Nat := 1) : Parser Nat := do
 
 @[inline]
 def parseGate (n : Nat) : HeaderT m Unit := do
-  let lhs := (←firstGate).offset n
+  let lhs := (←firstGate) + n
   let lhsLit := lhs.toLit
   let delta0 ← parseDelta
   let delta1 ← parseDelta

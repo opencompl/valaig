@@ -39,7 +39,6 @@ theorem get_constant :
     aig.get .constant = .false := by
   have := aig.aig.hconst
   simp_all_defs
-  simp [Var.constant_idx_eq_zero, this]
 
 /-
 Aig.empty Lemmas. There aren't many as the only valid ref/index is the constant

@@ -9,15 +9,13 @@ namespace Valaig.Aig
 variable {aig : Aig}
 
 attribute [local simp, local grind] Var.validIn Lit.validIn InputIdx.validIn LatchIdx.validIn numInputs numLatches
-attribute [local grind =_] Var.ext_idx
 
 -- General theorems about validity
 section
 
 theorem validIn_mono {var var' : Var} (valid : var.validIn aig) (order : var' < var) :
     var'.validIn aig := by
-  simp_all_defs
-  grind [Var.lt_idx]
+  grind_defs
 
 grind_pattern validIn_mono => var.validIn aig, var'.validIn aig, var' < var
 
@@ -25,7 +23,6 @@ grind_pattern validIn_mono => var.validIn aig, var'.validIn aig, var' < var
 theorem constant_validIn :
     Var.constant.validIn aig := by
   have := aig.aig.hzero
-  simp [Var.constant_idx_eq_zero]
   grind_defs
 
 end
@@ -49,7 +46,7 @@ theorem latch_not_validIn_empty {idx : LatchIdx} :
 theorem var_validIn_empty_iff_eq_constant {var : Var} :
     var.validIn empty ↔ var = .constant := by
   simp_defs
-  simp [Var.ext_idx, Var.constant_idx_eq_zero, Std.Sat.AIG.empty]
+  grind [Std.Sat.AIG.empty]
 
 end empty
 
@@ -153,7 +150,7 @@ theorem var_validIn_addInput_iff {var : Var} :
     var.validIn aig.addInput.fst  ↔
     (var.validIn aig ∨ var = aig.addInput.snd.getVar aig.addInput.fst) := by
   simp_defs
-  grind [Std.mkAtom_ref_eq_decls_size]
+  grind only
 
 /-
 addLatch Lemmas.
