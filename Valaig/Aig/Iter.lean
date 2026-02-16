@@ -25,7 +25,7 @@ being below the size. This is separated outside GenericIter to make it easier
 to infer.
 -/
 class LawfulValid {α : Type} (mk : Nat -> α) (size : Nat) (valid : α -> Prop) : Prop where
-  hvalid : ∀ {out : α}, valid out ↔ ∃ (n : Nat) (_ : out = mk n), n < size
+  valid : ∀ {out : α}, valid out ↔ ∃ (n : Nat) (_ : out = mk n), n < size
 
 variable {α : Type} {mk : Nat -> α} {size : Nat} {valid : α -> Prop}
 variable {m : Type -> Type _} [Pure m] {n : Type _ -> Type _}
@@ -77,7 +77,7 @@ instance instIteratorLoop [Monad m] [Monad n] :
     Std.IteratorLoop (GenericIter mk size valid) m n :=
   .defaultImplementation
 
-variable {it : @Std.Iter (GenericIter mk size valid) α} {out : α}
+variable {it it' : @Std.Iter (GenericIter mk size valid) α} {out : α}
 
 @[simp, grind .]
 theorem step_ne_skip {it'} :
@@ -149,7 +149,7 @@ instance instForIn' [Monad n] [lawful : LawfulValid mk size valid] :
     ForIn' n (@Std.Iter (GenericIter mk size valid) α) α ⟨fun _ out => valid out⟩ where
   forIn' it init f :=
     Std.IteratorLoop.finiteForIn' (fun _ _ f c => f c.run) |>.forIn' it.toIterM init
-      fun out h acc => f out (by grind [lawful.hvalid]) acc
+      fun out h acc => f out (by grind [lawful.valid]) acc
 
 @[local simp, local grind =]
 private theorem length_eq_size_sub_idx :
@@ -200,10 +200,10 @@ private theorem mem_toList_iff_valid_of_idx_eq_zero [lawful : LawfulValid mk siz
     (h : it.internalState.idx = 0) :
     idx ∈ it.toList ↔ valid idx := by
   constructor
-  · grind [@Fin.is_lt, @lawful.hvalid]
+  · grind [@Fin.is_lt, @lawful.valid]
   · simp
     intro h
-    rw [lawful.hvalid] at h
+    rw [lawful.valid] at h
     rcases h with ⟨n, _⟩
     exists ⟨n, by grind⟩
     grind
@@ -216,6 +216,10 @@ private theorem yield_it_eq_inc (h : it.step.val = .yield it' var) :
     it'.internalState.idx = it.internalState.idx + 1 := by
   grind
 
+private theorem yield_valid [lawful : LawfulValid mk size valid] (h : it.step.val = .yield it' var) :
+    valid var := by
+  grind [lawful.valid]
+
 end GenericIter
 
 variable {aig : Aig}
@@ -224,7 +228,7 @@ section input
 
 abbrev InputIterator (aig : Aig) := GenericIter InputIdx.ofIdx aig.numInputs (·.validIn aig)
 instance {aig : Aig} : GenericIter.LawfulValid InputIdx.ofIdx aig.numInputs (·.validIn aig) where
-  hvalid := by grind [InputIdx.validIn, numInputs]
+  valid := by grind [InputIdx.validIn, numInputs]
 
 /--
 A forward iterator over inputs in the Aig.
@@ -254,7 +258,7 @@ section latch
 
 abbrev LatchIterator (aig : Aig) := GenericIter LatchIdx.ofIdx aig.numLatches (·.validIn aig)
 instance {aig : Aig} : GenericIter.LawfulValid LatchIdx.ofIdx aig.numLatches (·.validIn aig) where
-  hvalid := by grind [LatchIdx.validIn, numLatches]
+  valid := by grind [LatchIdx.validIn, numLatches]
 
 /--
 A forward iterator over latches in the Aig.
@@ -287,7 +291,7 @@ section var
 
 abbrev VarIterator (aig : Aig) := GenericIter Var.ofIdx aig.size (·.validIn aig)
 instance {aig : Aig} : GenericIter.LawfulValid Var.ofIdx aig.size (·.validIn aig) where
-  hvalid := by grind [Var.validIn]
+  valid := by grind [Var.validIn]
 
 /--
 A forward iterator over variables in the Aig.
@@ -321,7 +325,7 @@ be the next returned value if the iterator is still valid.
 def _root_.Std.Iter.var (it : @Std.Iter (VarIterator aig) Var) : Var :=
   .ofIdx it.internalState.idx
 
-variable {it it' : @Std.Iter (VarIterator aig) Var}
+variable {it it' : @Std.Iter (VarIterator aig) Var} {var : Var}
 
 @[simp]
 theorem length_eq_size_sub_var_idx :
@@ -346,27 +350,11 @@ theorem iter_yield_var_eq_var_add_one (h : it.step.val = .yield it' var) :
 
 grind_pattern iter_yield_var_eq_var_add_one => Std.IterStep.yield it' var, it.var
 
-/--
-Forward fold across all valid variables, accumulating a map from each variable to some element as
-well as a custom state. This is useful for forward analyses.
--/
-@[inline]
-def varFoldMap {α σ : Type} (aig : Aig) (init : σ)
-    (step : σ -> (var : Var) -> ((var' : Var) -> var' < var -> α) -> σ × α) : σ :=
-  go init aig.iter
-where
-  go (state : σ) (iter : Std.Iter Var) (map : Array α := #[])
-      (h : iter.var.idx = map.size := by grind) : σ :=
-    match h : iter.step.val with
-    | .yield it var =>
-      let mapF (var' : Var) (h : var' < var) :=
-        map[var'.idx]'(by grind)
-      let (state, val) := step state var mapF
-      let map := map.push val
-      go state it map
-    | .done => state
-    | .skip it => go state it map
-  termination_by iter.length
-  decreasing_by all_goals grind
+@[simp]
+theorem iter_yield_validIn (h : it.step.val = .yield it' var) :
+    var.validIn aig := by
+  apply GenericIter.yield_valid h
+
+grind_pattern iter_yield_validIn => Std.IterStep.yield it' var, var.validIn aig, it.step
 
 end var
