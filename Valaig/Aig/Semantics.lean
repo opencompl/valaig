@@ -109,38 +109,19 @@ local grind_pattern get_decls_def => aig.aig.decls[var.idx]
 
 open Std.Sat AIG in
 private theorem denoteComb.denote_eq_std_denote {denoteInput : LeafIdx -> Bool}
-    {output : Lit} (valid : output.validIn aig) (le : lit.var ≤ output.var) :
-    Aig.denoteComb.denote aig output (fun idx _ => denoteInput idx.val) valid wf lit =
-    AIG.denote denoteInput (Entrypoint.mk aig.aig <| lit.toRef <| by simp_all [Var.validIn, Aig.size]) := by
-  simp [AIG.denote]
-  induction h : lit.idx using WellFounded.induction generalizing lit
-  · apply WellFoundedRelation.wf
+    {output : Lit} (outValid : output.validIn aig) (le : lit.var ≤ output.var) :
+    Aig.denoteComb.denote aig output (fun idx _ => denoteInput idx.val) outValid wf lit le =
+    AIG.denote denoteInput (Entrypoint.mk aig.aig <| lit.toRef valid) := by
+  induction h : lit.var using WellFounded.induction generalizing lit
+  · exact WellFoundedRelation.wf
   next ih =>
-    rw [denote, denote.go]
-    simp_all only [WellFoundedRelation.rel, InvImage]
-    split
-    · clear ih; grind only [usr get_decls_def]
-    · clear ih; grind only [usr get_decls_def]
-    · clear ih; grind only [usr get_decls_def]
-    · split
-      · clear ih; grind only [usr get_decls_def]
-      · clear ih; grind only [usr get_decls_def]
-      · simp_all
-        rename_i litl litr _ _ _ _
-        congr
-        · have :=
-            @ih litl.idx (by grind [Lit.idx_lt_of_var_lt, Lit]) litl
-              (by clear ih; grind) (by clear ih; grind) (by rfl)
-          grind only [usr get_decls_def, = Lit.toFanin_invert, = Lit.toFanin_gate]
-        · have :=
-            @ih litr.idx (by grind [Lit.idx_lt_of_var_lt, Lit]) litr
-              (by clear ih; grind) (by clear ih; grind) (by rfl)
-          grind only [usr get_decls_def, = Lit.toFanin_invert, = Lit.toFanin_gate]
+    unfold denote AIG.denote denote.go
+    unfold AIG.denote at ih
+    simp_all [WellFoundedRelation.rel]
+    grind
 
 open Std.Sat AIG in
 private theorem denoteComb_eq_std_denote {denoteInput : LeafIdx -> Bool} :
-    aig.denoteComb lit (fun idx _ => denoteInput idx.val) validIn wf =
-    AIG.denote denoteInput (Entrypoint.mk aig.aig (lit.toRef (by simp_all [Var.validIn, Aig.size]))) := by
+    aig.denoteComb lit (fun idx _ => denoteInput idx.val) valid wf =
+    AIG.denote denoteInput (Entrypoint.mk aig.aig <| lit.toRef valid) := by
   rw [denoteComb, denoteComb.denote_eq_std_denote]
-  · simp
-  · trivial

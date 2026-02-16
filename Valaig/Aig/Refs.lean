@@ -417,12 +417,12 @@ theorem toRef_gate (h : lit.var.idx < aig.decls.size) :
   rw [toRef]
 
 @[simp, grind =]
-theorem toRef_invert (h : lit.var.idx < aig.decls.size) :
+theorem toRef_invert_eq_inverted (h : lit.var.idx < aig.decls.size) :
     (toRef lit h).invert = lit.inverted := by
   simp [toRef]
 
 @[simp, grind =]
-theorem toRef_invert_eq_decide_inverted (h : lit.var.idx < aig.decls.size) :
+theorem toRef_invert (h : lit.var.idx < aig.decls.size) :
     (toRef lit h).invert = decide lit.inverted := by
   simp [toRef]
 
