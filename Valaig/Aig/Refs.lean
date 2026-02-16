@@ -102,28 +102,18 @@ theorem eq_constant_iff_idx_eq_zero :
     var = constant ↔ var.idx = 0 := by
   grind [Var.ext_idx]
 
-@[inline]
-def offset (var : Var) (n : Nat) : Var :=
-  .ofIdx (var.idx + n)
-
-@[simp, grind =]
-theorem idx_offset {n : Nat} :
-    (var.offset n).idx = var.idx + n := by
-  simp [offset]
-
 /--
 Adding a `Nat` to a `Var` increments the `Var`'s index.
-This is defined in terms of `offset` to hide the implementation details.
 -/
-@[inline, expose, reducible, grind unfold]
+@[inline]
 instance : HAdd Var Nat Var where
   hAdd (var : Var) (n : Nat) :=
-    var.offset n
+    .ofIdx (var.idx + n)
 
-@[simp]
-theorem add_eq {n : Nat} :
-    var + n = var.offset n := by
-  rfl
+@[simp, grind =]
+theorem idx_add {n : Nat} :
+    (var + n).idx = var.idx + n := by
+  simp [HAdd.hAdd]
 
 @[inline]
 def ofRef {α} [DecidableEq α] [Hashable α] {aig : Std.Sat.AIG α} (ref : aig.Ref) : Var :=
