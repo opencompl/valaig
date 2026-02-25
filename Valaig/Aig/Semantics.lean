@@ -17,40 +17,47 @@ abbrev Frame := Nat
 /--
 A combinational Aig has no latches.
 -/
-@[expose, grind]
-def Combinational (aig : Aig) :=
+def Comb (aig : Aig) :=
   aig.numLatches = 0
 
-@[grind =]
-theorem Combinational_iff_forall_latch_not_valid :
-    aig.Combinational ↔ ∀ {latch : LatchIdx}, ¬latch.validIn aig := by
-  grind [LatchIdx.numLatches_eq_zero_iff_forall_not_validIn]
+@[local simp]
+theorem Comb_def :
+    aig.Comb ↔ aig.numLatches = 0 := by
+  rfl
 
-mutual
+grind_pattern Comb_def => aig.Comb, aig.numLatches
+
+theorem Comb_iff_latch_not_validIn :
+    aig.Comb ↔ ∀ {latch : LatchIdx}, ¬latch.validIn aig := by
+  simp [Comb_def, numLatches_zero_iff_not_validIn]
+
+@[simp]
+theorem latch_not_validIn_of_Comb (comb : aig.Comb) (latch : LatchIdx) :
+    ¬latch.validIn aig :=
+  Comb_iff_latch_not_validIn.mp comb
+
+grind_pattern latch_not_validIn_of_Comb => aig.Comb, latch.validIn aig
 
 /--
-Denotation of the combinational semantics of the Aig, taking a function to assign values to the
-input/latches.
-
-The deontation is provided leaves along with a proof that the leaves don't appear after the node
-being denoted in the graph to help with termination proofs.
+Denotation of the combinational semantics of the Aig, taking a function to assign
+values to the inputs and latches.
 -/
 @[expose]
-def denoteComb (aig : Aig) (lit : Lit)
-    (denoteLeaf : (leaf : LeafIdx.In aig) -> (leaf.val.getVar aig ≤ lit.var) -> Bool)
+def denoteComb (aig : Aig) (lit : Lit) (assign : LeafIdx.In aig -> Bool)
     (valid : lit.validIn aig := by grind) (wf : aig.WellFormed := by grind) : Bool :=
-  denote lit
+  denoteLit lit
 where
-  denote (cur : Lit) (le : cur.var ≤ lit.var := by grind) : Bool :=
-    have : cur.validIn aig := by grind [validIn_mono]
-    let val :=
-      match h : aig[cur.var] with
-      | .false => false
-      | .input idx => denoteLeaf ⟨.input idx, by grind⟩ (by grind)
-      | .latch idx => denoteLeaf ⟨.latch idx, by grind⟩ (by grind)
-      | .and rhs0 rhs1 => (denote rhs0) ∧ (denote rhs1)
-    val ^^ cur.inverted
-  termination_by cur.var
+  denoteLit (lit : Lit) (valid : lit.validIn aig := by grind) :=
+    denoteVar lit.var valid ^^ lit.inverted
+  termination_by (lit.var, 1)
+
+  denoteVar (var : Var) (valid : var.validIn aig) : Bool :=
+    match h : aig[var]'valid with
+    | .false         => false
+    | .input idx     => assign <| idx.castIn aig
+    | .latch idx     => assign <| idx.castIn aig
+    | .and rhs0 rhs1 => denoteLit rhs0 && denoteLit rhs1
+  termination_by (var, 0)
   decreasing_by all_goals grind
 
 /--
@@ -58,70 +65,150 @@ Denotation of the sequential semantics of the Aig in each timeframe, taking a fu
 values to the inputs in each frame.
 -/
 @[expose]
-def denote (aig : Aig) (lit : Lit) (frame : Frame) (denoteInput : InputIdx.In aig -> Frame -> Bool)
+def denoteSeq (aig : Aig) (lit : Lit) (frame : Frame) (assign : InputIdx.In aig -> Frame -> Bool)
     (valid : lit.validIn aig := by grind) (wf : aig.WellFormed := by grind) : Bool :=
-  aig.denoteComb lit (denoteLeaf frame)
+  denoteLit lit frame
 where
-  denoteLeaf {lit : Lit} (frame : Frame) (leaf : LeafIdx.In aig) (leafLt : leaf.val.getVar aig ≤ lit.var) : Bool :=
-    match h : leaf.val with
-    | .input idx => denoteInput ⟨idx, by grind⟩ frame
-    | .latch idx =>
-      if h : frame = 0 then
-        aig.denoteComb (idx.getReset aig) (denoteLeaf 0)
-      else
-        aig.denoteComb (idx.getNext aig) (denoteLeaf  (frame - 1))
+  denoteLit (lit : Lit) (frame : Frame) (valid : lit.validIn aig := by grind) :=
+    denoteVar lit.var frame valid ^^ lit.inverted
+  termination_by (frame, lit.var, 1)
 
-  termination_by (frame, lit.var)
-  decreasing_by all_goals grind
-
-end -- mutual
-
-/--
-Denotation of the reset semantics of the Aig, taking a function to assign values to the free
-inputs/reset values.
--/
-abbrev denoteReset (aig : Aig) (lit : Lit) (denoteInput : InputIdx.In aig -> Bool)
-    (valid : lit.validIn aig := by grind) (wf : aig.WellFormed := by grind) : Bool :=
-  aig.denote lit 0 (fun idx _ => denoteInput idx) valid wf
+  denoteVar (var : Var) (frame : Frame) (valid : var.validIn aig) : Bool :=
+    match _ : aig[var]'valid, _ : frame with
+    | .false, _         => false
+    | .input idx, _     => assign (idx.castIn aig) frame
+    | .latch idx, 0     => denoteLit (idx.getReset aig) 0
+    | .latch idx, n + 1 => denoteLit (idx.getNext aig) n
+    | .and rhs0 rhs1, _ => denoteLit rhs0 frame && denoteLit rhs1 frame
+  termination_by (frame, var, 0)
+  decreasing_by all_goals grind [wfParam]
 
 variable {lit : Lit} {frame : Frame}
+variable {assignComb : LeafIdx.In aig -> Bool}
+variable {assignIn : InputIdx.In aig -> Bool}
+variable {assign : InputIdx.In aig -> Frame -> Bool}
 variable {valid : lit.validIn aig} {wf : aig.WellFormed}
 
-theorem denoteComb_eq_denote_of_Combinational {denoteInput : InputIdx.In aig -> Bool}
-    (comb : aig.Combinational) :
-    aig.denoteComb lit (fun idx _ => denoteInput ⟨idx.val.getInput, by grind⟩) valid wf =
-    aig.denote lit 0 (fun idx _ => denoteInput ⟨idx.val, by grind⟩) valid wf := by
-  congr
-  grind [denote.denoteLeaf]
-
-@[local simp]
-private theorem get_decls_def {var : Var} (valid : var.validIn aig) :
-    have : var.idx < aig.aig.decls.size := by simp_all [Var.validIn, Aig.size]
-    aig.aig.decls[var.idx]'(by simp_all [Var.validIn, Aig.size]) =
-    match aig.get var with
-    | .false     => .false
-    | .input idx => .atom (.input idx)
-    | .latch idx => .atom (.latch idx)
-    | .and rhs0 rhs1 => .gate rhs0.toFanin rhs1.toFanin := by
-  grind [Aig.get]
-
-local grind_pattern get_decls_def => aig.aig.decls[var.idx]
-
-open Std.Sat AIG in
-private theorem denoteComb.denote_eq_std_denote {denoteInput : LeafIdx -> Bool}
-    {output : Lit} (outValid : output.validIn aig) (le : lit.var ≤ output.var) :
-    Aig.denoteComb.denote aig output (fun idx _ => denoteInput idx.val) outValid wf lit le =
-    AIG.denote denoteInput (Entrypoint.mk aig.aig <| lit.toRef valid) := by
+theorem denoteComb_eq_denoteSeq_of_Comb' {frame : Frame} (comb : aig.Comb) :
+    aig.denoteComb lit (assignIn <| ·.val.asInput.castIn aig) valid wf =
+    aig.denoteSeq lit frame (fun idx _ => assignIn idx) valid wf := by
+  unfold denoteComb denoteSeq
   induction h : lit.var using WellFounded.induction generalizing lit
-  · exact WellFoundedRelation.wf
+  exact WellFoundedRelation.wf
   next ih =>
-    unfold denote AIG.denote denote.go
-    unfold AIG.denote at ih
-    simp_all [WellFoundedRelation.rel]
+    unfold denoteComb.denoteLit denoteComb.denoteVar denoteSeq.denoteLit denoteSeq.denoteVar
+    simp [WellFoundedRelation.rel] at ih
     grind
 
+theorem denoteComb_eq_denoteSeq_of_Comb (comb : aig.Comb) :
+    aig.denoteComb lit (assignIn <| ·.val.asInput.castIn aig) valid wf =
+    aig.denoteSeq lit 0 (fun idx _ => assignIn idx) valid wf :=
+  denoteComb_eq_denoteSeq_of_Comb' comb
+
+/-
+We provide a set of theorems for reasoning about `denoteSeq` in terms of `denoteComb`. To prevent
+issues proving correctness of mutual recusion, these are broken down with leaf assignment functions
+that drop back to `denoteSeq` after one layer of `denoteComb`, but these can be combined to
+build the inductive equivalence.
+-/
+
+theorem denoteSeq_eq_denoteComb :
+    let assignComb (idx : LeafIdx.In aig) : Bool :=
+      match h : idx.val, frame with
+      | .input idx, _     => assign (idx.castIn aig) frame
+      | .latch idx, 0     => aig.denoteSeq (idx.getReset aig) 0 assign
+      | .latch idx, n + 1 => aig.denoteSeq (idx.getNext aig)  n assign
+    aig.denoteSeq lit frame assign valid wf =
+    aig.denoteComb lit assignComb valid wf := by
+  simp only
+  conv => left; unfold denoteSeq
+  conv => right; unfold denoteComb
+  induction _ : (frame, lit.var) using WellFounded.induction generalizing frame lit
+  exact WellFoundedRelation.wf
+  next ih _ =>
+    unfold denoteSeq.denoteLit denoteSeq.denoteVar denoteComb.denoteLit denoteComb.denoteVar
+    simp_all [WellFoundedRelation.rel, Prod.lex_def, InvImage]
+    grind [denoteSeq]
+
+theorem denoteSeq_eq_denoteComb_reset :
+    let assignComb (idx : LeafIdx.In aig) : Bool :=
+      match h : idx.val with
+      | .input idx => assign (idx.castIn aig) 0
+      | .latch idx => aig.denoteSeq (idx.getReset aig) 0 assign
+    aig.denoteSeq lit 0 assign valid wf =
+    aig.denoteComb lit assignComb valid wf := by
+  grind only [denoteSeq_eq_denoteComb]
+
+theorem denoteComb_eq_denoteComb_of_eq_le_var (assignComb' : LeafIdx.In aig -> Bool)
+    (heq : ∀ {idx} (_ : idx.val.getVar aig ≤ lit.var),
+      assignComb idx = assignComb' idx) :
+    aig.denoteComb lit assignComb valid wf =
+    aig.denoteComb lit assignComb' valid wf := by
+  unfold denoteComb
+  induction _ : lit.var using WellFounded.induction generalizing lit
+  exact WellFoundedRelation.wf
+  next ih _ =>
+    unfold denoteComb.denoteLit denoteComb.denoteVar
+    simp [WellFoundedRelation.rel] at ih
+    simp_all
+    grind
+
+/--
+TODO: This can be derived from a more fine-grained statement about COI.
+-/
+theorem denoteSeq_eq_denoteSeq_of_eq_le_frame (assign' : InputIdx.In aig -> Frame -> Bool)
+    (heq : ∀ {idx frame'} (_ : frame' ≤ frame), assign idx frame' = assign' idx frame') :
+    aig.denoteSeq lit frame assign valid wf =
+    aig.denoteSeq lit frame assign' valid wf := by
+  induction _ : (frame, lit.var) using WellFounded.induction generalizing frame lit
+  exact WellFoundedRelation.wf
+  next ih _ =>
+    simp [WellFoundedRelation.rel, Prod.lex_def, InvImage] at ih
+    rw [denoteSeq_eq_denoteComb, denoteSeq_eq_denoteComb]
+    apply denoteComb_eq_denoteComb_of_eq_le_var
+    simp_all
+    grind
+
+local grind_pattern getElem_decls_eq_get => aig.aig.decls[idx]
+
 open Std.Sat AIG in
-private theorem denoteComb_eq_std_denote {denoteInput : LeafIdx -> Bool} :
-    aig.denoteComb lit (fun idx _ => denoteInput idx.val) valid wf =
-    AIG.denote denoteInput (Entrypoint.mk aig.aig <| lit.toRef valid) := by
-  rw [denoteComb, denoteComb.denote_eq_std_denote]
+private theorem denoteComb_eq_std_denote {assign : LeafIdx -> Bool} :
+    aig.denoteComb lit (assign ·) valid wf =
+    AIG.denote assign (Entrypoint.mk aig.aig <| lit.toRef valid) := by
+  unfold denoteComb denote
+  induction h : lit.var using WellFounded.induction generalizing lit
+  exact WellFoundedRelation.wf
+  next ih =>
+    unfold denoteComb.denoteLit denoteComb.denoteVar denote.go
+    simp [WellFoundedRelation.rel] at ih
+    simp_all
+    grind [get_eq_getElem_decls, Lit.inverted_mk]
+
+/--
+A literal is unsatisfiable in an Aig if for all assignments to inputs and latches its value is
+false.
+-/
+@[expose]
+def Unsat (aig : Aig) (lit : Lit) (valid : lit.validIn aig := by grind) (wf : aig.WellFormed := by grind) :=
+  ∀ {assign},
+    aig.denoteComb lit assign valid wf = false
+
+open Std.Sat AIG in
+private theorem Unsat_iff_std_Unsat :
+    aig.Unsat lit valid wf ↔
+    Entrypoint.Unsat (.mk aig.aig <| lit.toRef valid) := by
+  unfold Unsat Entrypoint.Unsat AIG.UnsatAt
+  constructor
+  · intro h assign
+    rw [←denoteComb_eq_std_denote]
+    · apply h
+    · trivial
+  · intro h assign
+    let assign' (idx : LeafIdx) :=
+      if valid : idx.validIn aig then
+        assign ⟨idx, valid⟩
+      else
+        false
+    rw [denoteComb_eq_denoteComb_of_eq_le_var (assign' ·) (by grind only)]
+    rw [denoteComb_eq_std_denote]
+    apply h

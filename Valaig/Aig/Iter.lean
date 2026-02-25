@@ -291,7 +291,7 @@ section var
 
 abbrev VarIterator (aig : Aig) := GenericIter Var.ofIdx aig.size (·.validIn aig)
 instance {aig : Aig} : GenericIter.LawfulValid Var.ofIdx aig.size (·.validIn aig) where
-  valid := by grind [Var.validIn]
+  valid := by simp [Var.ext_idx, Var.validIn]
 
 /--
 A forward iterator over variables in the Aig.

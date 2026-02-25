@@ -40,6 +40,13 @@ theorem get_constant :
   have := aig.aig.hconst
   simp_all_defs
 
+@[simp, grind =]
+theorem get_eq_false_iff_isConstant {var : Var} (valid : var.validIn aig) :
+    aig.get var = .false ↔ var = .constant := by
+  have := aig.hconst
+  simp_all [getElem_decls_eq_get, Var.constant_iff_idx_zero]
+  grind [Var, Var.validIn_of_lt_decls_size]
+
 /-
 Aig.empty Lemmas. There aren't many as the only valid ref/index is the constant
 variable.
@@ -126,6 +133,7 @@ section aig
 -- These are needed for grind to reason about index validity
 attribute [local simp, local grind] Var.validIn InputIdx.validIn LatchIdx.validIn
 attribute [local simp, local grind] Aig.numInputs Aig.numLatches
+attribute [local grind →] Var.validIn_of_lt_decls_size
 
 /-
 Aig.addInput Lemmas.

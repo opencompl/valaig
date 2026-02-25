@@ -23,7 +23,7 @@ grind_pattern validIn_mono => var.validIn aig, var'.validIn aig, var' < var
 theorem constant_validIn :
     Var.constant.validIn aig := by
   have := aig.aig.hzero
-  grind_defs
+  simpa
 
 end
 

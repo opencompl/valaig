@@ -34,4 +34,7 @@ scoped macro "simp_all_defs" : tactic => `(tactic| (simp_all [simp_valaig_defs])
 set_option hygiene false in
 scoped macro "grind_defs" : tactic => `(tactic| (grind [grind_valaig_defs]))
 
+scoped macro_rules
+| `(tactic| get_elem_tactic_extensible) => `(tactic| grind)
+
 end Aig

@@ -751,7 +751,7 @@ grind_pattern AcyclicResets_addAnd => (aig.addAnd rhs0 rhs1 h0 h1).fst.AcyclicRe
 
 @[simp]
 theorem WellFormed_addAnd
-    (idxsValid : aig.WellFormed)
+    (wellFormed : aig.WellFormed)
     (h0 : rhs0.validIn aig)
     (h1 : rhs1.validIn aig) :
     (aig.addAnd rhs0 rhs1 h0 h1).fst.WellFormed := by

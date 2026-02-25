@@ -79,25 +79,13 @@ namespace LeafIdx
 deriving instance Hashable, DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq for LeafIdx
 instance : LawfulHashable LeafIdx where hash_eq := by simp
 
-@[inline]
-def getInput (idx : LeafIdx) (h : idx matches .input _ := by grind) : InputIdx :=
-  match idx, h with
-  | .input idx, _ => idx
+@[always_inline]
+instance : Coe InputIdx LeafIdx where
+  coe := (.input ·)
 
-@[simp, grind =]
-theorem getInput_of_input {idx : InputIdx} :
-    (input idx).getInput = idx := by
-  rfl
-
-@[inline]
-def getLatch (idx : LeafIdx) (h : idx matches .latch _ := by grind) : LatchIdx :=
-  match idx, h with
-  | .latch idx, _ => idx
-
-@[simp, grind =]
-theorem getLatch_of_latch {idx : LatchIdx} :
-    (latch idx).getLatch = idx := by
-  rfl
+@[always_inline]
+instance : Coe LatchIdx LeafIdx where
+  coe := (.latch ·)
 
 end LeafIdx
 
@@ -123,6 +111,12 @@ stored separately as `Lit`s in the `Aig`.
 structure Aig where
   -- The underlying AIG
   private aig : Std.Sat.AIG Aig.LeafIdx
+
+  -- This is a temporary constraint, later we will enforce this by simply not storing a false node
+  -- in the aig and always treating the constant variable as referring to false
+  private hconst :
+    ∀ (idx : Nat) (valid : idx < aig.decls.size),
+      aig.decls[idx] = .false ↔ idx = 0
 
   -- A mapping from input indices (LeafIdx.input idx) to their definition
   private inputs : Aig.Inputs
@@ -153,6 +147,7 @@ An `Aig` with just the constant node.
 def empty : Aig :=
   {
     aig := .empty,
+    hconst := by grind [Std.Sat.AIG.empty]
     inputs := #[],
     latches := #[],
   }
@@ -197,7 +192,6 @@ end Aig
 /-
 Variable accessors.
 -/
-
 namespace Var 
 
 def validIn (var : Var) (aig : Aig) : Prop :=
@@ -209,6 +203,34 @@ instance {var : Var} {aig : Aig} : Decidable (var.validIn aig) :=
     simp [Var.validIn]
   decidable_of_iff' _ this
 
+abbrev In (aig : Aig) := { var : Var // var.validIn aig }
+
+@[always_inline, simp]
+abbrev castIn (var : Var) (aig : Aig) (valid : var.validIn aig := by grind) : Var.In aig :=
+  ⟨var, valid⟩
+
+private theorem validIn_eq_lt_decls_size {var : Var} :
+    var.validIn aig ↔ var.idx < aig.aig.decls.size := by
+  grind [validIn, Aig.size]
+
+grind_pattern validIn_eq_lt_decls_size => var.idx ≥ aig.aig.decls.size
+
+@[simp]
+private theorem validIn_of_lt_decls_size {var : Var} (valid : var.validIn aig) :
+    var.idx < aig.aig.decls.size :=
+  validIn_eq_lt_decls_size.mp valid
+
+theorem validIn_eq_lt_size {var : Var} :
+    var.validIn aig ↔ var.idx < aig.size := by
+  grind [validIn]
+
+grind_pattern validIn_eq_lt_size => var.idx ≥ aig.size
+
+@[simp]
+private theorem validIn_of_lt_size {var : Var} (valid : var.validIn aig) :
+    var.idx < aig.size :=
+  validIn_eq_lt_size.mp valid
+
 end Var
 
 namespace Lit
@@ -219,9 +241,14 @@ def validIn (lit : Lit) (aig : Aig) : Prop :=
 
 @[always_inline]
 instance {lit : Lit} {aig : Aig} : Decidable (lit.validIn aig) :=
-  have : lit.validIn aig ↔ lit.var.validIn aig := by
-    simp [Lit.validIn]
+  have : lit.validIn aig ↔ lit.var.validIn aig := by simp
   decidable_of_iff' _ this
+
+abbrev In (aig : Aig) := { lit : Lit // lit.validIn aig }
+
+@[always_inline, simp]
+abbrev castIn (lit : Lit ) (aig : Aig) (valid : lit.validIn aig := by grind) : Lit.In aig :=
+  ⟨lit, valid⟩
 
 end Lit
 
@@ -237,10 +264,35 @@ def get (aig : Aig) (var : Var) (valid : var.validIn aig := by grind) : Node :=
   | .atom (.latch idx) => .latch idx
   | .gate rhs0 rhs1 => .and (.ofFanin rhs0) (.ofFanin rhs1)
 
-@[always_inline, expose, reducible, simp, grind unfold]
+@[local simp]
+private theorem getElem_decls_eq_get {idx : Nat} (valid : idx < aig.aig.decls.size) :
+    aig.aig.decls[idx] =
+    match aig.get (Var.ofIdx idx) (by grind [Var.validIn, size]) with
+    | .false     => .false
+    | .input idx => .atom (.input idx)
+    | .latch idx => .atom (.latch idx)
+    | .and rhs0 rhs1 => .gate rhs0.toFanin rhs1.toFanin := by
+  grind [Aig.get]
+
+@[local simp]
+private theorem get_eq_getElem_decls {var : Var} (valid : var.validIn aig) :
+    aig.get var valid =
+    match aig.aig.decls[var.idx]'valid with
+    | .false     => .false
+    | .atom (.input idx) => .input idx
+    | .atom (.latch idx) => .latch idx
+    | .gate rhs0 rhs1 => .and (.ofFanin rhs0) (.ofFanin rhs1) := by
+  grind [Aig.get]
+
+@[always_inline, expose, reducible, grind unfold]
 instance instGetElemVar : GetElem Aig Var Node (fun aig var => var.validIn aig) where
   getElem aig var (h := by grind) :=
     aig.get var h
+
+@[simp]
+theorem getElem_eq_get {var : Var} (valid : var.validIn aig) :
+    aig[var]'valid = aig.get var valid := by
+  rfl
 
 /-
 Input accessors.
@@ -259,15 +311,9 @@ instance {idx : InputIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
 
 abbrev In (aig : Aig) := { idx : InputIdx // idx.validIn aig }
 
-@[grind =]
-theorem numInputs_eq_zero_iff_forall_not_validIn :
-    aig.numInputs = 0 ↔ ∀ (idx : InputIdx), ¬idx.validIn aig := by
-  simp
-  constructor
-  · grind
-  · intro h
-    have := h (.ofIdx 0)
-    grind
+@[always_inline, simp]
+abbrev castIn (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : InputIdx.In aig :=
+  ⟨idx, valid⟩
 
 @[always_inline]
 def getVar (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
@@ -296,15 +342,9 @@ instance {idx : LatchIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
 
 abbrev In (aig : Aig) := { idx : LatchIdx // idx.validIn aig }
 
-@[grind =]
-theorem numLatches_eq_zero_iff_forall_not_validIn :
-    aig.numLatches = 0 ↔ ∀ (idx : LatchIdx), ¬idx.validIn aig := by
-  simp
-  constructor
-  · grind
-  · intro h
-    have := h (.ofIdx 0)
-    grind
+@[always_inline, simp]
+abbrev castIn (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : LatchIdx.In aig :=
+  ⟨idx, valid⟩
 
 @[always_inline]
 def getVar (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
@@ -332,10 +372,48 @@ def setReset (idx : LatchIdx) (aig : Aig) (reset : Lit) (valid : idx.validIn aig
 
 end LatchIdx
 
+theorem numInputs_zero_iff_not_validIn :
+    aig.numInputs = 0 ↔ ∀ (idx : InputIdx), ¬idx.validIn aig := by
+  simp [InputIdx.validIn]
+  constructor
+  · grind
+  · intro h
+    have := h (.ofIdx 0)
+    grind
+
+theorem numLatches_zero_iff_not_validIn :
+    aig.numLatches = 0 ↔ ∀ (idx : LatchIdx), ¬idx.validIn aig := by
+  simp [LatchIdx.validIn]
+  constructor
+  · grind
+  · intro h
+    have := h (.ofIdx 0)
+    grind
+
 /-
 Arbitrary index validity and accessors, defined as abbreviations
 -/
 namespace LeafIdx
+
+@[inline]
+def asInput (idx : LeafIdx) (h : idx matches .input _ := by grind) : InputIdx :=
+  match idx, h with
+  | .input idx, _ => idx
+
+@[simp, grind =]
+theorem asInput_of_input {idx : InputIdx} :
+    (input idx).asInput = idx := by
+  rfl
+
+@[inline]
+def asLatch (idx : LeafIdx) (h : idx matches .latch _ := by grind) : LatchIdx :=
+  match idx, h with
+  | .latch idx, _ => idx
+
+@[simp, grind =]
+theorem asLatch_of_latch {idx : LatchIdx} :
+    (latch idx).asLatch = idx := by
+  rfl
 
 def validIn (idx : LeafIdx) (aig : Aig) : Prop :=
   match idx with
@@ -365,6 +443,12 @@ theorem validIn_latch {idx : LatchIdx} :
     (latch idx).validIn aig ↔ idx.validIn aig := by
   grind [validIn]
 
+instance {idx : InputIdx} : Coe (idx.validIn aig) ((idx : LeafIdx).validIn aig) where
+  coe := by grind
+
+instance {idx : LatchIdx} : Coe (idx.validIn aig) ((idx : LeafIdx).validIn aig) where
+  coe := by grind
+
 @[always_inline]
 instance {idx : LeafIdx} {aig : Aig} : Decidable (idx.validIn aig) := by
   rw [validIn_def]
@@ -373,6 +457,18 @@ instance {idx : LeafIdx} {aig : Aig} : Decidable (idx.validIn aig) := by
   | .latch idx => infer_instance
 
 abbrev In (aig : Aig) := { idx : LeafIdx // idx.validIn aig }
+
+@[always_inline, simp]
+abbrev castIn (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : LeafIdx.In aig :=
+  ⟨idx, valid⟩
+
+@[always_inline]
+instance : Coe (InputIdx.In aig) (LeafIdx.In aig) where
+  coe idx := ⟨idx, idx.property⟩
+
+@[always_inline]
+instance : Coe (LatchIdx.In aig) (LeafIdx.In aig) where
+  coe idx := ⟨idx, idx.property⟩
 
 @[always_inline]
 def getVar (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
@@ -408,14 +504,6 @@ def getLit (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : L
 
 end LeafIdx
 
-@[always_inline]
-instance : Coe InputIdx LeafIdx where
-  coe := (.input ·)
-
-@[always_inline]
-instance : Coe LatchIdx LeafIdx where
-  coe := (.latch ·)
-
 /-
 Node constructors. There is no constant node constructor as the constant node always exists, so constant
 literals can be constructed with `Lit.true`/`Lit.false`.
@@ -427,7 +515,8 @@ def addInput (aig : Aig) : Aig × InputIdx :=
   let res := aig.aig.mkAtom <| .input idx
   let input := { var := .ofRef res.ref }
   let inputs := aig.inputs.push input
-  let aig := { aig with aig := res.aig, inputs }
+  have hconst := by grind [aig.aig.hzero, aig.hconst, Std.mkAtom_eq_decls_push]
+  let aig := { aig with aig := res.aig, hconst, inputs }
   (aig, idx)
 
 @[inline]
@@ -436,7 +525,8 @@ def addLatch (aig : Aig) (next reset : Lit) : Aig × LatchIdx :=
   let res := aig.aig.mkAtom <| .latch idx
   let latch := { var := .ofRef res.ref, next, reset }
   let latches := aig.latches.push latch
-  let aig := { aig with aig := res.aig, latches }
+  have hconst := by grind [aig.aig.hzero, aig.hconst, Std.mkAtom_eq_decls_push]
+  let aig := { aig with aig := res.aig, hconst,  latches }
   (aig, idx)
 
 -- TODO: Currently this requires proofs that rhs0/rhs1 are valid in the aig, but after switching to
@@ -445,7 +535,11 @@ def addLatch (aig : Aig) (next reset : Lit) : Aig × LatchIdx :=
 def addAnd (aig : Aig) (rhs0 rhs1 : Lit)
     (valid0 : rhs0.validIn aig := by grind) (valid1 : rhs1.validIn aig := by grind) : Aig × Lit :=
   let res := aig.aig.mkAndCached ⟨rhs0.toRef valid0, rhs1.toRef valid1⟩
-  let aig := { aig with aig := res.aig }
+  have hconst := by
+    intro i
+    by_cases i ≥ aig.aig.decls.size
+    <;> grind [aig.aig.hzero, aig.hconst, aig.aig.mkAndCached_decl_eq, Std.mkAndCached_matches_gate (aig := aig.aig)]
+  let aig := { aig with aig := res.aig, hconst }
   (aig, .ofRef res.ref)
 
 /-

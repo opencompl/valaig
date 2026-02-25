@@ -21,6 +21,11 @@ structure Var where
 namespace Var
 variable {var : Var}
 
+@[simp]
+theorem ofIdx_idx :
+    .ofIdx var.idx = var := by
+  grind
+
 deriving instance DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq for Var
 
 instance : EquivBEq Var := by constructor
@@ -98,7 +103,7 @@ theorem idx_constant :
     constant.idx = 0 := by
   simp [constant]
 
-theorem eq_constant_iff_idx_eq_zero :
+theorem constant_iff_idx_zero :
     var = constant ↔ var.idx = 0 := by
   grind [Var.ext_idx]
 
@@ -159,13 +164,13 @@ def mk (var : Var) (invert : Bool := false) : Lit :=
   .ofIdx <| var.idx <<< 1 ||| invert.toNat
 
 @[simp]
-theorem idx_mk {invert : Bool} :
+theorem idx_mk {var : Var} {invert : Bool} :
     (mk var invert).idx = var.idx * 2 + invert.toNat := by
   have := @Nat.two_pow_add_eq_or_of_lt 1
   grind only [Bool.toNat_lt, Nat.shiftLeft_eq, mk]
 
 @[grind =]
-theorem idx_mk_cases {invert : Bool} :
+theorem idx_mk_cases {var : Var} {invert : Bool} :
     (mk var invert).idx =
     if invert then
       var.idx * 2 + 1
@@ -225,6 +230,20 @@ theorem mk_self_eq :
   by_cases h : lit.inverted
   · simp_all [inverted]; rw [←Nat.shiftLeft_add_eq_or_of_lt] <;> omega
   · simp_all [inverted] <;> omega
+
+@[simp]
+theorem mk_self_of_inverted (h : lit.inverted) :
+    Lit.mk lit.var true = lit := by
+  grind
+
+grind_pattern mk_self_of_inverted => Lit.mk lit.var true, lit.inverted
+
+@[simp]
+theorem mk_self_of_not_inverted (h : ¬lit.inverted) :
+    Lit.mk lit.var false = lit := by
+  grind
+
+grind_pattern mk_self_of_inverted => Lit.mk lit.var false, lit.inverted
 
 theorem ext {lit lit' : Lit} :
     lit = lit' ↔ (lit.var = lit'.var ∧ lit.inverted = lit'.inverted) := by
