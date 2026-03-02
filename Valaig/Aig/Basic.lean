@@ -126,6 +126,8 @@ structure Aig where
 
 namespace Aig
 
+variable {aig : Aig}
+
 /--
 A representation of the node data stored for a particular variable in an `Aig`. For inputs and
 latches this requires a further lookup with `InputIdx.get` or `LatchIdx.get`.
