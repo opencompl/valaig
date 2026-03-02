@@ -23,7 +23,7 @@ where
     | .done => state
     | .yield it' var =>
       let mapLit (lit : Lit) (h : lit.var < var := by grind) : Lit :=
-        map[lit.var.idx] |>.invert lit.inverted
+        lit.mapTo map[lit.var.idx]
 
       let res : Aig × Lit := 
         match h : aig[var] with
@@ -49,7 +49,7 @@ where
     | .done => state
     | .yield it' var =>
       let mapLit (lit : Lit) (h : lit.var < var := by grind) : Lit :=
-        map[lit.var.idx] |>.invert lit.inverted
+        lit.mapTo map[lit.var.idx]
 
       let res : Aig × Lit := 
         match h : aig[var] with

@@ -403,6 +403,31 @@ theorem strip_eq :
   rw [strip, ext] <;> simp
   simp [var, inverted, Nat.xor_div_two]
 
+/--
+Maps the literal's variable to a new literal, before inverting the new literal if the
+original was also inverted.
+-/
+@[inline]
+def mapTo (l new : Lit) : Lit :=
+  new.invert l.inverted
+
+@[simp, grind =]
+theorem mapTo_eq {new : Lit} :
+    lit.mapTo new = new.invert lit.inverted := by
+  rfl
+
+/--
+Replaces the literal's variable to a literal with a new variable, keeping the inversion.
+-/
+@[inline]
+def mapToVar (l : Lit) (var : Var) : Lit :=
+  mk var l.inverted
+
+@[simp, grind =]
+theorem mapToVar_eq {var : Var} :
+    lit.mapToVar var = mk var lit.inverted := by
+  rfl
+
 @[inline]
 def ofFanin (fi : Std.Sat.AIG.Fanin) : Lit :=
   -- Currently Lit and Fanin use the same bit stuffing so we can losslessly
