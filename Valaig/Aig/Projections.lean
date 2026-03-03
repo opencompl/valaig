@@ -40,7 +40,12 @@ where
   termination_by iter.length
   decreasing_by all_goals grind
 
-private theorem projectComb.Comb_go {reset iter size} (comb : state.Comb) :
+section projectComb
+variable {reset : Bool} {state : Aig} {map : Array Lit} {iter : Std.Iter Var}
+variable {size : iter.var.idx = map.size}
+
+@[local simp, local grind .]
+private theorem projectComb.Comb_go (comb : state.Comb) :
     (go aig reset wf iter state map size valid).fst.Comb := by
   fun_induction go
   · grind only
@@ -50,23 +55,51 @@ private theorem projectComb.Comb_go {reset iter size} (comb : state.Comb) :
     subst res
     grind
 
-@[local simp]
-private theorem Comb_projectComb :
+@[local simp, local grind .]
+private theorem projectComb.WellFormed_go (swf : state.WellFormed) :
+    (go aig reset wf iter state map size valid).fst.WellFormed := by
+  fun_induction go
+  · grind only
+  · grind only
+  next res ih =>
+    apply ih
+    subst res
+    grind
+
+private theorem Comb_projectComb {reset} :
     (aig.projectComb reset wf).fst.Comb :=
   projectComb.Comb_go (by simp)
+
+private theorem WellFormed_projectComb {reset} :
+    (aig.projectComb reset wf).fst.WellFormed :=
+  projectComb.WellFormed_go (by simp)
+
+end projectComb
 
 @[inline]
 def resetAig (aig : Aig) (wf : aig.WellFormed := by grind) : Aig × (Lit.In aig -> Lit) :=
   projectComb aig true wf
 
+@[simp, grind .]
 theorem Comb_resetAig :
     (aig.resetAig wf).fst.Comb :=
   Comb_projectComb
+
+@[simp, grind .]
+theorem WellFormed_resetAig :
+    (aig.resetAig wf).fst.WellFormed :=
+  WellFormed_projectComb
 
 @[inline]
 def transAig (aig : Aig) (wf : aig.WellFormed := by grind) : Aig × (Lit.In aig -> Lit) :=
   projectComb aig false wf
 
+@[simp, grind .]
 theorem Comb_transAig :
     (aig.transAig wf).fst.Comb :=
   Comb_projectComb
+
+@[simp, grind .]
+theorem WellFormed_transAig :
+    (aig.transAig wf).fst.WellFormed :=
+  WellFormed_projectComb
