@@ -241,22 +241,22 @@ instance {aig : Aig} : GenericIter.LawfulValid InputIdx.ofIdx aig.numInputs (·.
 A forward iterator over inputs in the Aig.
 -/
 @[inline]
-def inputIter (aig : Aig) : @Std.Iter (InputIterator aig) InputIdx :=
+def inputs (aig : Aig) : @Std.Iter (InputIterator aig) InputIdx :=
   ⟨⟨0⟩⟩
 
 @[simp, grind =]
-theorem length_inputIter_eq_numInputs :
-    aig.inputIter.length = aig.numInputs := by
-  simp [inputIter, GenericIter.length_eq_size_sub_idx]
+theorem length_inputs_eq_numInputs :
+    aig.inputs.length = aig.numInputs := by
+  simp [inputs, GenericIter.length_eq_size_sub_idx]
 
 @[simp, grind =]
-theorem mem_inputIter_toList_iff_valid {idx : InputIdx} :
-    idx ∈ aig.inputIter.toList ↔ idx.validIn aig := by
-  grind [inputIter]
+theorem mem_inputs_toList_iff_valid {idx : InputIdx} :
+    idx ∈ aig.inputs.toList ↔ idx.validIn aig := by
+  grind [inputs]
 
-theorem inputIter_toList_ne_of_ne :
+theorem inputs_toList_ne_of_ne :
     ∀ {i j : Nat} (hi : i < aig.numInputs) (hj : j < aig.numInputs) (_ : i ≠ j),
-      aig.inputIter.toList[i]'(by simpa) ≠ aig.inputIter.toList[j]'(by simpa) := by
+      aig.inputs.toList[i]'(by simpa) ≠ aig.inputs.toList[j]'(by simpa) := by
   simp
 
 end input
@@ -271,22 +271,22 @@ instance {aig : Aig} : GenericIter.LawfulValid LatchIdx.ofIdx aig.numLatches (·
 A forward iterator over latches in the Aig.
 -/
 @[inline]
-def latchIter (aig : Aig) : @Std.Iter (LatchIterator aig) LatchIdx :=
+def latches (aig : Aig) : @Std.Iter (LatchIterator aig) LatchIdx :=
   ⟨⟨0⟩⟩
 
 @[simp, grind =]
-theorem length_latchIter_eq_numLatches :
-    aig.latchIter.length = aig.numLatches := by
-  simp [latchIter, GenericIter.length_eq_size_sub_idx]
+theorem length_latches_eq_numLatches :
+    aig.latches.length = aig.numLatches := by
+  simp [latches, GenericIter.length_eq_size_sub_idx]
 
 @[simp, grind =]
-theorem mem_latchIter_toList_iff_valid {idx : LatchIdx} :
-    idx ∈ aig.latchIter.toList ↔ idx.validIn aig := by
-  grind [latchIter]
+theorem mem_latches_toList_iff_valid {idx : LatchIdx} :
+    idx ∈ aig.latches.toList ↔ idx.validIn aig := by
+  grind [latches]
 
-theorem latchIter_toList_ne_of_ne :
+theorem latches_toList_ne_of_ne :
     ∀ {i j : Nat} (hi : i < aig.numLatches) (hj : j < aig.numLatches) (_ : i ≠ j),
-      aig.latchIter.toList[i]'(by simpa) ≠ aig.latchIter.toList[j]'(by simpa) := by
+      aig.latches.toList[i]'(by simpa) ≠ aig.latches.toList[j]'(by simpa) := by
   simp
 
 end latch

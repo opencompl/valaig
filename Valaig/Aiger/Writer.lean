@@ -13,11 +13,11 @@ def writeAag (aiger : Aiger) (file : IO.FS.Stream) : IO Unit := do
   file.putStrLn s!"aag {aig.maxVar.idx} {aig.numInputs} {aig.numLatches} 0 {aig.numGates} {aiger.numBads} 0 0 0"
 
   -- Input lines
-  for h : input in aig.inputIter do
+  for h : input in aig.inputs do
     file.putStrLn s!"{input.getLit aig |>.idx}"
 
   -- Latch lines
-  for h : latch in aig.latchIter do
+  for h : latch in aig.latches do
     file.putStrLn s!"{latch.getLit aig |>.idx} {latch.getNext aig |>.idx} {latch.getReset aig |>.idx}"
 
   -- Bad lines

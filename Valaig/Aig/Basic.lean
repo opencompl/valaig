@@ -119,10 +119,10 @@ structure Aig where
       aig.decls[idx] = .false ↔ idx = 0
 
   -- A mapping from input indices (LeafIdx.input idx) to their definition
-  private inputs : Aig.Inputs
+  private _inputs : Aig.Inputs
 
   -- A mapping from latch indices (LeafIdx.latch idx) to their definition
-  private latches : Aig.Latches
+  private _latches : Aig.Latches
 
 namespace Aig
 
@@ -150,8 +150,8 @@ def empty : Aig :=
   {
     aig := .empty,
     hconst := by grind [Std.Sat.AIG.empty]
-    inputs := #[],
-    latches := #[],
+    _inputs := #[],
+    _latches := #[],
   }
 
 /--
@@ -173,14 +173,14 @@ The number of input nodes in the aig.
 -/
 @[always_inline]
 def numInputs (aig : Aig) : Nat :=
-  aig.inputs.size
+  aig._inputs.size
 
 /--
 The number of latch nodes in the aig.
 -/
 @[always_inline]
 def numLatches (aig : Aig) : Nat :=
-  aig.latches.size
+  aig._latches.size
 
 /--
 The number of gate nodes in the aig.
@@ -319,7 +319,7 @@ abbrev castIn (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind)
 
 @[always_inline]
 def getVar (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
-  aig.inputs[idx.idx].var
+  aig._inputs[idx.idx].var
 
 @[always_inline, simp]
 abbrev getLit (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
@@ -350,7 +350,7 @@ abbrev castIn (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind)
 
 @[always_inline]
 def getVar (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
-  aig.latches[idx.idx].var
+  aig._latches[idx.idx].var
 
 @[always_inline, simp]
 abbrev getLit (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
@@ -358,19 +358,19 @@ abbrev getLit (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind)
 
 @[always_inline]
 def getNext (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
-  aig.latches[idx.idx].next
+  aig._latches[idx.idx].next
 
 @[always_inline]
 def setNext (idx : LatchIdx) (aig : Aig) (next : Lit) (valid : idx.validIn aig := by grind) : Aig :=
-  { aig with latches := aig.latches.modifyMem idx.idx (by simp_all [numLatches]) ({ ·.val with next }) }
+  { aig with _latches := aig._latches.modifyMem idx.idx (by simp_all [numLatches]) ({ ·.val with next }) }
 
 @[always_inline]
 def getReset (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
-  aig.latches[idx.idx].reset
+  aig._latches[idx.idx].reset
 
 @[always_inline]
 def setReset (idx : LatchIdx) (aig : Aig) (reset : Lit) (valid : idx.validIn aig := by grind) : Aig :=
-  { aig with latches := aig.latches.modifyMem idx.idx (by simp_all [numLatches]) ({ ·.val with reset }) }
+  { aig with _latches := aig._latches.modifyMem idx.idx (by simp_all [numLatches]) ({ ·.val with reset }) }
 
 end LatchIdx
 
@@ -513,22 +513,22 @@ literals can be constructed with `Lit.true`/`Lit.false`.
 
 @[inline]
 def addInput (aig : Aig) : Aig × InputIdx :=
-  let idx := .ofIdx aig.inputs.size
+  let idx := .ofIdx aig._inputs.size
   let res := aig.aig.mkAtom <| .input idx
   let input := { var := .ofRef res.ref }
-  let inputs := aig.inputs.push input
+  let _inputs := aig._inputs.push input
   have hconst := by grind [aig.aig.hzero, aig.hconst, Std.mkAtom_eq_decls_push]
-  let aig := { aig with aig := res.aig, hconst, inputs }
+  let aig := { aig with aig := res.aig, hconst, _inputs }
   (aig, idx)
 
 @[inline]
 def addLatch (aig : Aig) (next reset : Lit) : Aig × LatchIdx :=
-  let idx := .ofIdx aig.latches.size
+  let idx := .ofIdx aig._latches.size
   let res := aig.aig.mkAtom <| .latch idx
   let latch := { var := .ofRef res.ref, next, reset }
-  let latches := aig.latches.push latch
+  let _latches := aig._latches.push latch
   have hconst := by grind [aig.aig.hzero, aig.hconst, Std.mkAtom_eq_decls_push]
-  let aig := { aig with aig := res.aig, hconst,  latches }
+  let aig := { aig with aig := res.aig, hconst, _latches }
   (aig, idx)
 
 -- TODO: Currently this requires proofs that rhs0/rhs1 are valid in the aig, but after switching to
