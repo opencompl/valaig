@@ -29,7 +29,7 @@ grind_pattern Comb_def => aig.Comb, aig.numLatches
 
 theorem Comb_iff_latch_not_validIn :
     aig.Comb ↔ ∀ {latch : LatchIdx}, ¬latch.validIn aig := by
-  simp [Comb_def, numLatches_zero_iff_not_validIn]
+  simp [numLatches_zero_iff_not_validIn]
 
 @[simp]
 theorem latch_not_validIn_of_Comb (comb : aig.Comb) (latch : LatchIdx) :
@@ -37,6 +37,25 @@ theorem latch_not_validIn_of_Comb (comb : aig.Comb) (latch : LatchIdx) :
   Comb_iff_latch_not_validIn.mp comb
 
 grind_pattern latch_not_validIn_of_Comb => aig.Comb, latch.validIn aig
+
+/-
+Adding just inputs/gates doesn't change that the aig is combinational
+-/
+
+@[simp, grind .]
+theorem Comb_empty :
+    Aig.empty.Comb := by
+  simp
+
+@[simp, grind =]
+theorem Comb_addInput :
+    aig.addInput.fst.Comb ↔ aig.Comb := by
+  simp
+
+@[simp, grind =]
+theorem Comb_addAnd {rhs0 rhs1 : Lit} {h0 : rhs0.validIn aig} {h1 : rhs1.validIn aig} :
+    (aig.addAnd rhs0 rhs1 h0 h1).fst.Comb ↔ aig.Comb := by
+  simp
 
 /--
 Denotation of the combinational semantics of the Aig, taking a function to assign

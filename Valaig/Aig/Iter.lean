@@ -195,8 +195,10 @@ private theorem toList_eq_ofFn_mk_idx_add :
     · grind
     · simp_all; grind
 
+variable {idx : α}
+
 @[simp, grind =]
-private theorem mem_toList_iff_valid_of_idx_eq_zero [lawful : LawfulValid mk size valid] {idx : α}
+private theorem mem_toList_iff_valid_of_idx_eq_zero [lawful : LawfulValid mk size valid]
     (h : it.internalState.idx = 0) :
     idx ∈ it.toList ↔ valid idx := by
   constructor
@@ -208,17 +210,22 @@ private theorem mem_toList_iff_valid_of_idx_eq_zero [lawful : LawfulValid mk siz
     exists ⟨n, by grind⟩
     grind
 
-private theorem yield_var_eq_internalState (h : it.step.val = .yield it' var) :
-    var = mk it.internalState.idx := by
+private theorem yield_idx_eq_internalState (h : it.step.val = .yield it' idx) :
+    idx = mk it.internalState.idx := by
   grind
 
-private theorem yield_it_eq_inc (h : it.step.val = .yield it' var) :
+private theorem yield_it_eq_inc (h : it.step.val = .yield it' idx) :
     it'.internalState.idx = it.internalState.idx + 1 := by
   grind
 
-private theorem yield_valid [lawful : LawfulValid mk size valid] (h : it.step.val = .yield it' var) :
-    valid var := by
+private theorem yield_valid [lawful : LawfulValid mk size valid] (h : it.step.val = .yield it' idx) :
+    valid idx := by
   grind [lawful.valid]
+
+private theorem done_idx_ge_size (h : it.step.val = .done) :
+    it.internalState.idx ≥ size := by
+  simp_all
+  grind
 
 end GenericIter
 
@@ -340,7 +347,7 @@ theorem iter_var_eq_zero :
 @[simp, grind .]
 theorem iter_yield_eq_var (h : it.step.val = .yield it' var) :
     var = it.var := by
-  grind only [Std.Iter.var, GenericIter.yield_var_eq_internalState]
+  grind only [Std.Iter.var, GenericIter.yield_idx_eq_internalState]
 
 @[simp]
 theorem iter_yield_var_eq_var_add_one (h : it.step.val = .yield it' var) :
@@ -356,5 +363,12 @@ theorem iter_yield_validIn (h : it.step.val = .yield it' var) :
   apply GenericIter.yield_valid h
 
 grind_pattern iter_yield_validIn => Std.IterStep.yield it' var, var.validIn aig, it.step
+
+@[simp]
+theorem iter_done_var_ge_size (h : it.step.val = .done) :
+    it.var.idx ≥ aig.size :=
+  GenericIter.done_idx_ge_size h
+
+grind_pattern iter_done_var_ge_size => it.step.val, Std.IterStep.done, it.var.idx
 
 end var
