@@ -549,7 +549,7 @@ Setup get/set definitions for use locally as grind/simp rules, with grind_def/
 simp_def tactics to make use of them.
 -/
 attribute [simp_valaig_defs, grind_valaig_defs]
-  Aig.get Aig.instGetElemVar Aig.size
+  Aig.get Aig.instGetElemVar Aig.size Aig.numLatches Aig.numInputs
   Aig.empty
   InputIdx.getVar
   LatchIdx.getVar LatchIdx.getNext LatchIdx.getReset
