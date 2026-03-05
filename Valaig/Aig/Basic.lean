@@ -6,6 +6,7 @@ public meta import Valaig.Prelude
 public import Valaig.Aig.StdSatLemmas
 public import Valaig.Aig.Refs
 public import Valaig.ForStd
+public import Valaig.Aig.Iter
 
 namespace Valaig.Aig
 
@@ -543,6 +544,49 @@ def addAnd (aig : Aig) (rhs0 rhs1 : Lit)
     <;> grind [aig.aig.hzero, aig.hconst, aig.aig.mkAndCached_decl_eq, Std.mkAndCached_matches_gate (aig := aig.aig)]
   let aig := { aig with aig := res.aig, hconst }
   (aig, .ofRef res.ref)
+
+/-
+Iterator definitions.
+-/
+
+abbrev VarIter (aig : Aig) :=
+  Iter (· + 1) (·.validIn aig) Var.idx Var.ofIdx aig.size
+
+instance : Iter.Lawful (· + 1) (·.validIn aig) Var.idx Var.ofIdx aig.size where
+  max := by grind
+
+/--
+A forward iterator over variables in the Aig.
+-/
+@[inline]
+abbrev iter (aig : Aig) : @Std.Iter (VarIter aig) Var :=
+  ⟨.init⟩
+
+abbrev InputIter (aig : Aig) :=
+  Iter (.ofIdx <| ·.idx + 1) (·.validIn aig) InputIdx.idx InputIdx.ofIdx aig.numInputs
+
+instance : Iter.Lawful (.ofIdx <| ·.idx + 1) (·.validIn aig) InputIdx.idx InputIdx.ofIdx aig.numInputs where
+  max := by grind [InputIdx.validIn]
+
+/--
+A forward iterator over inputs in the Aig.
+-/
+@[inline]
+abbrev inputs (aig : Aig) : @Std.Iter (InputIter aig) InputIdx :=
+  ⟨.init⟩
+
+abbrev LatchIter (aig : Aig) :=
+  Iter (.ofIdx <| ·.idx + 1) (·.validIn aig) LatchIdx.idx LatchIdx.ofIdx aig.numLatches
+
+instance : Iter.Lawful (.ofIdx <| ·.idx + 1) (·.validIn aig) LatchIdx.idx LatchIdx.ofIdx aig.numLatches where
+  max := by grind [LatchIdx.validIn]
+
+/--
+A forward iterator over latches in the Aig.
+-/
+@[inline]
+abbrev latches (aig : Aig) : @Std.Iter (LatchIter aig)  LatchIdx :=
+  ⟨.init⟩
 
 /-
 Setup get/set definitions for use locally as grind/simp rules, with grind_def/

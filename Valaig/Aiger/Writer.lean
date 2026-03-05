@@ -2,7 +2,6 @@ module
 
 public import Valaig.Aiger.Basic
 import all Valaig.Aig.Basic
-public import Valaig.Aig.Iter
 
 public section
 namespace Valaig.Aiger
