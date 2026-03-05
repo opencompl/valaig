@@ -198,10 +198,13 @@ theorem numLatches_addInput :
     aig.addInput.fst.numLatches = aig.numLatches := by
   simp_grind
 
-@[simp, grind =]
+@[simp]
 theorem get_addInput {var : Var} {valid : var.validIn aig} :
     aig.addInput.fst.get var (by grind) = aig.get var valid := by
   simp_grind
+
+grind_pattern get_addInput => aig.addInput.fst.get var _ where
+  var =/= aig.addInput.snd.getVar aig.addInput.fst
 
 @[simp, grind =]
 theorem get_addInput_self :
@@ -252,10 +255,13 @@ theorem numLatches_addLatch :
     (aig.addLatch next reset).fst.numLatches = aig.numLatches + 1 := by
   simp_grind
 
-@[simp, grind =]
+@[simp]
 theorem get_addLatch {var : Var} (valid : var.validIn aig) :
     (aig.addLatch next reset).fst.get var (by grind) = aig.get var valid := by
   simp_grind
+
+grind_pattern get_addLatch => (aig.addLatch next reset).fst.get var _ where
+  var =/= (aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst
 
 @[simp, grind =]
 theorem get_addLatch_self :
