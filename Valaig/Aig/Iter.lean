@@ -65,7 +65,7 @@ private theorem IsPlausibleStep_iff {step} :
       step = .yield ⟨⟨inc itm.internalState.idx⟩⟩ itm.internalState.idx
     else
       step = .done := by
-  simp only [Std.IterM.IsPlausibleStep, Std.Iterator.IsPlausibleStep]
+  simp only [Std.IterM.IsPlausibleStep, Std.Iterator.IsPlausibleStep, instIterator]
   grind only [Iter, Std.IterM]
 
 @[local simp, local grind =]
@@ -75,7 +75,7 @@ private theorem IsPlausibleStep_iff' {step} :
       step = .yield ⟨⟨inc it.internalState.idx⟩⟩ it.internalState.idx
     else
       step = .done := by
-  simp only [Std.Iter.IsPlausibleStep, Std.IterStep.mapIterator, Std.Iter.toIterM, Std.IterM.IsPlausibleStep, Std.Iterator.IsPlausibleStep]
+  simp only [Std.Iter.IsPlausibleStep, Std.IterStep.mapIterator, Std.Iter.toIterM, Std.IterM.IsPlausibleStep, Std.Iterator.IsPlausibleStep, instIterator]
   grind only [Iter, Std.Iter]
 
 @[local simp, local grind =]
