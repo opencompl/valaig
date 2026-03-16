@@ -125,9 +125,9 @@ structure Aig where
   -- A mapping from latch indices (LeafIdx.latch idx) to their definition
   private _latches : Aig.Latches
 
-namespace Aig
-
 variable {aig : Aig}
+
+namespace Aig
 
 /--
 A representation of the node data stored for a particular variable in an `Aig`. For inputs and
@@ -219,20 +219,20 @@ private theorem validIn_eq_lt_decls_size {var : Var} :
 grind_pattern validIn_eq_lt_decls_size => var.idx ≥ aig.aig.decls.size
 
 @[simp]
-private theorem validIn_of_lt_decls_size {var : Var} (valid : var.validIn aig) :
+private theorem lt_decls_size_of_validIn {var : Var} (valid : var.validIn aig) :
     var.idx < aig.aig.decls.size :=
   validIn_eq_lt_decls_size.mp valid
 
-theorem validIn_eq_lt_size {var : Var} :
+theorem validIn_eq {var : Var} :
     var.validIn aig ↔ var.idx < aig.size := by
   grind [validIn]
 
-grind_pattern validIn_eq_lt_size => var.idx ≥ aig.size
+grind_pattern validIn_eq => var.idx ≥ aig.size
 
 @[simp]
-private theorem validIn_of_lt_size {var : Var} (valid : var.validIn aig) :
+theorem lt_size_of_validIn {var : Var} (valid : var.validIn aig) :
     var.idx < aig.size :=
-  validIn_eq_lt_size.mp valid
+  validIn_eq.mp valid
 
 end Var
 
@@ -250,7 +250,7 @@ instance {lit : Lit} {aig : Aig} : Decidable (lit.validIn aig) :=
 abbrev In (aig : Aig) := { lit : Lit // lit.validIn aig }
 
 @[always_inline, simp]
-abbrev castIn (lit : Lit ) (aig : Aig) (valid : lit.validIn aig := by grind) : Lit.In aig :=
+abbrev castIn (lit : Lit) (aig : Aig) (valid : lit.validIn aig := by grind) : Lit.In aig :=
   ⟨lit, valid⟩
 
 end Lit
@@ -306,6 +306,12 @@ namespace InputIdx
 def validIn (idx : InputIdx) (aig : Aig) : Prop :=
   idx.idx < aig.numInputs
 
+theorem validIn_eq {idx : InputIdx} :
+    idx.validIn aig ↔ idx.idx < aig.numInputs := by
+  grind [validIn]
+
+grind_pattern validIn_eq => idx.idx ≥ aig.numInputs
+
 @[always_inline]
 instance {idx : InputIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
   have : idx.validIn aig ↔ idx.idx < aig.numInputs := by
@@ -336,6 +342,12 @@ namespace LatchIdx
 @[local simp]
 def validIn (idx : LatchIdx) (aig : Aig) : Prop :=
   idx.idx < aig.numLatches
+
+theorem validIn_eq {idx : LatchIdx} :
+    idx.validIn aig ↔ idx.idx < aig.numLatches := by
+  grind [validIn]
+
+grind_pattern validIn_eq => idx.idx ≥ aig.numLatches
 
 @[always_inline]
 instance {idx : LatchIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
@@ -424,7 +436,7 @@ def validIn (idx : LeafIdx) (aig : Aig) : Prop :=
   | .latch idx => idx.validIn aig
 
 @[simp]
-theorem validIn_def {idx : LeafIdx} :
+theorem validIn_iff {idx : LeafIdx} :
     idx.validIn aig ↔
     match idx with
     | .input idx => idx.validIn aig
@@ -432,7 +444,7 @@ theorem validIn_def {idx : LeafIdx} :
   grind [validIn]
 
 -- Only unfold with this pattern when not trivially an input or latch
-grind_pattern validIn_def => idx.validIn aig where
+grind_pattern validIn_iff => idx.validIn aig where
   idx =/= .input _
   idx =/= .latch _
 
@@ -454,7 +466,7 @@ instance {idx : LatchIdx} : Coe (idx.validIn aig) ((idx : LeafIdx).validIn aig) 
 
 @[always_inline]
 instance {idx : LeafIdx} {aig : Aig} : Decidable (idx.validIn aig) := by
-  rw [validIn_def]
+  rw [validIn_iff]
   match idx with
   | .input idx => infer_instance
   | .latch idx => infer_instance
@@ -559,7 +571,7 @@ instance : Iter.Lawful (· + 1) (·.validIn aig) Var.idx Var.ofIdx aig.size wher
 A forward iterator over variables in the Aig.
 -/
 @[inline]
-abbrev iter (aig : Aig) : @Std.Iter (VarIter aig) Var :=
+abbrev iter (aig : Aig) : @Std.Iter aig.VarIter Var :=
   ⟨.init⟩
 
 abbrev InputIter (aig : Aig) :=
@@ -572,7 +584,7 @@ instance : Iter.Lawful (.ofIdx <| ·.idx + 1) (·.validIn aig) InputIdx.idx Inpu
 A forward iterator over inputs in the Aig.
 -/
 @[inline]
-abbrev inputs (aig : Aig) : @Std.Iter (InputIter aig) InputIdx :=
+abbrev inputs (aig : Aig) : @Std.Iter aig.InputIter InputIdx :=
   ⟨.init⟩
 
 abbrev LatchIter (aig : Aig) :=
@@ -585,7 +597,7 @@ instance : Iter.Lawful (.ofIdx <| ·.idx + 1) (·.validIn aig) LatchIdx.idx Latc
 A forward iterator over latches in the Aig.
 -/
 @[inline]
-abbrev latches (aig : Aig) : @Std.Iter (LatchIter aig)  LatchIdx :=
+abbrev latches (aig : Aig) : @Std.Iter aig.LatchIter LatchIdx :=
   ⟨.init⟩
 
 /-

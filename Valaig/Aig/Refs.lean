@@ -413,8 +413,8 @@ def mapTo (l new : Lit) : Lit :=
 
 @[simp, grind =]
 theorem mapTo_eq {new : Lit} :
-    lit.mapTo new = new.invert lit.inverted := by
-  rfl
+    lit.mapTo new = mk new.var (new.inverted != lit.inverted) := by
+  grind [mapTo]
 
 /--
 Replaces the literal's variable to a literal with a new variable, keeping the inversion.

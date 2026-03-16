@@ -8,14 +8,12 @@ public section
 namespace Valaig.Aig
 variable {aig : Aig}
 
-attribute [local simp, local grind] Var.validIn Lit.validIn InputIdx.validIn LatchIdx.validIn numInputs numLatches
-
 -- General theorems about validity
 section
 
 theorem validIn_mono {var var' : Var} (valid : var.validIn aig) (order : var' < var) :
     var'.validIn aig := by
-  grind_defs
+  grind [Var.validIn]
 
 grind_pattern validIn_mono => var.validIn aig, var'.validIn aig, var' < var
 
@@ -23,9 +21,21 @@ grind_pattern validIn_mono => var.validIn aig, var'.validIn aig, var' < var
 theorem constant_validIn :
     Var.constant.validIn aig := by
   have := aig.aig.hzero
-  simpa
+  simpa [Var.validIn]
+
+@[simp, grind .]
+theorem false_validIn :
+    Lit.false.validIn aig := by
+  simp
+
+@[simp, grind .]
+theorem true_validIn :
+    Lit.true.validIn aig := by
+  simp
 
 end
+
+attribute [local simp, local grind] Var.validIn Lit.validIn InputIdx.validIn LatchIdx.validIn numInputs numLatches
 
 /-
 Aig.empty Lemmas.
