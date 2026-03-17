@@ -3,6 +3,7 @@ module
 public meta import Valaig.Prelude
 public import Valaig.Aig.Basic
 import all Valaig.Aig.Basic
+public import Valaig.Aig.Monotone
 
 public section
 namespace Valaig.Aig
@@ -35,12 +36,18 @@ theorem true_validIn :
 
 end
 
-attribute [local simp, local grind] Var.validIn Lit.validIn InputIdx.validIn LatchIdx.validIn numInputs numLatches
+attribute [local simp] Var.validIn Lit.validIn InputIdx.validIn LatchIdx.validIn numInputs numLatches
 
 /-
 Aig.empty Lemmas.
 -/
 section empty
+
+@[simp, grind .]
+theorem var_validIn_empty_iff {var : Var} :
+    var.validIn empty ↔ var = .constant := by
+  simp_defs
+  grind [Std.Sat.AIG.empty]
 
 @[simp, grind .]
 theorem input_not_validIn_empty {idx : InputIdx} :
@@ -51,12 +58,6 @@ theorem input_not_validIn_empty {idx : InputIdx} :
 theorem latch_not_validIn_empty {idx : LatchIdx} :
     ¬idx.validIn empty := by
   simp_defs
-
-@[simp, grind .]
-theorem var_validIn_empty_iff_eq_constant {var : Var} :
-    var.validIn empty ↔ var = .constant := by
-  simp_defs
-  grind [Std.Sat.AIG.empty]
 
 end empty
 
@@ -70,6 +71,12 @@ section setNext
 variable {next : Lit}
 
 @[simp, grind =]
+theorem var_validIn_setNext_iff {var : Var} :
+    var.validIn (latch.setNext aig next valid) ↔
+    var.validIn aig := by
+  simp_defs
+
+@[simp, grind =]
 theorem input_validIn_setNext_iff {idx : InputIdx} :
     idx.validIn (latch.setNext aig next valid) ↔
     idx.validIn aig := by
@@ -81,12 +88,6 @@ theorem latch_validIn_setNext_iff {idx : LatchIdx} :
     idx.validIn aig := by
   simp_defs
 
-@[simp, grind =]
-theorem var_validIn_setNext_iff {var : Var} :
-    var.validIn (latch.setNext aig next valid) ↔
-    var.validIn aig := by
-  simp_defs
-
 end setNext
 
 /-
@@ -94,6 +95,12 @@ setReset Lemmas.
 -/
 section setReset
 variable {reset : Lit}
+
+@[simp, grind =]
+theorem var_validIn_setReset_iff {var : Var} :
+    var.validIn (latch.setReset aig reset valid) ↔
+    var.validIn aig := by
+  simp_defs
 
 @[simp, grind =]
 theorem input_validIn_setReset_iff {idx : InputIdx} :
@@ -105,12 +112,6 @@ theorem input_validIn_setReset_iff {idx : InputIdx} :
 theorem latch_validIn_setReset_iff {idx : LatchIdx} :
     idx.validIn (latch.setReset aig reset valid) ↔
     idx.validIn aig := by
-  simp_defs
-
-@[simp, grind =]
-theorem var_validIn_setReset_iff {var : Var} :
-    var.validIn (latch.setReset aig reset valid) ↔
-    var.validIn aig := by
   simp_defs
 
 end setReset
@@ -143,6 +144,13 @@ grind_pattern addInput_getVar_mono =>
   var =/= aig.addInput.snd.getVar aig.addInput.fst
 
 @[simp, grind =]
+theorem var_validIn_addInput_iff {var : Var} :
+    var.validIn aig.addInput.fst  ↔
+    (var.validIn aig ∨ var = aig.addInput.snd.getVar aig.addInput.fst) := by
+  simp_defs
+  grind only
+
+@[simp, grind =]
 theorem input_validIn_addInput_iff {idx : InputIdx} :
     idx.validIn aig.addInput.fst  ↔
     (idx.validIn aig ∨ idx = aig.addInput.snd) := by
@@ -154,13 +162,6 @@ theorem latch_validIn_addInput_iff {idx : LatchIdx} :
     idx.validIn aig.addInput.fst ↔
     idx.validIn aig := by
   simp_defs
-
-@[simp, grind =]
-theorem var_validIn_addInput_iff {var : Var} :
-    var.validIn aig.addInput.fst  ↔
-    (var.validIn aig ∨ var = aig.addInput.snd.getVar aig.addInput.fst) := by
-  simp_defs
-  grind only
 
 /-
 addLatch Lemmas.
@@ -189,6 +190,14 @@ grind_pattern addLatch_getVar_mono =>
   var =/= (aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst
 
 @[simp, grind =]
+theorem var_validIn_addLatch_iff {var : Var} :
+    var.validIn (aig.addLatch next reset).fst  ↔
+    (var.validIn aig
+    ∨ var = (aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst) := by
+  simp_defs
+  grind [Std.mkAtom_ref_eq_decls_size]
+
+@[simp, grind =]
 theorem input_validIn_addLatch_iff {idx : InputIdx} :
     idx.validIn (aig.addLatch next reset).fst ↔
     idx.validIn aig := by
@@ -200,14 +209,6 @@ theorem latch_validIn_addLatch_iff {idx : LatchIdx} :
     (idx.validIn aig ∨ idx = (aig.addLatch next reset).snd) := by
   simp_defs
   grind [Std.mkAtom_ref_eq_decls_size, grind_valaig_defs]
-
-@[simp, grind =]
-theorem var_validIn_addLatch_iff {var : Var} :
-    var.validIn (aig.addLatch next reset).fst  ↔
-    (var.validIn aig
-    ∨ var = (aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst) := by
-  simp_defs
-  grind [Std.mkAtom_ref_eq_decls_size]
 
 end latch
 end leaf
@@ -231,15 +232,10 @@ theorem latch_validIn_addAnd_iff {idx : LatchIdx} :
   simp_defs
 
 @[simp, grind .]
-theorem var_validIn_addAnd {var : Var} :
-    var.validIn aig → var.validIn (aig.addAnd rhs0 rhs1 h0 h1).fst := by
-  grind_defs
-
-@[simp, grind .]
 theorem addAnd_validIn :
     (aig.addAnd rhs0 rhs1 h0 h1).snd.validIn (aig.addAnd rhs0 rhs1 h0 h1).fst := by
   simp_defs
-  have {aig : Std.Sat.AIG LeafIdx} {entry: aig.Ref} := entry.hgate
+  have {aig : Std.Sat.AIG LeafIdx} {entry : aig.Ref} := entry.hgate
   grind only
 
 end gate

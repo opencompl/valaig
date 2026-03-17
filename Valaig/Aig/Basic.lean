@@ -267,7 +267,6 @@ def get (aig : Aig) (var : Var) (valid : var.validIn aig := by grind) : Node :=
   | .atom (.latch idx) => .latch idx
   | .gate rhs0 rhs1 => .and (.ofFanin rhs0) (.ofFanin rhs1)
 
-@[local simp]
 private theorem getElem_decls_eq_get {idx : Nat} (valid : idx < aig.aig.decls.size) :
     aig.aig.decls[idx] =
     match aig.get (Var.ofIdx idx) (by grind [Var.validIn, size]) with
@@ -277,7 +276,6 @@ private theorem getElem_decls_eq_get {idx : Nat} (valid : idx < aig.aig.decls.si
     | .and rhs0 rhs1 => .gate rhs0.toFanin rhs1.toFanin := by
   grind [Aig.get]
 
-@[local simp]
 private theorem get_eq_getElem_decls {var : Var} (valid : var.validIn aig) :
     aig.get var valid =
     match aig.aig.decls[var.idx]'valid with
@@ -286,6 +284,26 @@ private theorem get_eq_getElem_decls {var : Var} (valid : var.validIn aig) :
     | .atom (.latch idx) => .latch idx
     | .gate rhs0 rhs1 => .and (.ofFanin rhs0) (.ofFanin rhs1) := by
   grind [Aig.get]
+
+private theorem get_eq_getElem_decls_false {var : Var} (valid : var.validIn aig)
+    (h : aig.get var valid = .false) :
+    aig.aig.decls[var.idx]'valid = .false := by
+  grind [get_eq_getElem_decls valid]
+
+private theorem get_eq_getElem_decls_input {var : Var} (valid : var.validIn aig)
+    {idx : InputIdx} (h : aig.get var valid = .input idx) :
+    aig.aig.decls[var.idx]'valid = .atom (.input idx) := by
+  grind [get_eq_getElem_decls valid]
+
+private theorem get_eq_getElem_decls_latch {var : Var} (valid : var.validIn aig)
+    {idx : LatchIdx} (h : aig.get var valid = .latch idx) :
+    aig.aig.decls[var.idx]'valid = .atom (.latch idx) := by
+  grind [get_eq_getElem_decls valid]
+
+private theorem get_eq_getElem_decls_and {var : Var} (valid : var.validIn aig)
+    {rhs0 rhs1 : Lit} (h : aig.get var valid = .and rhs0 rhs1) :
+    aig.aig.decls[var.idx]'valid = .gate rhs0.toFanin rhs1.toFanin := by
+  grind [get_eq_getElem_decls valid]
 
 @[always_inline, expose, reducible, grind unfold]
 instance instGetElemVar : GetElem Aig Var Node (fun aig var => var.validIn aig) where

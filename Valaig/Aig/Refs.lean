@@ -508,6 +508,11 @@ theorem toRef_invert (h : lit.var.idx < aig.decls.size) :
     (toRef lit h).invert = decide lit.inverted := by
   simp [toRef]
 
+@[simp, grind =]
+theorem toRef_ofRef (ref : aig.Ref) :
+    toRef (ofRef ref) (by grind [ref.hgate]) = ref := by
+  simp [toRef]
+
 end
 
 end Lit

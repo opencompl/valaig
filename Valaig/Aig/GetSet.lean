@@ -173,11 +173,6 @@ end setReset
 
 section aig
 
--- These are needed for grind to reason about index validity
-attribute [local simp, local grind] Var.validIn InputIdx.validIn LatchIdx.validIn
-attribute [local simp, local grind] Aig.numInputs Aig.numLatches
-attribute [local grind →] Var.lt_decls_size_of_validIn
-
 /-
 Aig.addInput Lemmas.
 -/
@@ -198,38 +193,10 @@ theorem numLatches_addInput :
     aig.addInput.fst.numLatches = aig.numLatches := by
   simp_grind
 
-@[simp]
-theorem get_addInput {var : Var} {valid : var.validIn aig} :
-    aig.addInput.fst.get var (by grind) = aig.get var valid := by
-  simp_grind
-
-grind_pattern get_addInput => aig.addInput.fst.get var _ where
-  var =/= aig.addInput.snd.getVar aig.addInput.fst
-
 @[simp, grind =]
-theorem get_addInput_self :
+theorem get_addInput_self (aig : Aig) :
     aig.addInput.fst.get (aig.addInput.snd.getVar aig.addInput.fst) (by grind) =
     .input aig.addInput.snd := by
-  simp_grind
-
-@[simp, grind =]
-theorem input_getVar_addInput {idx : InputIdx} (valid : idx.validIn aig) :
-    idx.getVar aig.addInput.fst (by grind) = idx.getVar aig valid := by
-  simp_grind
-
-@[simp, grind =]
-theorem latch_getVar_addInput {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getVar aig.addInput.fst (by grind) = idx.getVar aig valid := by
-  simp_grind
-
-@[simp, grind =]
-theorem getNext_addInput {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getNext aig.addInput.fst (by grind) = idx.getNext aig valid := by
-  simp_grind
-
-@[simp, grind =]
-theorem getReset_addInput {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getReset aig.addInput.fst (by grind) = idx.getReset aig valid := by
   simp_grind
 
 end addInput
@@ -255,14 +222,6 @@ theorem numLatches_addLatch :
     (aig.addLatch next reset).fst.numLatches = aig.numLatches + 1 := by
   simp_grind
 
-@[simp]
-theorem get_addLatch {var : Var} (valid : var.validIn aig) :
-    (aig.addLatch next reset).fst.get var (by grind) = aig.get var valid := by
-  simp_grind
-
-grind_pattern get_addLatch => (aig.addLatch next reset).fst.get var _ where
-  var =/= (aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst
-
 @[simp, grind =]
 theorem get_addLatch_self :
     (aig.addLatch next reset).fst.get
@@ -272,28 +231,8 @@ theorem get_addLatch_self :
   simp_grind
 
 @[simp, grind =]
-theorem input_getVar_addLatch {idx : InputIdx} (valid : idx.validIn aig) :
-    idx.getVar (aig.addLatch next reset).fst (by grind) = idx.getVar aig valid := by
-  simp_grind
-
-@[simp, grind =]
-theorem latch_getVar_addLatch {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getVar (aig.addLatch next reset).fst (by grind) = idx.getVar aig valid := by
-  simp_grind
-
-@[simp, grind =]
-theorem getNext_addLatch {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getNext (aig.addLatch next reset).fst (by grind) = idx.getNext aig valid := by
-  simp_grind
-
-@[simp, grind =]
 theorem getNext_addLatch_self :
   (aig.addLatch next reset).snd.getNext (aig.addLatch next reset).fst (by grind) = next := by
-  simp_grind
-
-@[simp, grind =]
-theorem getReset_addLatch {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getReset (aig.addLatch next reset).fst (by grind) = idx.getReset aig valid := by
   simp_grind
 
 @[simp, grind =]
@@ -324,11 +263,7 @@ theorem numLatches_addAnd :
     (aig.addAnd rhs0 rhs1 h0 h1).fst.numLatches = aig.numLatches := by
   simp_grind
 
-@[simp, grind =]
-theorem get_addAnd {var : Var} (valid : var.validIn aig) :
-    (aig.addAnd rhs0 rhs1 h0 h1).fst.get var (by grind) = aig.get var valid := by
-  simp_grind
-
+attribute [local simp, local grind =] Var.validIn_eq in
 @[simp]
 theorem get_addAnd_new_matches_and {var : Var}
     (notValid : ¬var.validIn aig)
@@ -336,26 +271,6 @@ theorem get_addAnd_new_matches_and {var : Var}
     ∃ (lhs rhs : Lit), (aig.addAnd rhs0 rhs1 h0 h1).fst.get var = .and lhs rhs := by
   simp_all_defs
   split <;> grind [Std.mkAndCached_matches_gate]
-
-@[simp, grind =]
-theorem input_getVar_addAnd {idx : InputIdx} (valid : idx.validIn aig) :
-    idx.getVar (aig.addAnd rhs0 rhs1 h0 h1).fst (by grind) = idx.getVar aig valid := by
-  simp_grind
-
-@[simp, grind =]
-theorem latch_getVar_addAnd {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getVar (aig.addAnd rhs0 rhs1 h0 h1).fst (by grind) = idx.getVar aig valid := by
-  simp_grind
-
-@[simp, grind =]
-theorem getNext_addAnd {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getNext (aig.addAnd rhs0 rhs1 h0 h1).fst (by grind) = idx.getNext aig valid := by
-  simp_grind
-
-@[simp, grind =]
-theorem getReset_addAnd {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getReset (aig.addAnd rhs0 rhs1 h0 h1).fst (by grind) = idx.getReset aig valid := by
-  simp_grind
 
 end addAnd
 
