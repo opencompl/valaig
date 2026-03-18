@@ -117,6 +117,11 @@ theorem denoteCombVar_get_input {idx : InputIdx} (h : aig.get var valid = .input
 
 grind_pattern denoteCombVar_get_input => aig.get var, Node.input idx, aig.denoteCombVar var assign
 
+@[simp, grind =]
+theorem denoteCombVar_input_getVar {idx : InputIdx} (valid : idx.validIn aig) :
+    aig.denoteCombVar (idx.getVar aig valid) assign = assign idx := by
+  grind [get_input_getVar]
+
 @[simp]
 theorem denoteCombVar_get_latch {idx : LatchIdx} (h : aig.get var valid = .latch idx) :
     aig.denoteCombVar var assign valid wf = assign idx := by
@@ -124,6 +129,11 @@ theorem denoteCombVar_get_latch {idx : LatchIdx} (h : aig.get var valid = .latch
   grind
 
 grind_pattern denoteCombVar_get_latch => aig.get var, Node.latch idx, aig.denoteCombVar var assign
+
+@[simp, grind =]
+theorem denoteCombVar_latch_getVar {idx : LatchIdx} (valid : idx.validIn aig) :
+    aig.denoteCombVar (idx.getVar aig valid) assign = assign idx := by
+  grind [get_latch_getVar]
 
 @[simp]
 theorem denoteCombVar_get_and {rhs0 rhs1 : Lit} (h : aig.get var valid = .and rhs0 rhs1) :
@@ -317,6 +327,11 @@ theorem denoteVar_get_input {idx : InputIdx} (h : aig.get var valid = .input idx
 
 grind_pattern denoteVar_get_input => aig.get var, Node.input idx, aig.denoteVar var frame assign
 
+@[simp, grind =]
+theorem denoteVar_input_getVar {idx : InputIdx} (valid : idx.validIn aig) :
+    aig.denoteVar (idx.getVar aig valid) frame assign = assign idx frame := by
+  grind
+
 @[simp]
 theorem denoteVar_get_latch {idx : LatchIdx} (h : aig.get var valid = .latch idx) :
     aig.denoteVar var frame assign =
@@ -326,6 +341,14 @@ theorem denoteVar_get_latch {idx : LatchIdx} (h : aig.get var valid = .latch idx
   grind
 
 grind_pattern denoteVar_get_latch => aig.get var, Node.latch idx, aig.denoteVar var frame assign
+
+@[simp, grind =]
+theorem denoteVar_latch_getVar {idx : LatchIdx} (valid : idx.validIn aig) :
+    aig.denoteVar (idx.getVar aig valid) frame assign =
+      match frame with
+      | 0     => aig.denote (idx.getReset aig) 0 assign
+      | n + 1 => aig.denote (idx.getNext aig) n assign := by
+  grind [get_latch_getVar]
 
 @[simp]
 theorem denoteVar_get_and {rhs0 rhs1 : Lit} (h : aig.get var valid = .and rhs0 rhs1) :
@@ -440,10 +463,25 @@ false.
 @[expose]
 def Unsat (aig : Aig) (lit : Lit) (valid : lit.validIn aig := by grind) (wf : aig.WellFormed := by grind) :=
   ∀ {assign},
-    aig.denoteComb lit assign valid wf = false
+    aig.denoteComb lit assign = false
 
 open Std.Sat AIG in
 private theorem Unsat_iff_std_Unsat :
-    aig.Unsat lit litValid wf ↔
+    aig.Unsat lit ↔
     Entrypoint.Unsat (.mk aig.aig <| lit.toRef litValid) := by
   simp only [Unsat, AIG.Entrypoint.Unsat, AIG.UnsatAt, denoteComb_eq_std_denote]
+
+/--
+A literal is unreachable if there is no trace that can reach a state where it is true.
+-/
+@[expose]
+def Unreachable (aig : Aig) (lit : Lit) (valid : lit.validIn aig := by grind) (wf : aig.WellFormed := by grind) :=
+  ∀ {frame assign},
+    aig.denote lit frame assign = false
+
+def Unreachable_of_induction
+    (init : ∀ {assign}, aig.denote lit 0 assign = false)
+    (trans : ∀ {frame assign}, aig.denote lit frame assign = false → aig.denote lit (frame + 1) assign = false) :
+    aig.Unreachable lit := by
+  intro frame
+  induction h : frame generalizing frame <;> grind

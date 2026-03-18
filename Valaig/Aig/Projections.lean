@@ -7,74 +7,49 @@ public import Valaig.Aig.Iter
 namespace Valaig.Aig
 variable {aig : Aig} {wf : aig.WellFormed}
 
-namespace projectComb
+namespace resetAig
 
-/--
-Construct a new Aig with the right amount of inputs added that will be required by `projectComb`.
--/
 @[always_inline]
-def initLeaves (aig : Aig) (reset : Bool) : Aig :=
-  size.repeat (·.addInput.fst) .empty
-where
-  size := if reset then aig.numInputs else aig.numInputs + aig.numLatches
+private def initLeaves (aig : Aig) : Aig :=
+  aig.numInputs.repeat (·.addInput.fst) .empty
 
-variable {reset : Bool}
-
-attribute [local simp, local grind] initLeaves.size
-
-@[local simp, local grind .]
+@[simp, grind .]
 theorem Comb_initLeaves :
-    (initLeaves aig reset).Comb := by
+    (initLeaves aig).Comb := by
   unfold initLeaves
-  induction initLeaves.size aig reset <;> grind [Nat.repeat]
+  induction aig.numInputs <;> grind [Nat.repeat]
 
-@[local simp, local grind .]
+@[simp, grind .]
 theorem WellFormed_initLeaves :
-    (initLeaves aig reset).WellFormed := by
+    (initLeaves aig).WellFormed := by
   unfold initLeaves
-  induction initLeaves.size aig reset <;> grind [Nat.repeat]
+  induction aig.numInputs <;> grind [Nat.repeat]
 
-@[local simp, local grind =]
+@[simp, grind =]
 theorem numInputs_initLeaves :
-  (initLeaves aig reset).numInputs = initLeaves.size aig reset := by
+  (initLeaves aig).numInputs = aig.numInputs := by
   unfold initLeaves
-  induction initLeaves.size aig reset <;> grind [Nat.repeat]
+  induction aig.numInputs <;> grind [Nat.repeat]
+
+@[simp, grind .]
+theorem input_validIn_initLeaves {idx : InputIdx} (valid : idx.validIn aig) :
+  idx.validIn (initLeaves aig) := by
+  grind [InputIdx.validIn_eq]
+
+end resetAig
 
 /--
-Maps an index from the original Aig to the one constructed by `initLeaves`.
+Construct a new Aig representing the values of nodes in the first cycle, assigning each
+latch its reset value. This results in a combinational Aig with the same number of inputs
+and a map to map from literals in the old Aig to the new one.
 -/
-@[always_inline]
-def mapIdx (aig : Aig) (idx : LeafIdx) : InputIdx :=
-  match idx with
-  | .input idx => idx
-  | .latch idx => .ofIdx (idx.idx + aig.numInputs)
-
-theorem mapIdx_validIn_initLeaves_input {idx : InputIdx} (valid : idx.validIn aig) :
-    (mapIdx aig idx).validIn <| initLeaves aig reset := by
-  grind [InputIdx.validIn_eq, mapIdx]
-
-theorem mapIdx_validIn_initLeaves_latch {idx : LatchIdx} (valid : idx.validIn aig) :
-    (mapIdx aig idx).validIn <| initLeaves aig false := by
-  grind [InputIdx.validIn_eq, LatchIdx.validIn_eq, mapIdx]
-
-end projectComb
-
-attribute [local grind .] projectComb.WellFormed_initLeaves
-attribute [local grind .] projectComb.mapIdx_validIn_initLeaves_input
-attribute [local grind .] projectComb.mapIdx_validIn_initLeaves_latch
-
-/--
-Project out the reset and transition relation components of an Aig as new combinational Aigs.
-These may go in the future, replaced by better methods for going straight to SAT
--/
-def projectComb (aig : Aig) (reset : Bool) (wf : aig.WellFormed) : Aig × (Lit.In aig -> Lit) :=
-  go aig.iter (projectComb.initLeaves aig reset) (.emptyWithCapacity aig.size)
+def resetAig (aig : Aig) (wf : aig.WellFormed := by grind) : Aig × (Lit.In aig -> Lit) :=
+  go aig.iter (resetAig.initLeaves aig) (.emptyWithCapacity aig.size)
 where
   go it state (map : Array Lit)
       (wf : state.WellFormed := by grind)
-      (inputMapsValid : {idx : InputIdx} → idx.validIn aig → (projectComb.mapIdx aig idx).validIn state := by grind)
-      (latchMapsValid : reset = false → {idx : LatchIdx} → idx.validIn aig → (projectComb.mapIdx aig idx).validIn state := by grind)
-      (valid : ∀ {lit} (_ : lit ∈ map), lit.validIn state := by grind)
+      (inputsValid : {idx : InputIdx} → idx.validIn aig → idx.validIn state := by grind)
+      (valid : ∀ {lit},  lit ∈ map → lit.validIn state := by grind)
       (size : it.val.idx = map.size := by grind) :=
     match it.step with
     | .done _ =>
@@ -83,79 +58,143 @@ where
       let mapLit (lit : Lit) (h : lit.var < var := by grind) : Lit.In state :=
         lit.mapTo map[lit.var.idx] |>.castIn state
 
-      let res : Aig × Lit := 
-        match _ : reset, _ : aig[var] with
-        | _, .false =>         (state, .false)
-        | _, .input idx
-        | false, .latch idx => (state, (projectComb.mapIdx aig idx).getLit state)
-        | true, .latch idx =>  (state, mapLit <| idx.getReset aig)
-        | _, .and rhs0 rhs1 =>  state.addAnd (mapLit rhs0) (mapLit rhs1)
-
-      go it' res.fst (map.push res.snd)
-        (by subst res; grind only [usr WellFormed_addInput, usr WellFormed_addAnd])
-        (by subst res; grind only [= input_validIn_addInput_iff, = input_validIn_addAnd_iff])
-        (by subst res; grind only [= input_validIn_addInput_iff, = input_validIn_addAnd_iff])
-        (by subst res; grind)
-        (by subst res; grind only [Iter.val_yield, = Array.size_push])
+      match _ : aig[var] with
+      | .false     => go it' state <| map.push .false
+      | .input idx => go it' state <| map.push <| idx.getLit state
+      | .latch idx => go it' state <| map.push <| mapLit (idx.getReset aig)
+      | .and rhs0 rhs1 =>
+        let (eq:=_) (state, lit) := state.addAnd (mapLit rhs0) (mapLit rhs1)
+        go it' state <| map.push lit
   termination_by it.finitelyManySteps
 
-section projectComb
-variable {reset : Bool} {wf : aig.WellFormed} {it : Std.Iter Var} {state : Aig} {map : Array Lit}
+-- Mark it as Comb, WellFormed, inputs valid iff, matching semantics
+
+namespace resetAig
+variable {it : Std.Iter Var} {state : Aig} {map : Array Lit}
 variable {swf : state.WellFormed}
 variable {size : it.val.idx = map.size}
 
-@[local simp, local grind .]
-theorem projectComb.Comb_go (comb : state.Comb) :
-    (go aig reset wf it state map swf inputMapsValid latchMapsValid valid size).fst.Comb := by
-  fun_induction go
-  next => assumption
-  next res ih => apply ih; subst res; grind
+@[simp, grind .]
+theorem Comb_go (comb : state.Comb) :
+    (go aig wf it state map swf inputsValid valid size).fst.Comb := by
+  fun_induction go <;> grind
 
-@[local simp, local grind .]
-theorem projectComb.WellFormed_go :
-    (go aig reset wf it state map swf inputMapsValid latchMapsValid valid size).fst.WellFormed := by
+@[simp, grind .]
+theorem WellFormed_go :
+    (go aig wf it state map swf inputsValid valid size).fst.WellFormed := by
   fun_induction go <;> assumption
 
-private theorem Comb_projectComb {reset} :
-    (aig.projectComb reset wf).fst.Comb :=
-  projectComb.Comb_go projectComb.Comb_initLeaves
+@[simp, grind =]
+theorem numInputs_go :
+    (go aig wf it state map swf inputsValid valid size).fst.numInputs = state.numInputs := by
+  fun_induction go <;> grind
 
-private theorem WellFormed_projectComb {reset} :
-    (aig.projectComb reset wf).fst.WellFormed :=
-  projectComb.WellFormed_go
+@[simp, grind .]
+theorem go_validIn {lit : Lit.In aig} :
+    let res := go aig wf it state map swf inputsValid valid size
+    (res.snd lit).validIn res.fst := by
+  fun_induction go <;> grind
 
-end projectComb
+@[simp, grind .]
+theorem input_validIn_go {idx : InputIdx} (valid : idx.validIn aig) :
+    idx.validIn (go aig wf it state map swf inputsValid valid' size).fst := by
+  fun_induction go <;> grind
 
-@[inline]
-def resetAig (aig : Aig) (wf : aig.WellFormed := by grind) : Aig × (Lit.In aig -> Lit) :=
-  projectComb aig true wf
+@[simp, grind =]
+theorem go_map_eq {lit : Lit.In aig} (lt : lit.val.var < it.val) :
+    (go aig wf it state map swf inputsValid valid' size).snd lit =
+    (lit.val.mapTo map[lit.val.var.idx]) := by
+  fun_induction go <;> grind
+
+@[simp, grind .]
+theorem Monotone_go :
+    state ≤ (go aig wf it state map swf inputsValid valid' size).fst := by
+  fun_induction go <;> grind
+
+-- TODO: This needs tidying badly
+@[simp, grind .]
+theorem denote_go {assign} {lit : Lit} (valid : lit.validIn aig)
+    (h : ∀ {var' : Var} (_ : var'.validIn aig) (_ : var' < it.val),
+      state.denote map[var'.idx] 0 assign = aig.denoteVar var' 0 assign) :
+    let res := go aig wf it state map swf inputsValid valid' size
+    res.fst.denote (res.snd ⟨lit, valid⟩) 0 assign =
+    aig.denote lit 0 assign := by
+  intro res
+  generalize heq : go aig wf it state map swf inputsValid valid' size = aaa
+  have : res = aaa := by grind
+  simp only [this]
+  fun_induction go
+  · grind [go]
+  · unfold go at heq
+    split at heq
+    · grind
+    · split at heq
+      · grind [Var.ext_idx]
+      · grind
+      · grind
+      · grind
+  · unfold go at heq
+    grind [Var.ext_idx]
+  · unfold go at heq
+    split at heq
+    · grind
+    · split at heq
+      · grind
+      · grind
+      · simp_all [-denote_eq]
+        rename_i var _ _ idx _ _ ih _
+        apply ih
+        · clear ih
+          intro var' _ _
+          grind [Var.ext_idx]
+        · grind
+        · trivial
+      · grind
+  · unfold go at heq
+    split at heq
+    · grind
+    · split at heq
+      · grind
+      · grind
+      · grind
+      · simp_all [-denote_eq]
+        rename_i var _ _ _ _ heq _ ih _
+        apply ih
+        · clear ih
+          intro var' _ _
+          simp only [Array.getElem_push]
+          split
+          · grind
+          · clear heq
+            have : var = var' := by grind [Var.ext_idx]
+            grind
+        · grind
+        · trivial
+
+end resetAig
 
 @[simp, grind .]
 theorem Comb_resetAig :
-    (aig.resetAig wf).fst.Comb :=
-  Comb_projectComb
+    aig.resetAig.fst.Comb := by
+  grind [resetAig]
 
 @[simp, grind .]
 theorem WellFormed_resetAig :
-    (aig.resetAig wf).fst.WellFormed :=
-  WellFormed_projectComb
+    aig.resetAig.fst.WellFormed := by
+  grind [resetAig]
 
-@[inline]
-def transAig (aig : Aig) (wf : aig.WellFormed := by grind) : Aig × (Lit.In aig -> Lit) :=
-  projectComb aig false wf
-
-@[simp, grind .]
-theorem Comb_transAig :
-    (aig.transAig wf).fst.Comb :=
-  Comb_projectComb
+@[simp, grind =]
+theorem numInputs_resetAig :
+    aig.resetAig.fst.numInputs = aig.numInputs := by
+  grind [resetAig]
 
 @[simp, grind .]
-theorem WellFormed_transAig :
-    (aig.transAig wf).fst.WellFormed :=
-  WellFormed_projectComb
+theorem resetAig_validIn {lit : Lit.In aig} :
+    (aig.resetAig.snd lit).validIn aig.resetAig.fst := by
+  grind [resetAig]
 
-/--
-Map a leaf index from the original aig into the corresponding input to the result of `transAig`.
--/
-def transAig.mapIdx (aig : Aig) (idx : LeafIdx) : InputIdx :=
-  projectComb.mapIdx aig idx
+@[simp, grind .]
+theorem denote_resetAig {assign} {lit : Lit} (valid : lit.validIn aig) :
+    aig.resetAig.fst.denote (aig.resetAig.snd ⟨lit, valid⟩) 0 assign =
+    aig.denote lit 0 assign := by
+  grind [resetAig]
