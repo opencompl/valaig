@@ -410,20 +410,12 @@ theorem denoteVar_addInput_self :
   grind
 
 @[simp, grind =]
-theorem denoteVar_addLatch_self_reset {next reset : Lit} (nextValid : next.validIn aig) (resetValid : reset.validIn aig) :
-    (aig.addLatch next reset).fst.denoteVar ((aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst) 0 assign =
-    aig.denote reset 0 assign := by
-  grind
-
-@[simp]
-theorem denoteVar_addLatch_self_next {next reset : Lit} (nextValid : next.validIn aig) (resetValid : reset.validIn aig)
-    {n} (h : frame = Nat.succ n) :
+theorem denoteVar_addLatch_self {next reset : Lit} (nextValid : next.validIn aig) (resetValid : reset.validIn aig) :
     (aig.addLatch next reset).fst.denoteVar ((aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst) frame assign =
-    aig.denote next n assign := by
+    match frame with
+    | 0 => aig.denote reset 0 assign
+    | n + 1 => aig.denote next n assign := by
   grind
-
-grind_pattern denoteVar_addLatch_self_next =>
-  (aig.addLatch next reset).fst.denoteVar ((aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst) frame assign, Nat.succ n
 
 @[simp, grind =]
 theorem denote_addAnd_self {rhs0 rhs1 : Lit} (h0 : rhs0.validIn aig) (h1 : rhs1.validIn aig) :

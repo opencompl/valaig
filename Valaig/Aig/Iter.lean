@@ -143,6 +143,8 @@ theorem length_eq_size_sub_val [lawful : Lawful inc valid toNat ofNat size] :
   induction it using Std.Iter.inductSteps with | step it ihy _ =>
   grind [Std.Iter.length_eq_match_step, lawful.consecutive, lawful.max]
 
+grind_pattern length_eq_size_sub_val => it.length, size - toNat it.val
+
 omit [DecidablePred valid] in
 @[simp, grind! .]
 theorem val_init :
@@ -176,6 +178,8 @@ theorem length_yield_gt_zero (h : it.IsPlausibleStep (.yield it' out)) :
     it.length > 0 := by
   grind [lawful.max]
 
+grind_pattern length_yield_gt_zero => it.IsPlausibleStep (.yield it' out), it.length
+
 @[simp]
 theorem length_yield' (h : it.IsPlausibleStep (.yield it' out)) :
     it'.length + 1 = it.length := by
@@ -194,6 +198,8 @@ grind_pattern length_done => it.IsPlausibleStep .done, it.length
 theorem length_zero_done (h : it.length = 0) :
     it.step.val = .done := by
   grind [lawful.max]
+
+grind_pattern length_zero_done => it.length, it.step
 
 @[simp, grind .]
 theorem length_le_size :

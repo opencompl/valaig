@@ -34,6 +34,11 @@ theorem ext_idx (var var' : Var) :
     var = var' ↔ var.idx = var'.idx := by
   grind only [Var]
 
+@[ext, grind ext]
+theorem ext_idx' (var var' : Var) (eq : var.idx = var'.idx) :
+    var = var' := by
+  grind only [Var]
+
 -- Instantiate these directly for inlining
 instance : Ord Var where compare := (compare ·.idx ·.idx)
 
@@ -48,7 +53,7 @@ theorem le_idx (var var' : Var) :
 instance : Std.IsLinearOrder Var := by
   apply Std.IsLinearOrder.of_le
   <;> constructor
-  <;> grind [ext_idx, le_idx]
+  <;> grind [le_idx]
 
 instance : LT Var where lt := (·.idx < ·.idx)
 instance : DecidableLT Var := fun a b =>
@@ -105,7 +110,7 @@ theorem idx_constant :
 
 theorem constant_iff_idx_zero :
     var = constant ↔ var.idx = 0 := by
-  grind [Var.ext_idx]
+  grind
 
 /--
 Adding a `Nat` to a `Var` increments the `Var`'s index.

@@ -36,6 +36,60 @@ theorem input_validIn_initLeaves {idx : InputIdx} (valid : idx.validIn aig) :
   idx.validIn (initLeaves aig) := by
   grind [InputIdx.validIn_eq]
 
+@[always_inline]
+def step (aig : Aig) (state : Aig) (map : Array Lit) (var : Var)
+    (valid : var.validIn aig := by grind)
+    (wf : aig.WellFormed := by grind)
+    (inputsValid : {idx : InputIdx} → idx.validIn aig → idx.validIn state := by grind)
+    (valid : ∀ {lit},  lit ∈ map → lit.validIn state := by grind)
+    (size : var.idx = map.size := by grind) :
+    Aig × Array Lit :=
+  let mapLit (lit : Lit) (h : lit.var < var := by grind) : Lit.In state :=
+    lit.mapTo map[lit.var.idx] |>.castIn state
+
+  let (eq:=_) (state, lit) : Aig × Lit :=
+    match _ : aig[var] with
+    | .false         => (state, .false)
+    | .input idx     => (state, idx.getLit state)
+    | .latch idx     => (state, mapLit (idx.getReset aig))
+    | .and rhs0 rhs1 => state.addAnd (mapLit rhs0) (mapLit rhs1)
+
+  (state, map.push lit)
+
+variable {state : Aig} {map : Array Lit} {var : Var}
+variable {valid : var.validIn aig}
+variable {wf : aig.WellFormed}
+variable {swf : state.WellFormed}
+variable {inputsValid : {idx : InputIdx} → idx.validIn aig → idx.validIn state}
+variable {valid : ∀ {lit},  lit ∈ map → lit.validIn state}
+variable {size : var.idx = map.size}
+
+@[simp, grind =]
+theorem size_step :
+    (step aig state map var).snd.size = map.size + 1 := by
+  unfold step
+  grind
+
+@[simp, grind .]
+theorem inputsValid_step {idx : InputIdx} (h : idx.validIn aig) :
+    idx.validIn (step aig state map var).fst := by
+  unfold step
+  grind
+
+include swf in
+@[simp, grind .]
+theorem WellFormed_step :
+    (step aig state map var).fst.WellFormed := by
+  unfold step
+  grind
+
+include swf in
+@[simp, grind .]
+theorem valid_step {lit} (h : lit ∈ (step aig state map var).snd) :
+    lit.validIn (step aig state map var).fst := by
+  simp_all [step]
+  grind
+
 end resetAig
 
 /--
@@ -55,146 +109,119 @@ where
     | .done _ =>
       ⟨state, fun lit => lit.val.mapTo <| map[lit.val.var.idx]'(by grind [Var.validIn_eq])⟩
     | .yield it' var _ =>
-      let mapLit (lit : Lit) (h : lit.var < var := by grind) : Lit.In state :=
-        lit.mapTo map[lit.var.idx] |>.castIn state
-
-      match _ : aig[var] with
-      | .false     => go it' state <| map.push .false
-      | .input idx => go it' state <| map.push <| idx.getLit state
-      | .latch idx => go it' state <| map.push <| mapLit (idx.getReset aig)
-      | .and rhs0 rhs1 =>
-        let (eq:=_) (state, lit) := state.addAnd (mapLit rhs0) (mapLit rhs1)
-        go it' state <| map.push lit
+      let (eq:=_) res := resetAig.step aig state map var
+      go it' res.fst res.snd
   termination_by it.finitelyManySteps
-
--- Mark it as Comb, WellFormed, inputs valid iff, matching semantics
 
 namespace resetAig
 variable {it : Std.Iter Var} {state : Aig} {map : Array Lit}
 variable {swf : state.WellFormed}
 variable {size : it.val.idx = map.size}
 
-@[simp, grind .]
-theorem Comb_go (comb : state.Comb) :
-    (go aig wf it state map swf inputsValid valid size).fst.Comb := by
-  fun_induction go <;> grind
-
-@[simp, grind .]
-theorem WellFormed_go :
-    (go aig wf it state map swf inputsValid valid size).fst.WellFormed := by
-  fun_induction go <;> assumption
-
-@[simp, grind =]
-theorem numInputs_go :
-    (go aig wf it state map swf inputsValid valid size).fst.numInputs = state.numInputs := by
-  fun_induction go <;> grind
-
-@[simp, grind .]
-theorem go_validIn {lit : Lit.In aig} :
+def go.induction
+    (motive : (Aig × (Lit.In aig -> Lit)) -> Prop)
+    (init : motive (state, (go aig wf it state map).snd))
+    (ind :
+      (it : Std.Iter Var) -> (state : Aig) -> (map : Array Lit) ->
+      (swf : state.WellFormed) ->
+      (inputsValid : {idx : InputIdx} → idx.validIn aig → idx.validIn state) ->
+      (valid : ∀ {lit},  lit ∈ map → lit.validIn state) ->
+      (valid' : it.val.validIn aig) ->
+      (size : it.val.idx = map.size) ->
+      (h : motive (state, (go aig wf it state map).snd)) ->
+      motive ((step aig state map it.val).fst, (go aig wf it state map).snd)) :
     let res := go aig wf it state map swf inputsValid valid size
-    (res.snd lit).validIn res.fst := by
-  fun_induction go <;> grind
-
-@[simp, grind .]
-theorem input_validIn_go {idx : InputIdx} (valid : idx.validIn aig) :
-    idx.validIn (go aig wf it state map swf inputsValid valid' size).fst := by
-  fun_induction go <;> grind
-
-@[simp, grind =]
-theorem go_map_eq {lit : Lit.In aig} (lt : lit.val.var < it.val) :
-    (go aig wf it state map swf inputsValid valid' size).snd lit =
-    (lit.val.mapTo map[lit.val.var.idx]) := by
-  fun_induction go <;> grind
-
-@[simp, grind .]
-theorem Monotone_go :
-    state ≤ (go aig wf it state map swf inputsValid valid' size).fst := by
-  fun_induction go <;> grind
-
--- TODO: This needs tidying badly
-@[simp, grind .]
-theorem denote_go {assign} {lit : Lit} (valid : lit.validIn aig)
-    (h : ∀ {var' : Var} (_ : var'.validIn aig) (_ : var' < it.val),
-      state.denote map[var'.idx] 0 assign = aig.denoteVar var' 0 assign) :
-    let res := go aig wf it state map swf inputsValid valid' size
-    res.fst.denote (res.snd ⟨lit, valid⟩) 0 assign =
-    aig.denote lit 0 assign := by
-  intro res
-  generalize heq : go aig wf it state map swf inputsValid valid' size = aaa
-  have : res = aaa := by grind
-  simp only [this]
+    motive res := by
   fun_induction go
-  · grind [go]
-  · unfold go at heq
-    split at heq
-    · grind
-    · split at heq
-      · grind [Var.ext_idx]
-      · grind
-      · grind
-      · grind
-  · unfold go at heq
-    grind [Var.ext_idx]
-  · unfold go at heq
-    split at heq
-    · grind
-    · split at heq
-      · grind
-      · grind
-      · simp_all [-denote_eq]
-        rename_i var _ _ idx _ _ ih _
-        apply ih
-        · clear ih
-          intro var' _ _
-          grind [Var.ext_idx]
-        · grind
-        · trivial
-      · grind
-  · unfold go at heq
-    split at heq
-    · grind
-    · split at heq
-      · grind
-      · grind
-      · grind
-      · simp_all [-denote_eq]
-        rename_i var _ _ _ _ heq _ ih _
-        apply ih
-        · clear ih
-          intro var' _ _
-          simp only [Array.getElem_push]
-          split
-          · grind
-          · clear heq
-            have : var = var' := by grind [Var.ext_idx]
-            grind
-        · grind
-        · trivial
+  · grind
+  next ih =>
+    apply ih
+    clear ih
+    grind [go]
+
+def induction
+    (motive : (Aig × (Lit.In aig -> Lit)) -> Prop)
+    (init : motive (initLeaves aig, (go aig wf aig.iter (initLeaves aig) (.emptyWithCapacity aig.size)).snd))
+    (ind :
+      (it : Std.Iter Var) -> (state : Aig) -> (map : Array Lit) ->
+      (swf : state.WellFormed) ->
+      (inputsValid : {idx : InputIdx} → idx.validIn aig → idx.validIn state) ->
+      (valid : ∀ {lit},  lit ∈ map → lit.validIn state) ->
+      (valid' : it.val.validIn aig) ->
+      (size : it.val.idx = map.size) ->
+      (h : motive (state, (go aig wf it state map).snd)) ->
+      motive ((step aig state map it.val).fst, (go aig wf it state map).snd)) :
+    motive aig.resetAig := by
+  apply go.induction motive <;> grind
 
 end resetAig
 
 @[simp, grind .]
 theorem Comb_resetAig :
     aig.resetAig.fst.Comb := by
-  grind [resetAig]
+  apply resetAig.induction (·.fst.Comb)
+  <;> (try unfold resetAig.step) <;> grind
 
 @[simp, grind .]
 theorem WellFormed_resetAig :
     aig.resetAig.fst.WellFormed := by
-  grind [resetAig]
+  apply resetAig.induction (·.fst.WellFormed)
+  <;> (try unfold resetAig.step) <;> grind
 
 @[simp, grind =]
 theorem numInputs_resetAig :
     aig.resetAig.fst.numInputs = aig.numInputs := by
-  grind [resetAig]
+  apply resetAig.induction (·.fst.numInputs = aig.numInputs)
+  <;> (try unfold resetAig.step) <;> grind
 
 @[simp, grind .]
 theorem resetAig_validIn {lit : Lit.In aig} :
     (aig.resetAig.snd lit).validIn aig.resetAig.fst := by
-  grind [resetAig]
+  grind [resetAig, @go_validIn]
+where
+  go_validIn {it state map swf inputsValid valid size} :
+      let res := resetAig.go aig wf it state map swf inputsValid valid size
+      (res.snd lit).validIn res.fst := by
+    fun_induction resetAig.go <;> grind
 
+/-
+-- set_option trace.grind.ematch.instance true in
+set_option maxHeartbeats 500000 in
 @[simp, grind .]
 theorem denote_resetAig {assign} {lit : Lit} (valid : lit.validIn aig) :
     aig.resetAig.fst.denote (aig.resetAig.snd ⟨lit, valid⟩) 0 assign =
     aig.denote lit 0 assign := by
-  grind [resetAig]
+  sorry
+where
+  denote_step {state : Aig} {map var inputsValid valid valid' size} {swf : state.WellFormed}
+      (denote : ∀ {var: Var} (valid : var.validIn aig) (lt : var.idx < map.size),
+        state.denote map[var.idx] 0 assign = aig.denoteVar var 0 assign) :
+      let res := resetAig.step aig state map var valid wf inputsValid valid' size
+      var.idx < res.snd.size →
+        res.fst.denote res.snd[var.idx] 0 assign = aig.denoteVar var 0 assign := by
+    -- intro res h
+    -- have : res.snd.size = map.size + 1 := by grind
+    -- rw [this] at h
+    -- subst res
+    -- simp only [resetAig.step]
+
+    cases h : aig[var] with
+    | false => -- simp [resetAig.step]
+      sorry
+      -- grind
+    | input idx => -- simp [resetAig.step]
+      sorry
+      -- grind
+    | latch idx =>
+      simp only [resetAig.step]
+      grind
+    | and _ _ =>
+      intro res h'
+      have : res.snd.size = map.size + 1 := by grind
+      rw [this] at h'
+      subst res
+      rw [denoteVar_get_and h]
+      simp [resetAig.step]
+      -- grind
+      -- grind (splits := 10)
+-/

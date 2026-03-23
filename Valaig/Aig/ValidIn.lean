@@ -139,8 +139,7 @@ theorem addInput_getVar_mono {var : Var} (valid : var.validIn aig):
     aig.addInput.snd.getVar aig.addInput.fst > var := by
   simpa [Var.lt_idx, Std.mkAtom_ref_eq_decls_size, simp_valaig_defs]
 
-grind_pattern addInput_getVar_mono =>
-  var.validIn aig, aig.addInput.snd.getVar aig.addInput.fst where
+grind_pattern addInput_getVar_mono => aig.addInput.snd.getVar aig.addInput.fst > var where
   var =/= aig.addInput.snd.getVar aig.addInput.fst
 
 @[simp, grind =]
@@ -185,8 +184,7 @@ theorem addLatch_getVar_mono {var : Var} (valid : var.validIn aig):
     (aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst > var := by
   simpa [Var.lt_idx, Std.mkAtom_ref_eq_decls_size, simp_valaig_defs]
 
-grind_pattern addLatch_getVar_mono =>
-  var.validIn aig, (aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst where
+grind_pattern addLatch_getVar_mono => (aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst > var where
   var =/= (aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst
 
 @[simp, grind =]
