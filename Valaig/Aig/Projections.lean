@@ -184,44 +184,46 @@ where
       (res.snd lit).validIn res.fst := by
     fun_induction resetAig.go <;> grind
 
-/-
--- set_option trace.grind.ematch.instance true in
-set_option maxHeartbeats 500000 in
-@[simp, grind .]
-theorem denote_resetAig {assign} {lit : Lit} (valid : lit.validIn aig) :
-    aig.resetAig.fst.denote (aig.resetAig.snd ⟨lit, valid⟩) 0 assign =
-    aig.denote lit 0 assign := by
-  sorry
-where
-  denote_step {state : Aig} {map var inputsValid valid valid' size} {swf : state.WellFormed}
-      (denote : ∀ {var: Var} (valid : var.validIn aig) (lt : var.idx < map.size),
-        state.denote map[var.idx] 0 assign = aig.denoteVar var 0 assign) :
-      let res := resetAig.step aig state map var valid wf inputsValid valid' size
-      var.idx < res.snd.size →
-        res.fst.denote res.snd[var.idx] 0 assign = aig.denoteVar var 0 assign := by
-    -- intro res h
-    -- have : res.snd.size = map.size + 1 := by grind
-    -- rw [this] at h
-    -- subst res
-    -- simp only [resetAig.step]
+section denote_resetAig
 
-    cases h : aig[var] with
-    | false => -- simp [resetAig.step]
-      sorry
-      -- grind
-    | input idx => -- simp [resetAig.step]
-      sorry
-      -- grind
-    | latch idx =>
-      simp only [resetAig.step]
-      grind
-    | and _ _ =>
-      intro res h'
-      have : res.snd.size = map.size + 1 := by grind
-      rw [this] at h'
-      subst res
-      rw [denoteVar_get_and h]
-      simp [resetAig.step]
-      -- grind
-      -- grind (splits := 10)
--/
+variable {state : Aig} {map : Array Lit} {swf : state.WellFormed}
+variable {denote : ∀ {var : Var} (lt : var.idx < map.size), state.denote map[var.idx] 0 assign = aig.denoteVar var 0 assign}
+
+include denote in
+@[local grind .]
+theorem denote_mapTo (lit : Lit) {lt : lit.var.idx < map.size} :
+      state.denote (lit.mapTo map[lit.var.idx]) 0 assign swf = aig.denote lit 0 assign wf := by
+    simp only [Lit.mapTo_eq, denote_eq, lt, ←denote]
+    grind
+
+include denote in
+@[local grind =]
+theorem denote_step {var var' inputsValid valid valid' size} :
+    let res := resetAig.step aig state map var' valid wf inputsValid valid' size
+    (lt : var.idx < res.snd.size) →
+      res.fst.denote res.snd[var.idx] 0 assign = aig.denoteVar var 0 assign := by
+  intro res h
+  rw [show res.snd[var.idx] = (map.push res.snd[map.size])[var.idx] by simp [res, resetAig.step], Array.getElem_push]
+  split
+  · simp only [res, resetAig.step]
+    grind
+  · have : var = var' := by grind
+    cases h : aig[var']
+    <;> simp only [res, resetAig.step, Array.getElem_push_eq]
+    <;> grind -splitMatch -splitIte
+
+include denote in
+theorem denote_go (lit : Lit.In aig) {it inputsValid valid size wf'} :
+    let res := resetAig.go aig wf it state map swf inputsValid valid size
+    res.fst.denote (res.snd lit) 0 assign wf' = aig.denote lit 0 assign := by
+  fun_induction resetAig.go
+  · grind only [denote_mapTo]
+  · grind only [denote_step]
+
+end denote_resetAig
+
+@[simp, grind =]
+theorem denote_resetAig {assign} {lit : Lit.In aig} :
+    aig.resetAig.fst.denote (aig.resetAig.snd lit) 0 assign =
+    aig.denote lit 0 assign := by
+  grind [resetAig, denote_go]
