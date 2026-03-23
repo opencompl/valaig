@@ -72,7 +72,7 @@ def size (pool : Pool α) : Nat :=
 /--
 Creates an empty pool with memory allocated for `capacity` elements.
 -/
-def emptyWithCapacity (capacity : Nat) : Pool α :=
+def emptyWithCapacity (capacity : Nat := 8) : Pool α :=
   {
     idx := 0
     values := .emptyWithCapacity capacity
