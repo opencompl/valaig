@@ -305,15 +305,34 @@ private theorem get_eq_getElem_decls_and {var : Var} (valid : var.validIn aig)
     aig.aig.decls[var.idx]'valid = .gate rhs0.toFanin rhs1.toFanin := by
   grind [get_eq_getElem_decls valid]
 
-@[always_inline, expose, reducible, grind unfold]
+@[always_inline, expose, reducible]
 instance instGetElemVar : GetElem Aig Var Node (fun aig var => var.validIn aig) where
   getElem aig var (h := by grind) :=
     aig.get var h
 
-@[simp]
+@[simp, grind =]
 theorem getElem_eq_get {var : Var} (valid : var.validIn aig) :
     aig[var]'valid = aig.get var valid := by
   rfl
+
+@[simp, grind =]
+theorem getElem?_eq {var : Var} :
+    aig[var]? =
+    if h : var.validIn aig then
+      some aig[var]
+    else
+      none := by
+  split
+  · rw [getElem?_eq_some_getElem_iff]
+    trivial
+  · grind
+
+@[simp]
+theorem validIn_of_getElem?_some {var : Var} {node : Node} (h : aig[var]? = some node) :
+    var.validIn aig := by
+  grind
+
+grind_pattern validIn_of_getElem?_some => aig[var]?, some node, var.validIn aig
 
 /-
 Input accessors.
