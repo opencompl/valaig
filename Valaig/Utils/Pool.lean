@@ -179,6 +179,43 @@ theorem size_remove :
   grind [remove]
 
 /--
+Replaces the element at a given index in the pool. See also `set?`.
+-/
+@[inline]
+def set (pool : Pool α) (idx : Nat) (v : α) (h : idx ∈ pool := by get_elem_tactic) : Pool α :=
+  { pool with
+    values := pool.values.insert idx v
+    ltIdx := by have := @pool.ltIdx; grind [contains]
+  }
+
+@[simp, grind =]
+theorem mem_set_iff (h : idx' ∈ pool) :
+    idx ∈ (pool.set idx' v h) ↔ idx ∈ pool := by
+  grind [set]
+
+@[simp, grind =]
+theorem getElem_set_self (h : idx ∈ pool) :
+    (pool.set idx v h)[idx]'(by grind) = v := by
+  grind [set]
+
+@[simp]
+theorem getElem_set (h : idx ∈ pool) (h' : idx' ∈ pool) :
+    (pool.set idx' v h')[idx]'(by grind) =
+    if idx = idx' then
+      v
+    else
+      pool[idx] := by
+  grind [set]
+
+grind_pattern getElem_set => (pool.set idx' v h')[idx]'(by grind) where
+  idx =/= idx'
+
+@[simp, grind =]
+theorem size_set (h : idx ∈ pool ) :
+    (pool.set idx v h).size = pool.size := by
+  grind [set]
+
+/--
 Replaces an element at the given index with the result of applying `f` to it. If there is no element
 allocated with that index, the pool is returned unchanged.
 
@@ -219,41 +256,45 @@ theorem size_modify {f : α -> α} :
   grind [modify]
 
 /--
-Replaces the element at a given index in the pool. See also `set?`.
+Replaces an element at the given index with the result of applying `f` to it, providing a proof that
+the element being modified matches the element visible to `GetElem?`.
+
+The reference count to the element is decremented before applying `f` by replacing the element with
+`Inhabited.default`, allowing in-place updates.
 -/
 @[inline]
-def set (pool : Pool α) (idx : Nat) (v : α) (h : idx ∈ pool := by get_elem_tactic) : Pool α :=
-  { pool with
-    values := pool.values.insert idx v
-    ltIdx := by have := @pool.ltIdx; grind [contains]
-  }
+def modifyMem [Inhabited α] (pool : Pool α) (idx : Nat) (f : { elem : α // pool[idx]? = some elem } -> α)
+     (h : idx ∈ pool := by get_elem_tactic) : Pool α :=
+  let val := pool[idx]
+  let pool := pool.set idx Inhabited.default
+  pool.modify idx (fun _ => f ⟨val, by grind⟩)
 
 @[simp, grind =]
-theorem mem_set_iff (h : idx' ∈ pool) :
-    idx ∈ (pool.set idx' v h) ↔ idx ∈ pool := by
-  grind [set]
+theorem mem_modifyMem_iff [Inhabited α] {f : { elem : α // pool[idx']? = some elem } -> α} (h : idx' ∈ pool) :
+    idx ∈ pool.modifyMem idx' f h ↔ idx ∈ pool := by
+  grind [modifyMem]
 
 @[simp, grind =]
-theorem getElem_set_self (h : idx ∈ pool) :
-    (pool.set idx v h)[idx]'(by grind) = v := by
-  grind [set]
+theorem getElem_modifyMem_self [Inhabited α] {f : { elem : α // pool[idx]? = some elem } -> α} (h : idx ∈ pool) :
+    (pool.modifyMem idx f h)[idx]'(by grind) = f ⟨pool[idx], by grind⟩ := by
+  grind [modifyMem]
 
 @[simp]
-theorem getElem_set (h : idx ∈ pool) (h' : idx' ∈ pool) :
-    (pool.set idx' v h')[idx]'(by grind) =
-    if idx = idx' then
-      v
+theorem getElem_modifyMem [Inhabited α] {f : { elem : α // pool[idx']? = some elem } -> α} (h : idx ∈ pool) (h' : idx' ∈ pool) :
+    (pool.modifyMem idx' f h')[idx]'(by grind) =
+    if h : idx = idx' then
+      f ⟨pool[idx], by grind⟩
     else
       pool[idx] := by
-  grind [set]
+  grind [modifyMem]
 
-grind_pattern getElem_set => (pool.set idx' v h')[idx]'(by grind) where
+grind_pattern getElem_modifyMem => (pool.modifyMem idx' f h')[idx]'(by grind) where
   idx =/= idx'
 
 @[simp, grind =]
-theorem size_set (h : idx ∈ pool ) :
-    (pool.set idx v h).size = pool.size := by
-  grind [set]
+theorem size_modifyMem [Inhabited α] {f : { elem : α // pool[idx]? = some elem } -> α} (h : idx ∈ pool) :
+    (pool.modifyMem idx f h).size = pool.size := by
+  grind [modifyMem]
 
 /--
 Replaces the element at a given index in the pool. If there is no element allocated with that index,
