@@ -62,7 +62,7 @@ theorem latch_not_validIn_empty {idx : LatchIdx} :
 end empty
 
 section latch
-variable {latch : LatchIdx} {valid : latch.validIn aig}
+variable {latch : LatchIdx}
 
 /-
 setNext Lemmas.
@@ -72,19 +72,19 @@ variable {next : Lit}
 
 @[simp, grind =]
 theorem var_validIn_setNext_iff {var : Var} :
-    var.validIn (latch.setNext aig next valid) ↔
+    var.validIn (latch.setNext aig next) ↔
     var.validIn aig := by
   simp_defs
 
 @[simp, grind =]
 theorem input_validIn_setNext_iff {idx : InputIdx} :
-    idx.validIn (latch.setNext aig next valid) ↔
+    idx.validIn (latch.setNext aig next) ↔
     idx.validIn aig := by
   simp_defs
 
 @[simp, grind =]
 theorem latch_validIn_setNext_iff {idx : LatchIdx} :
-    idx.validIn (latch.setNext aig next valid) ↔
+    idx.validIn (latch.setNext aig next) ↔
     idx.validIn aig := by
   simp_defs
 
@@ -98,19 +98,19 @@ variable {reset : Lit}
 
 @[simp, grind =]
 theorem var_validIn_setReset_iff {var : Var} :
-    var.validIn (latch.setReset aig reset valid) ↔
+    var.validIn (latch.setReset aig reset) ↔
     var.validIn aig := by
   simp_defs
 
 @[simp, grind =]
 theorem input_validIn_setReset_iff {idx : InputIdx} :
-    idx.validIn (latch.setReset aig reset valid) ↔
+    idx.validIn (latch.setReset aig reset) ↔
     idx.validIn aig := by
   simp_defs
 
 @[simp, grind =]
 theorem latch_validIn_setReset_iff {idx : LatchIdx} :
-    idx.validIn (latch.setReset aig reset valid) ↔
+    idx.validIn (latch.setReset aig reset) ↔
     idx.validIn aig := by
   simp_defs
 
@@ -120,47 +120,63 @@ end latch
 section leaf
 
 /-
-addInput Lemmas.
+addInput' Lemmas.
 -/
+section addInput'
+variable {idx : InputIdx}
 
 @[simp, local grind .]
-theorem addInput_validIn :
-    aig.addInput.snd.validIn aig.addInput.fst := by
+theorem addInput'_validIn :
+    idx.validIn (aig.addInput' idx) := by
   simp_defs
 
 @[simp]
-theorem addInput_getVar_self_validIn :
-    aig.addInput.snd.getVar aig.addInput.fst
-    |>.validIn aig.addInput.fst := by
+theorem addInput'_getVar_self_validIn :
+    idx.getVar (aig.addInput' idx)
+    |>.validIn (aig.addInput' idx) := by
   simp_defs
 
 @[simp]
-theorem addInput_getVar_mono {var : Var} (valid : var.validIn aig):
-    aig.addInput.snd.getVar aig.addInput.fst > var := by
+theorem addInput'_getVar_mono {var : Var} (valid : var.validIn aig):
+    idx.getVar (aig.addInput' idx) > var := by
   simpa [Var.lt_idx, Std.mkAtom_ref_eq_decls_size, simp_valaig_defs]
 
-grind_pattern addInput_getVar_mono => aig.addInput.snd.getVar aig.addInput.fst > var where
-  var =/= aig.addInput.snd.getVar aig.addInput.fst
+grind_pattern addInput'_getVar_mono => idx.getVar (aig.addInput' idx) > var where
+  var =/= idx.getVar (aig.addInput' idx)
 
 @[simp, grind =]
-theorem var_validIn_addInput_iff {var : Var} :
-    var.validIn aig.addInput.fst  ↔
-    (var.validIn aig ∨ var = aig.addInput.snd.getVar aig.addInput.fst) := by
+theorem var_validIn_addInput'_iff {var : Var} :
+    var.validIn (aig.addInput' idx) ↔
+      var.validIn aig ∨ var = idx.getVar (aig.addInput' idx) := by
   simp_defs
   grind only
 
 @[simp, grind =]
-theorem input_validIn_addInput_iff {idx : InputIdx} :
-    idx.validIn aig.addInput.fst  ↔
-    (idx.validIn aig ∨ idx = aig.addInput.snd) := by
+theorem input_validIn_addInput'_iff {other : InputIdx} :
+    other.validIn (aig.addInput' idx)  ↔
+     other.validIn aig ∨ idx = other := by
   simp_defs
-  grind [Std.mkAtom_ref_eq_decls_size, grind_valaig_defs]
+  grind_defs
 
 @[simp, grind =]
-theorem latch_validIn_addInput_iff {idx : LatchIdx} :
-    idx.validIn aig.addInput.fst ↔
-    idx.validIn aig := by
+theorem latch_validIn_addInput'_iff {other : LatchIdx} :
+    other.validIn (aig.addInput' idx) ↔
+    other.validIn aig := by
   simp_defs
+
+end addInput'
+
+/-
+addInput Lemmas.
+-/
+section addInput
+
+@[simp, grind .]
+theorem addInput_not_validIn :
+    ¬aig.addInput.snd.validIn aig := by
+  simp_defs
+
+end addInput
 
 /-
 addLatch Lemmas.

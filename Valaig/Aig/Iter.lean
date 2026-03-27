@@ -1,244 +1,199 @@
 module
 
-public import Init.Data.Iterators.Lemmas.Monadic.Basic
-public import Init.Data.Iterators.Lemmas.Basic
+public import Valaig.Aig.Basic
+import all Valaig.Aig.Basic
+import Valaig.Utils.GrindIter
+import Valaig.Utils.DetIter
 
 public section
 namespace Valaig.Aig
+variable {aig : Aig}
 
 /--
-A generic iterator that forward iterates over a consecutive range of valid indices. This
-is specialised to produce input/latch indices and variables.
-
-This expects an instance of `Iter.Lawful` for `inc` and `valid` for full reasoning
-abilities.
+A custom iterator type for the forward iteration of variables that is easy to reason about.
 -/
-structure Iter {α : Type} (inc : α -> α) (valid : α -> Prop) (toNat : α -> Nat) (ofNat : Nat -> α) (size : Nat) where
-  idx : α
+structure VarIter (aig : Aig) where
+  var : Var
+  range : var.validIn aig ∨ var.idx = aig.size := by grind
 
-namespace Iter
+/--
+A forward iterator over variables in the Aig. See also `iterVal`.
+-/
+@[inline]
+def iter (aig : Aig) : @Std.Iter aig.VarIter Var :=
+  ⟨.ofIdx 0, by grind [Var.validIn_iff]⟩
 
-class Lawful {α : Type} (inc : α -> α) (valid : α -> Prop) (toNat : α -> Nat) (ofNat : Nat -> α) (size : Nat) where
-  ofNat_toNat (idx : α) : ofNat (toNat idx) = idx := by grind
-  toNat_ofNat (idx : Nat) : toNat (ofNat idx) = idx := by grind
-  consecutive (idx : α) : toNat (inc idx) = toNat idx + 1 := by grind
-  max (idx : α) : valid idx ↔ toNat idx < size := by grind
+/--
+The next value to be returned by a variable iterator, or `Var.ofIdx aig.size` if the iterator is
+done.
+-/
+@[inline]
+def iterVal (aig : Aig) (it : @Std.Iter aig.VarIter Var) : Var :=
+  it.internalState.var
 
-variable {α : Type} {inc : α -> α} {valid : α -> Prop}
-variable {toNat : α -> Nat} {ofNat : Nat -> α} {size : Nat}
-variable [DecidablePred valid] {out : α}
+namespace VarIter
+
 variable {m : Type -> Type _} [Pure m] {n : Type _ -> Type _}
 
-/--
-Construct a new iterator from the 0th index
--/
-@[always_inline]
-def init : Iter inc valid toNat ofNat size :=
-  ⟨ofNat 0⟩
+attribute [local grind =] Var.validIn_iff
+attribute [local ext, local grind ext] Std.Iter Std.IterM VarIter
+attribute [local grind =] Utils.DetIter.IterStep.mapIterator_eq Utils.DetIter.IterStep.successor_eq
+attribute [local grind] Std.Iter.toIterM
+
+@[always_inline, local grind]
+def step (it : @Std.IterM aig.VarIter m Var) : Std.IterStep (@Std.IterM aig.VarIter m Var) Var :=
+  let var := it.internalState.var
+  if h : var.validIn aig then
+    .yield ⟨⟨var + 1, by grind⟩⟩ var
+  else
+    .done
 
 @[always_inline]
-instance instIterator : Std.Iterator (Iter inc valid toNat ofNat size) m α where
+instance instIterator : Std.Iterator aig.VarIter m Var where
   IsPlausibleStep it step :=
-    let idx := it.internalState.idx
+    let var := it.internalState.var
     match step with
-    | .yield it' out => valid idx ∧ it'.internalState.idx = inc idx ∧ out = idx
+    | .done => var.idx = aig.size
+    | .yield it' out => it'.internalState.var = var + 1 ∧ out = var
     | .skip _ => False
-    | .done => ¬valid idx
 
-  step it := pure <| .deflate <|
-    let s := it.internalState
-    if h : valid s.idx then
-      .yield ⟨⟨inc s.idx⟩⟩ s.idx (by grind)
-    else
-      .done (by grind)
+  step it := pure <| .deflate <| ⟨step it, by grind [VarIter.range]⟩
 
-/-
-These theorems are mainly private and for establishing the correctness of the typeclasses
--/
-variable {it it' : @Std.Iter (Iter inc valid toNat ofNat size) α}
-variable {itm itm' : @Std.IterM (Iter inc valid toNat ofNat size) m α}
+@[simp, local grind =]
+theorem IsPlausibleStep_iff {it : @Std.IterM aig.VarIter m Var} {step} :
+    it.IsPlausibleStep step ↔ VarIter.step it = step := by
+  simp only [Std.IterM.IsPlausibleStep, Std.Iterator.IsPlausibleStep, instIterator, VarIter.step]
+  grind
 
-@[local simp, local grind =]
-private theorem IsPlausibleStep_iff {step} :
-    itm.IsPlausibleStep step ↔
-    if valid itm.internalState.idx then
-      step = .yield ⟨⟨inc itm.internalState.idx⟩⟩ itm.internalState.idx
-    else
-      step = .done := by
-  simp only [Std.IterM.IsPlausibleStep, Std.Iterator.IsPlausibleStep, instIterator]
-  grind only [Iter, Std.IterM]
-
-@[local simp, local grind =]
-private theorem IsPlausibleStep_iff' {step} :
-    it.IsPlausibleStep step ↔
-    if valid it.internalState.idx then
-      step = .yield ⟨⟨inc it.internalState.idx⟩⟩ it.internalState.idx
-    else
-      step = .done := by
-  simp only [Std.Iter.IsPlausibleStep, Std.IterStep.mapIterator, Std.Iter.toIterM, Std.IterM.IsPlausibleStep, Std.Iterator.IsPlausibleStep, instIterator]
-  grind only [Iter, Std.Iter]
-
-@[local simp, local grind =]
-private theorem IsPlausibleOutput_iff {out : α} :
-    itm.IsPlausibleOutput out ↔
-      valid itm.internalState.idx ∧ out = itm.internalState.idx := by
-  simp [Std.IterM.IsPlausibleOutput]
-
-omit [Pure m] in
-@[local simp, local grind =]
-private theorem successor_eq {step : Std.IterStep (@Std.IterM β m α) α} :
-    step.successor =
-    match step with
-    | .yield itm _ => some itm
-    | .skip itm => some itm
-    | .done => none := by
-  grind [Std.IterStep.successor_yield, Std.IterStep.successor_skip, Std.IterStep.successor_done]
-
-@[local simp, local grind =]
-private theorem IsPlausibleSuccessorOf_iff :
-    itm'.IsPlausibleSuccessorOf itm ↔
-      valid itm.internalState.idx ∧
-      itm'.internalState.idx = inc itm.internalState.idx := by
-  constructor
-  · grind [Std.IterM.IsPlausibleSuccessorOf]
-  · grind [Iter, Std.IterM, Std.IterM.isPlausibleSuccessorOf_of_yield (out := itm.internalState.idx)]
+@[simp, local grind =]
+theorem IsPlausibleSuccessorOf_iff {it it' : @Std.IterM aig.VarIter m Var} :
+    it'.IsPlausibleSuccessorOf it ↔ (step it).successor = some it' := by
+  grind [Std.IterM.IsPlausibleSuccessorOf]
 
 open Std.Iterators in
-private def instFinitenessRelation [lawful : Lawful inc valid toNat ofNat size] : FinitenessRelation (Iter inc valid toNat ofNat size) m where
-  Rel := InvImage WellFoundedRelation.rel (size - toNat ·.internalState.idx)
+private def instFinitenessRelation : FinitenessRelation aig.VarIter m where
+  Rel := InvImage WellFoundedRelation.rel (aig.size - ·.internalState.var.idx)
   wf := InvImage.wf _ WellFoundedRelation.wf
-  subrelation h := by simp_wf; grind [lawful.max, lawful.consecutive]
+  subrelation h := by simp_wf; grind
 
-instance instFinite [Lawful inc valid toNat ofNat size] : Std.Iterators.Finite (Iter inc valid toNat ofNat size) m := by
+instance instFinite : Std.Iterators.Finite aig.VarIter m := by
   exact .of_finitenessRelation instFinitenessRelation
 
 @[always_inline]
-instance instIteratorLoop [Monad m] [Monad n] :
-    Std.IteratorLoop (Iter inc valid toNat ofNat size) m n :=
+instance instIteratorLoop [Monad m] [Monad n] : Std.IteratorLoop aig.VarIter m n :=
   .defaultImplementation
 
-@[local grind .]
-private theorem IsPlausibleIndirectOutput_valid {out : α} (h : itm.IsPlausibleIndirectOutput out) :
-    valid out := by
-  induction h <;> grind
-
-@[always_inline]
-instance instForIn' [Monad n] :
-    ForIn' n (@Std.Iter (Iter inc valid toNat ofNat size) α) α ⟨fun _ out => valid out⟩ where
-  forIn' it init f :=
-    Std.IteratorLoop.finiteForIn' (fun _ _ f c => f c.run) |>.forIn' it.toIterM init
-      fun out h acc => f out (by grind) acc
-
-/--
-Convenience function to access the current state of the iterator, which is guaranteed to
-be the next returned value if the iterator is still valid.
--/
-@[always_inline, local simp, local grind]
-def _root_.Std.Iter.val (it : @Std.Iter (Iter inc valid toNat ofNat size) α) : α :=
-  it.internalState.idx
-
-@[local grind =]
-theorem length_eq_size_sub_val [lawful : Lawful inc valid toNat ofNat size] :
-    it.length = size - toNat it.val := by
-  induction it using Std.Iter.inductSteps with | step it ihy _ =>
-  grind [Std.Iter.length_eq_match_step, lawful.consecutive, lawful.max]
-
-grind_pattern length_eq_size_sub_val => it.length, size - toNat it.val
-
-omit [DecidablePred valid] in
-@[simp, grind! .]
-theorem val_init :
-    (⟨init⟩ : @Std.Iter (Iter inc valid toNat ofNat size) α).val = ofNat 0 := by
-  rfl
-
-@[simp, grind! .]
-theorem length_init [lawful : Lawful inc valid toNat ofNat size] :
-    (⟨init⟩ : @Std.Iter (Iter inc valid toNat ofNat size) α).length = size := by
-  grind [lawful.toNat_ofNat]
+variable {it it' : @Std.Iter aig.VarIter Var}
 
 @[simp, grind .]
-theorem IsPlausibleStep_skip :
+theorem IsPlausibleStep_skip:
     ¬it.IsPlausibleStep (.skip it') := by
-  simp
+  grind [step]
 
 @[simp, grind .]
 theorem step_eq_iff_IsPlausibleStep {step} :
     it.step.val = step ↔ it.IsPlausibleStep step := by
   grind
 
-variable [lawful : Lawful inc valid toNat ofNat size]
+@[local simp, local grind =]
+private theorem iterVal_eq_inner :
+    aig.iterVal it = it.internalState.var := by
+  grind [iterVal]
 
-@[simp]
-theorem length_yield (h : it.IsPlausibleStep (.yield it' out)) :
-    it'.length = it.length - 1 := by
-  grind [lawful.consecutive]
+@[local grind =]
+theorem length_eq_size_sub_iterVal :
+    it.length = aig.size - (aig.iterVal it).idx := by
+  induction it using Std.Iter.inductSteps with | step it ihy _ =>
+  grind [Std.Iter.length_eq_match_step]
 
-@[simp]
-theorem length_yield_gt_zero (h : it.IsPlausibleStep (.yield it' out)) :
-    it.length > 0 := by
-  grind [lawful.max]
-
-grind_pattern length_yield_gt_zero => it.IsPlausibleStep (.yield it' out), it.length
-
-@[simp]
-theorem length_yield' (h : it.IsPlausibleStep (.yield it' out)) :
-    it'.length + 1 = it.length := by
-  grind [length_yield, length_yield_gt_zero]
-
-grind_pattern length_yield' => it.IsPlausibleStep (.yield it' out), it'.length
+grind_pattern length_eq_size_sub_iterVal => it.length, aig.size - (aig.iterVal it).idx
 
 @[simp]
 theorem length_done (h : it.IsPlausibleStep .done) :
     it.length = 0 := by
-  grind [lawful.max]
+  grind
 
 grind_pattern length_done => it.IsPlausibleStep .done, it.length
 
 @[simp]
 theorem length_zero_done (h : it.length = 0) :
     it.step.val = .done := by
-  grind [lawful.max]
+  grind
 
 grind_pattern length_zero_done => it.length, it.step
 
+@[simp]
+theorem length_yield (h : it.IsPlausibleStep (.yield it' out)) :
+    it'.length = it.length - 1 := by
+  grind
+
+@[simp]
+theorem length_yield_gt_zero (h : it.IsPlausibleStep (.yield it' out)) :
+    it.length > 0 := by
+  grind
+
+@[simp]
+theorem length_yield' (h : it.IsPlausibleStep (.yield it' out)) :
+    it'.length + 1 = it.length := by
+  grind
+
+grind_pattern length_yield' => it.IsPlausibleStep (.yield it' out), it.length
+grind_pattern length_yield' => it.IsPlausibleStep (.yield it' out), it'.length
+
 @[simp, grind .]
 theorem length_le_size :
-    it.length ≤ size := by
+    it.length ≤ aig.size := by
   grind
+
+@[simp]
+theorem iterVal_done (h : it.IsPlausibleStep .done) :
+    aig.iterVal it = .ofIdx aig.size := by
+  grind
+
+grind_pattern iterVal_done => it.IsPlausibleStep .done, aig.iterVal it
+
+@[simp]
+theorem iterVal_yield (h : it.IsPlausibleStep  (.yield it' out)) :
+    aig.iterVal it' = aig.iterVal it + 1 := by
+  grind
+
+grind_pattern iterVal_yield => it.IsPlausibleStep (.yield it' out), aig.iterVal it
+
+@[simp]
+theorem out_yield (h : it.IsPlausibleStep (.yield it' out)) :
+    out = aig.iterVal it := by
+  grind
+
+grind_pattern out_yield => it.IsPlausibleStep (.yield it' out), aig.iterVal it
+grind_pattern out_yield => it.IsPlausibleStep (.yield it' out), aig.iterVal it'
+
+@[simp]
+theorem iterVal_validIn_done (h : it.IsPlausibleStep .done) :
+    ¬(aig.iterVal it).validIn aig := by
+  grind
+
+grind_pattern iterVal_validIn_done => it.IsPlausibleStep .done, (aig.iterVal it).validIn aig
+
+@[simp]
+theorem iterVal_validIn_yield (h : it.IsPlausibleStep (.yield it' out)) :
+    (aig.iterVal it).validIn aig := by
+  grind
+
+grind_pattern iterVal_validIn_yield => it.IsPlausibleStep (.yield it' out), (aig.iterVal it).validIn aig
+
+@[simp]
+theorem validIn_yield (h : it.IsPlausibleStep (.yield it' out)) :
+    out.validIn aig := by
+  grind
+
+grind_pattern validIn_yield => it.IsPlausibleStep (.yield it' out), out.validIn aig
 
 @[local grind =]
 theorem toList_eq_ofFn :
-    it.toList = List.ofFn (fun (n : Fin it.length) => ofNat (toNat it.val + n)) := by
+    it.toList = List.ofFn (fun (n : Fin it.length) => aig.iterVal it + n.val) := by
   induction it using Std.Iter.inductSteps with | step it ihy _ =>
   rw [Std.Iter.toList_eq_match_step] 
-  split
-  · apply List.ext_getElem
-    · grind [lawful.consecutive, lawful.max]
-    · simp [List.getElem_cons]
-      intros
-      split
-      · simp_all only
-        grind [lawful.ofNat_toNat]
-      · grind [lawful.consecutive, lawful.max]
-  · grind
-  · grind
-
-@[simp, grind =]
-theorem toList_eq_ofFn' (h : it.val = ofNat 0) :
-    it.toList = List.ofFn (fun (n : Fin it.length) => ofNat n) := by
-  grind [lawful.toNat_ofNat]
-
-@[simp, grind =]
-theorem mem_init_toList_iff_valid {idx : α} :
-    idx ∈ (⟨init⟩ : @Std.Iter (Iter inc valid toNat ofNat size) α).toList ↔ valid idx := by
-  rw [toList_eq_ofFn']
-  simp
-  constructor
-  · grind [lawful.max, lawful.toNat_ofNat]
-  · intro valid
-    exists ⟨toNat idx, by grind [lawful.max, lawful.toNat_ofNat]⟩
-    grind [lawful.ofNat_toNat, lawful.max, lawful.toNat_ofNat]
-  · grind
+  apply List.ext_getElem <;> grind
 
 @[simp]
 theorem toList_done (h : it.IsPlausibleStep .done) :
@@ -250,31 +205,102 @@ grind_pattern toList_done => it.IsPlausibleStep .done, it.toList
 theorem toList_yield (h : it.IsPlausibleStep (.yield it' out)) :
     it.toList = out :: it'.toList := by
   induction h : it.toList with
-  | nil => grind [List.ofFn_eq_nil_iff, lawful.max]
+  | nil => grind [List.ofFn_eq_nil_iff]
   | cons out' tail ih => grind [Std.Iter.toList_eq_match_step]
 
 grind_pattern toList_yield => it.IsPlausibleStep (.yield it' out), it.toList
 
-omit lawful in
-@[simp, grind .]
-theorem yield_eq_val (h : it.IsPlausibleStep (.yield it' out)) :
-    it.val = out := by
+end VarIter
+
+attribute [local simp, local grind =] VarIter.iterVal_eq_inner
+
+@[simp, grind =]
+theorem idx_iterVal_iter :
+    (aig.iterVal aig.iter).idx = 0 := by
+  grind [iter]
+
+@[simp, grind =]
+theorem iterVal_iter :
+    aig.iterVal aig.iter = .constant := by
   grind
 
-omit lawful in
-@[simp, grind .]
-theorem valid_yield (h : it.IsPlausibleStep (.yield it' out)) :
-    valid out := by
-  grind
+@[simp, grind =]
+theorem length_iter :
+    aig.iter.length = aig.size := by
+  grind [VarIter.length_eq_size_sub_iterVal]
+
+@[grind =]
+theorem toList_iter :
+    aig.iter.toList = List.ofFn (fun (n : Fin aig.size) => .ofIdx n) := by
+  apply List.ext_getElem
+  · grind
+  · grind [iter, VarIter.toList_eq_ofFn]
+
+@[simp, grind =]
+theorem mem_iter_iff {var : Var} :
+    var ∈ aig.iter.toList ↔ var.validIn aig := by
+  simp only [toList_iter, List.mem_ofFn]
+  constructor
+  · grind [Var.validIn_iff]
+  · intro h
+    exists ⟨var.idx, by grind⟩
+
+/--
+A forward iterator over inputs in the Aig.
+-/
+@[inline]
+def inputs (aig : Aig) :=
+  aig._inputs.iter.map InputIdx.ofIdx
+
+@[simp, grind =]
+theorem length_inputs :
+    aig.inputs.length = aig.numInputs := by
+  grind [inputs, numInputs]
+
+@[simp, grind =]
+theorem mem_inputs_iff {idx : InputIdx} :
+    idx ∈ aig.inputs.toList ↔ idx.validIn aig := by
+  grind [inputs, InputIdx.validIn]
 
 @[simp, grind .]
-theorem val_yield (h : it.IsPlausibleStep (.yield it' out)) :
-    toNat it'.val = toNat it.val + 1 := by
-  grind [lawful.consecutive]
+theorem nodup_toList_inputs :
+    aig.inputs.toList.Nodup := by
+  grind [inputs, List.pairwise_iff_getElem]
 
-@[simp]
-theorem val_done (h : it.IsPlausibleStep .done) :
-    toNat it.val ≥ size := by
-  grind [lawful.max]
+theorem distinct_toList_inputs {idx idx' : Nat} (h : idx < aig.inputs.length) (h' : idx' < aig.inputs.length)
+    (diff : idx ≠ idx') :
+      aig.inputs.toList[idx] ≠ aig.inputs.toList[idx'] := by
+  grind [@nodup_toList_inputs aig, List.pairwise_iff_getElem]
 
-grind_pattern val_done => it.IsPlausibleStep .done, it.val
+grind_pattern distinct_toList_inputs => aig.inputs.toList[idx], aig.inputs.toList[idx'] where
+  idx =/= idx'
+
+/--
+A forward iterator over latches in the Aig.
+-/
+@[inline]
+def latches (aig : Aig) :=
+  aig._latches.iter.map LatchIdx.ofIdx
+
+@[simp, grind =]
+theorem length_latches :
+    aig.latches.length = aig.numLatches := by
+  grind [latches, numLatches]
+
+@[simp, grind =]
+theorem mem_latches_iff {idx : LatchIdx} :
+    idx ∈ aig.latches.toList ↔ idx.validIn aig := by
+  grind [latches, LatchIdx.validIn]
+
+@[simp, grind .]
+theorem nodup_toList_latches :
+    aig.latches.toList.Nodup := by
+  grind [latches, List.pairwise_iff_getElem]
+
+theorem distinct_toList_latches {idx idx' : Nat} (h : idx < aig.latches.length) (h' : idx' < aig.latches.length)
+    (diff : idx ≠ idx') :
+      aig.latches.toList[idx] ≠ aig.latches.toList[idx'] := by
+  grind [@nodup_toList_latches aig, List.pairwise_iff_getElem]
+
+grind_pattern distinct_toList_latches => aig.latches.toList[idx], aig.latches.toList[idx'] where
+  idx =/= idx'

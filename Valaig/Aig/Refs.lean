@@ -14,6 +14,7 @@ represented by index 0. Where possible, users should prefer dealing directly wit
 than accessing the underlying index with `Var.idx`. The primary use for direct access to the index
 is for indexing into contiguous memory (`Array`s).
 -/
+@[ext, grind ext]
 structure Var where
   ofIdx ::
     idx : Nat
@@ -32,11 +33,6 @@ instance : EquivBEq Var := by constructor
 
 theorem ext_idx (var var' : Var) :
     var = var' ↔ var.idx = var'.idx := by
-  grind only [Var]
-
-@[ext, grind ext]
-theorem ext_idx' (var var' : Var) (eq : var.idx = var'.idx) :
-    var = var' := by
   grind only [Var]
 
 -- Instantiate these directly for inlining
@@ -143,6 +139,7 @@ These are represented by storing the inversion in the least significant bit and 
 left-shifted by one in the higher bits. Although this detail is exposed for use with contiguous
 containers, care should be taken to avoid relying on it whenever possible.
 -/
+@[ext, grind ext]
 structure Lit where
   ofIdx ::
     idx : Nat
@@ -250,14 +247,14 @@ theorem mk_self_of_not_inverted (h : ¬lit.inverted) :
 
 grind_pattern mk_self_of_inverted => Lit.mk lit.var false, lit.inverted
 
-theorem ext {lit lit' : Lit} :
+theorem ext_args {lit lit' : Lit} :
     lit = lit' ↔ (lit.var = lit'.var ∧ lit.inverted = lit'.inverted) := by
-  grind only [mk_self_eq]
+  grind
 
 @[simp, grind =]
 theorem mk_ext {var var' : Var} {invert invert' : Bool} :
     (mk var invert = mk var' invert') ↔ (var = var' ∧ invert = invert') := by
-  simp [ext]
+  grind
 
 /--
 Returns the constant literal of specified value.
@@ -345,13 +342,13 @@ def asConstant (l : Lit) : Option Bool :=
 @[simp]
 theorem asConstant_false_iff :
     lit.asConstant = some .false ↔ lit = .false := by
-  simp [asConstant, Var.constant, ext_idx, var, mk, UInt8.ofNat_eq_iff_mod_eq_toNat]
+  simp [asConstant, Var.constant, var, mk, UInt8.ofNat_eq_iff_mod_eq_toNat]
   grind only
 
 @[simp]
 theorem asConstant_true_iff :
     lit.asConstant = some .true ↔ lit = .true := by
-  simp [asConstant, Var.constant, ext_idx, var, mk, UInt8.ofNat_eq_iff_mod_eq_toNat]
+  simp [asConstant, Var.constant, var, mk, UInt8.ofNat_eq_iff_mod_eq_toNat]
   grind only
 
 @[simp]
@@ -385,7 +382,7 @@ theorem invert_false :
 @[simp, local grind =]
 theorem invert_true :
     lit.invert .true = mk lit.var ¬lit.inverted := by
-  simp [ext, invert]
+  simp [ext_args, invert]
   simp [var, inverted, Nat.xor_div_two]
 
 @[simp, grind =]
@@ -405,7 +402,7 @@ def strip (l : Lit) : Lit :=
 @[simp, grind =]
 theorem strip_eq :
     lit.strip = mk lit.var .false := by
-  rw [strip, ext] <;> simp
+  rw [strip, ext_args] <;> simp
   simp [var, inverted, Nat.xor_div_two]
 
 /--
@@ -444,7 +441,7 @@ open Std.Sat.AIG in
 @[simp, grind =]
 theorem ofFanin_eq (fi : Fanin) :
     ofFanin fi = mk (.ofIdx fi.gate) fi.invert := by
-  rw [ext]
+  rw [ext_args]
   unfold ofFanin Fanin.gate Fanin.invert mk var inverted
   simp [Nat.or_div_two]
   constructor

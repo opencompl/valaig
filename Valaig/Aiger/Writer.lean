@@ -2,6 +2,8 @@ module
 
 public import Valaig.Aiger.Basic
 import all Valaig.Aig.Basic
+public import Valaig.Aig.Iter
+public import Valaig.Utils.DetIter
 
 public section
 namespace Valaig.Aiger
@@ -25,7 +27,7 @@ def writeAag (aiger : Aiger) (file : IO.FS.Stream) : IO Unit := do
 
   -- Gates
   for h : var in aig.iter do
-    if let .and rhs0 rhs1 := aig[var] then
+    if let .and rhs0 rhs1 := aig[var]'(by grind) then
       file.putStrLn s!"{var.toLit.idx} {rhs0.idx} {rhs1.idx}"
 
   -- TODO: Symbols/comments

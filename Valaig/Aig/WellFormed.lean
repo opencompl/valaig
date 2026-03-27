@@ -322,77 +322,77 @@ end empty
 LatchIdx.setNext Lemmas.
 -/
 section setNext
-variable {setIdx : LatchIdx} {setValid : setIdx.validIn aig} {newNext : Lit}
+variable {setIdx : LatchIdx} {newNext : Lit}
 
 @[simp]
 theorem InputsValid_setNext
     (inputsValid : aig.InputsValid) :
-    (setIdx.setNext aig newNext setValid).InputsValid := by
+    (setIdx.setNext aig newNext).InputsValid := by
   grind
 
 @[simp]
 theorem InputIdxsValid_setNext
     (inputIdxsValid : aig.InputIdxsValid) :
-    (setIdx.setNext aig newNext setValid).InputIdxsValid := by
+    (setIdx.setNext aig newNext).InputIdxsValid := by
   grind
 
 @[simp]
 theorem LatchesValid_setNext
     (latchesValid : aig.LatchesValid) :
-    (setIdx.setNext aig newNext setValid).LatchesValid := by
+    (setIdx.setNext aig newNext).LatchesValid := by
   grind
 
 @[simp]
 theorem LatchIdxsValid_setNext
     (latchIdxsValid : aig.LatchIdxsValid) :
-    (setIdx.setNext aig newNext setValid).LatchIdxsValid := by
+    (setIdx.setNext aig newNext).LatchIdxsValid := by
   grind
 
 @[simp]
 theorem ResetsValid_setNext
     (resetsValid : aig.ResetsValid) :
-    (setIdx.setNext aig newNext setValid).ResetsValid := by
+    (setIdx.setNext aig newNext).ResetsValid := by
   grind
 
 @[simp]
 theorem NextsValid_setNext
     (nextsValid : aig.NextsValid)
     (nextValid : newNext.validIn aig) :
-    (setIdx.setNext aig newNext setValid).NextsValid := by
+    (setIdx.setNext aig newNext).NextsValid := by
   grind
 
 @[simp]
 theorem AcyclicGates_setNext
     (acyclicGates : aig.AcyclicGates) :
-    (setIdx.setNext aig newNext setValid).AcyclicGates := by
+    (setIdx.setNext aig newNext).AcyclicGates := by
   grind
 
 @[simp]
 theorem AcyclicResets_setNext
     (acyclicResets : aig.AcyclicResets) :
-    (setIdx.setNext aig newNext setValid).AcyclicResets := by
+    (setIdx.setNext aig newNext).AcyclicResets := by
   grind
 
 -- TODO: These grind patterns could be created with @[grind .], but this seems
 -- to spend a lot of compilation time working out the pattern, by doing it
 -- manually we avoid this
-grind_pattern InputsValid_setNext    => (setIdx.setNext aig newNext setValid).InputsValid
-grind_pattern InputIdxsValid_setNext => (setIdx.setNext aig newNext setValid).InputIdxsValid
-grind_pattern LatchesValid_setNext   => (setIdx.setNext aig newNext setValid).LatchesValid
-grind_pattern LatchIdxsValid_setNext => (setIdx.setNext aig newNext setValid).LatchIdxsValid
-grind_pattern ResetsValid_setNext    => (setIdx.setNext aig newNext setValid).ResetsValid
-grind_pattern NextsValid_setNext     => (setIdx.setNext aig newNext setValid).NextsValid
-grind_pattern AcyclicGates_setNext   => (setIdx.setNext aig newNext setValid).AcyclicGates
-grind_pattern AcyclicResets_setNext  => (setIdx.setNext aig newNext setValid).AcyclicResets
+grind_pattern InputsValid_setNext    => (setIdx.setNext aig newNext).InputsValid
+grind_pattern InputIdxsValid_setNext => (setIdx.setNext aig newNext).InputIdxsValid
+grind_pattern LatchesValid_setNext   => (setIdx.setNext aig newNext).LatchesValid
+grind_pattern LatchIdxsValid_setNext => (setIdx.setNext aig newNext).LatchIdxsValid
+grind_pattern ResetsValid_setNext    => (setIdx.setNext aig newNext).ResetsValid
+grind_pattern NextsValid_setNext     => (setIdx.setNext aig newNext).NextsValid
+grind_pattern AcyclicGates_setNext   => (setIdx.setNext aig newNext).AcyclicGates
+grind_pattern AcyclicResets_setNext  => (setIdx.setNext aig newNext).AcyclicResets
 
 @[simp]
 theorem WellFormed_setNext
     (wellFormed : aig.WellFormed)
     (nextValid : newNext.validIn aig) :
-    (setIdx.setNext aig newNext setValid).WellFormed := by
+    (setIdx.setNext aig newNext).WellFormed := by
   grind
 
-grind_pattern WellFormed_setNext => (setIdx.setNext aig newNext setValid).WellFormed
+grind_pattern WellFormed_setNext => (setIdx.setNext aig newNext).WellFormed
 
 end setNext
 
@@ -400,37 +400,37 @@ end setNext
 LatchIdx.setReset Lemmas.
 -/
 section setReset
-variable {setIdx : LatchIdx} {setValid : setIdx.validIn aig} {newReset : Lit}
+variable {setIdx : LatchIdx} {newReset : Lit}
 
 @[simp]
 theorem InputsValid_setReset
     (inputsValid : aig.InputsValid) :
-    (setIdx.setReset aig newReset setValid).InputsValid := by
+    (setIdx.setReset aig newReset).InputsValid := by
   grind
 
 @[simp]
 theorem InputIdxsValid_setReset
     (inputIdxsValid : aig.InputIdxsValid) :
-    (setIdx.setReset aig newReset setValid).InputIdxsValid := by
+    (setIdx.setReset aig newReset).InputIdxsValid := by
   grind
 
 @[simp]
 theorem LatchesValid_setReset
     (latchesValid : aig.LatchesValid) :
-    (setIdx.setReset aig newReset setValid).LatchesValid := by
+    (setIdx.setReset aig newReset).LatchesValid := by
   grind
 
 @[simp]
 theorem LatchIdxsValid_setReset
     (latchIdxsValid : aig.LatchIdxsValid) :
-    (setIdx.setReset aig newReset setValid).LatchIdxsValid := by
+    (setIdx.setReset aig newReset).LatchIdxsValid := by
   grind
 
 @[simp, local grind .]
 theorem ResetsValid_of_resetValid_setReset
     (resetsValid : aig.ResetsValid)
     (resetValid : newReset.validIn aig) :
-    (setIdx.setReset aig newReset setValid).ResetsValid := by
+    (setIdx.setReset aig newReset).ResetsValid := by
   grind
 
 @[simp]
@@ -438,119 +438,132 @@ theorem ResetsValid_setReset
     (resetsValid : aig.ResetsValid)
     (resetValid : newReset.var < setIdx.getVar aig setValid)
     (varValid : (setIdx.getVar aig setValid).validIn aig) :
-    (setIdx.setReset aig newReset setValid).ResetsValid := by
+    (setIdx.setReset aig newReset).ResetsValid := by
   grind
 
 @[simp]
 theorem NextsValid_setReset
     (nextsValid : aig.NextsValid) :
-    (setIdx.setReset aig newReset setValid).NextsValid := by
+    (setIdx.setReset aig newReset).NextsValid := by
   grind
 
 @[simp]
 theorem AcyclicGates_setReset
     (acyclicGates : aig.AcyclicGates) :
-    (setIdx.setReset aig newReset setValid).AcyclicGates := by
+    (setIdx.setReset aig newReset).AcyclicGates := by
   grind
 
 @[simp]
 theorem AcyclicResets_setReset
     (acyclicResets : aig.AcyclicResets)
     (resetValid : newReset.var < setIdx.getVar aig setValid) :
-    (setIdx.setReset aig newReset setValid).AcyclicResets := by
+    (setIdx.setReset aig newReset).AcyclicResets := by
   grind
 
-grind_pattern InputsValid_setReset    => (setIdx.setReset aig newReset setValid).InputsValid
-grind_pattern InputIdxsValid_setReset => (setIdx.setReset aig newReset setValid).InputIdxsValid
-grind_pattern LatchesValid_setReset   => (setIdx.setReset aig newReset setValid).LatchesValid
-grind_pattern LatchIdxsValid_setReset => (setIdx.setReset aig newReset setValid).LatchIdxsValid
-grind_pattern ResetsValid_setReset    => (setIdx.setReset aig newReset setValid).ResetsValid
-grind_pattern NextsValid_setReset     => (setIdx.setReset aig newReset setValid).NextsValid
-grind_pattern AcyclicGates_setReset   => (setIdx.setReset aig newReset setValid).AcyclicGates
-grind_pattern AcyclicResets_setReset  => (setIdx.setReset aig newReset setValid).AcyclicResets
+grind_pattern InputsValid_setReset    => (setIdx.setReset aig newReset).InputsValid
+grind_pattern InputIdxsValid_setReset => (setIdx.setReset aig newReset).InputIdxsValid
+grind_pattern LatchesValid_setReset   => (setIdx.setReset aig newReset).LatchesValid
+grind_pattern LatchIdxsValid_setReset => (setIdx.setReset aig newReset).LatchIdxsValid
+grind_pattern ResetsValid_setReset    => (setIdx.setReset aig newReset).ResetsValid
+grind_pattern NextsValid_setReset     => (setIdx.setReset aig newReset).NextsValid
+grind_pattern AcyclicGates_setReset   => (setIdx.setReset aig newReset).AcyclicGates
+grind_pattern AcyclicResets_setReset  => (setIdx.setReset aig newReset).AcyclicResets
 
 @[simp]
 theorem WellFormed_setReset
     (wellFormed : aig.WellFormed)
     (resetValid : newReset.var < setIdx.getVar aig setValid) :
-    (setIdx.setReset aig newReset setValid).WellFormed := by
+    (setIdx.setReset aig newReset).WellFormed := by
   grind
 
-grind_pattern WellFormed_setReset => (setIdx.setReset aig newReset setValid).WellFormed
+grind_pattern WellFormed_setReset => (setIdx.setReset aig newReset).WellFormed
 
 end setReset
 
 /-
-Aig.addInput Lemmas.
+Aig.addInput' Lemmas.
 -/
-section addInput
+section addInput'
+variable {idx : InputIdx}
+
+-- TODO: These/monotone assume the index isn't overlapping, but it would be good to still be able
+-- to reason about what happens even when that is broken
 
 @[simp]
-theorem InputsValid_addInput
-    (inputsValid : aig.InputsValid) :
-    aig.addInput.fst.InputsValid := by
+theorem InputsValid_addInput'
+    (inputsValid : aig.InputsValid)
+    (h : ¬idx.validIn aig) :
+    (aig.addInput' idx).InputsValid := by
   grind
 
 @[simp]
-theorem InputIdxsValid_addInput
-    (inputIdxsValid : aig.InputIdxsValid) :
-    aig.addInput.fst.InputIdxsValid := by
+theorem InputIdxsValid_addInput'
+    (inputIdxsValid : aig.InputIdxsValid)
+    (h : ¬idx.validIn aig) :
+    (aig.addInput' idx).InputIdxsValid := by
   grind
 
 @[simp]
-theorem LatchesValid_addInput
-    (latchesValid : aig.LatchesValid) :
-    aig.addInput.fst.LatchesValid := by
+theorem LatchesValid_addInput'
+    (latchesValid : aig.LatchesValid)
+    (h : ¬idx.validIn aig) :
+    (aig.addInput' idx).LatchesValid := by
   grind
 
 @[simp]
-theorem LatchIdxsValid_addInput
-    (latchIdxsValid : aig.LatchIdxsValid) :
-    aig.addInput.fst.LatchIdxsValid := by
+theorem LatchIdxsValid_addInput'
+    (latchIdxsValid : aig.LatchIdxsValid)
+    (h : ¬idx.validIn aig) :
+    (aig.addInput' idx).LatchIdxsValid := by
   grind
 
 @[simp]
-theorem ResetsValid_addInput
-    (resetsValid : aig.ResetsValid) :
-    aig.addInput.fst.ResetsValid := by
+theorem ResetsValid_addInput'
+    (resetsValid : aig.ResetsValid)
+    (h : ¬idx.validIn aig) :
+    (aig.addInput' idx).ResetsValid := by
   grind
 
 @[simp]
-theorem NextsValid_addInput
-    (nextsValid : aig.NextsValid) :
-    aig.addInput.fst.NextsValid := by
+theorem NextsValid_addInput'
+    (nextsValid : aig.NextsValid)
+    (h : ¬idx.validIn aig) :
+    (aig.addInput' idx).NextsValid := by
   grind
 
 @[simp]
-theorem AcyclicGates_addInput
-    (acyclicGates : aig.AcyclicGates) :
-    aig.addInput.fst.AcyclicGates := by
+theorem AcyclicGates_addInput'
+    (acyclicGates : aig.AcyclicGates)
+    (h : ¬idx.validIn aig) :
+    (aig.addInput' idx).AcyclicGates := by
   grind
 
 @[simp]
-theorem AcyclicResets_addInput
-    (acyclicResets : aig.AcyclicResets) :
-    aig.addInput.fst.AcyclicResets := by
+theorem AcyclicResets_addInput'
+    (acyclicResets : aig.AcyclicResets)
+    (h : ¬idx.validIn aig) :
+    (aig.addInput' idx).AcyclicResets := by
   grind
 
-grind_pattern InputsValid_addInput    => aig.addInput.fst.InputsValid
-grind_pattern InputIdxsValid_addInput => aig.addInput.fst.InputIdxsValid
-grind_pattern LatchesValid_addInput   => aig.addInput.fst.LatchesValid
-grind_pattern LatchIdxsValid_addInput => aig.addInput.fst.LatchIdxsValid
-grind_pattern ResetsValid_addInput    => aig.addInput.fst.ResetsValid
-grind_pattern NextsValid_addInput     => aig.addInput.fst.NextsValid
-grind_pattern AcyclicGates_addInput   => aig.addInput.fst.AcyclicGates
-grind_pattern AcyclicResets_addInput  => aig.addInput.fst.AcyclicResets
+grind_pattern InputsValid_addInput'    => (aig.addInput' idx).InputsValid
+grind_pattern InputIdxsValid_addInput' => (aig.addInput' idx).InputIdxsValid
+grind_pattern LatchesValid_addInput'   => (aig.addInput' idx).LatchesValid
+grind_pattern LatchIdxsValid_addInput' => (aig.addInput' idx).LatchIdxsValid
+grind_pattern ResetsValid_addInput'    => (aig.addInput' idx).ResetsValid
+grind_pattern NextsValid_addInput'     => (aig.addInput' idx).NextsValid
+grind_pattern AcyclicGates_addInput'   => (aig.addInput' idx).AcyclicGates
+grind_pattern AcyclicResets_addInput'  => (aig.addInput' idx).AcyclicResets
 
 @[simp]
-theorem WellFormed_addInput
-    (wellFormed : aig.WellFormed) :
-    aig.addInput.fst.WellFormed := by
+theorem WellFormed_addInput'
+    (wellFormed : aig.WellFormed)
+    (h : ¬idx.validIn aig) :
+    (aig.addInput' idx).WellFormed := by
   grind
 
-grind_pattern WellFormed_addInput => aig.addInput.fst.WellFormed
+grind_pattern WellFormed_addInput' => (aig.addInput' idx).WellFormed
 
-end addInput
+end addInput'
 
 /-
 Aig.addLatch Lemmas.

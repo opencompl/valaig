@@ -2,11 +2,11 @@ module
 
 public import Std.Data.HashMap.Basic
 public import Std.Data.HashMap.Iterator
+import Std.Data.HashMap.IteratorLemmas
 import Std.Data.HashMap.Lemmas
 
-namespace Valaig.Utils
-
 public section
+namespace Valaig.Utils
 
 /--
 `Pool α` is a memory pool data structure that allows storing, modifying, retrieving and freeing
@@ -65,13 +65,30 @@ private theorem getElem?_eq :
 instance : LawfulGetElem (Pool α) Nat α (fun pool idx => idx ∈ pool) where
   getElem?_def := by grind
 
+/--
+Returns the number of elements currently in the pool.
+-/
 @[inline, local simp, local grind]
 def size (pool : Pool α) : Nat :=
   pool.values.size
 
 /--
+Returns a new index that is not currently valid within the pool. This can be used with `insert`
+to manually construct a new element in the pool.
+-/
+def nextIdx (pool : Pool α) : Nat :=
+  pool.idx
+
+@[simp, grind .]
+theorem nextIdx_not_in :
+    pool.nextIdx ∉ pool := by
+  have := @pool.ltIdx
+  grind [nextIdx]
+
+/--
 Creates an empty pool with memory allocated for `capacity` elements.
 -/
+@[inline]
 def emptyWithCapacity (capacity : Nat := 8) : Pool α :=
   {
     idx := 0
@@ -92,6 +109,7 @@ theorem size_emptyWithCapacity {cap : Nat} :
 /--
 Creates an empty pool with no memory allocated for elements.
 -/
+@[inline]
 def empty : Pool α :=
   .emptyWithCapacity 0
 
@@ -148,6 +166,19 @@ theorem size_add :
   grind [add]
 
 /--
+Adds a new `Inhabited.default` element to the pool, returning the updated pool and a unique index
+for the new element.
+-/
+@[inline]
+def addD [Inhabited α] (pool : Pool α) : Pool α × Nat :=
+  pool.add Inhabited.default
+
+@[simp, grind =]
+theorem addD_eq [Inhabited α] :
+    pool.addD = pool.add Inhabited.default := by
+  rfl
+
+/--
 Removes an element from the pool by index. If there is no element allocated with that index, the
 pool is returned unchanged.
 -/
@@ -179,13 +210,56 @@ theorem size_remove :
   grind [remove]
 
 /--
+Inserts a new element at an index in the pool, growing the pool if needed. If the pool already
+contains an element at this index, it is overwritten.
+-/
+@[inline]
+def insert (pool : Pool α) (idx : Nat) (v : α) : Pool α :=
+  { idx := max pool.idx (idx + 1)
+    values := pool.values.insert idx v
+    ltIdx := by have := @pool.ltIdx; grind
+  }
+
+@[simp, grind =]
+theorem mem_insert_iff :
+    idx ∈ pool.insert idx' v ↔
+      idx ∈ pool ∨ idx = idx' := by
+  grind [insert]
+
+@[simp, grind =]
+theorem getElem_insert_self :
+    (pool.insert idx v)[idx]'(by grind) = v := by
+  grind [insert]
+
+@[simp]
+theorem getElem_insert (h : idx ∈ pool.insert idx' v) :
+    (pool.insert idx' v)[idx] =
+    if h : idx = idx' then
+      v
+    else
+      pool[idx]'(by grind) := by
+  grind [insert]
+
+grind_pattern getElem_insert => (pool.insert idx' v)[idx] where
+  idx =/= idx'
+
+@[simp, grind =]
+theorem size_insert :
+    (pool.insert idx v).size =
+    if idx ∈ pool then
+      pool.size
+    else
+      pool.size + 1 := by
+  grind [insert]
+
+/--
 Replaces the element at a given index in the pool. See also `set?`.
 -/
 @[inline]
 def set (pool : Pool α) (idx : Nat) (v : α) (h : idx ∈ pool := by get_elem_tactic) : Pool α :=
   { pool with
     values := pool.values.insert idx v
-    ltIdx := by have := @pool.ltIdx; grind [contains]
+    ltIdx := by have := @pool.ltIdx; grind
   }
 
 @[simp, grind =]
@@ -330,3 +404,51 @@ grind_pattern getElem_set? => (pool.set? idx' v)[idx]'(by grind) where
 theorem size_set? :
     (pool.set? idx v).size = pool.size := by
   grind [set?]
+
+@[simp←]
+theorem size_zero_iff_forall_not_in :
+    pool.size = 0 ↔ ∀ (idx : Nat), idx ∉ pool := by
+  rw [show pool.size = 0 ↔ pool.values.isEmpty by grind [Std.HashMap.isEmpty_eq_size_eq_zero]]
+  simp [Std.HashMap.isEmpty_iff_forall_contains]
+
+grind_pattern size_zero_iff_forall_not_in => (_ : Nat) ∈ pool, pool.size
+
+@[expose, reducible]
+def IterState (pool : Pool α) : Type :=
+  let getType {α β} (_ : @Std.Iter α β) := α
+  getType pool.values.keysIter
+
+/--
+Returns an iterator over the valid indices in the pool.
+-/
+@[inline]
+def iter (pool : Pool α) :=
+  pool.values.keysIter
+
+@[simp, grind =]
+theorem mem_iter_toList_iff_mem :
+    idx ∈ pool.iter.toList ↔ idx ∈ pool := by
+  simp [iter]
+
+@[simp, grind =]
+theorem length_iter_eq_size :
+    pool.iter.length = pool.size := by
+  simp [iter, ←Std.Iter.length_toList_eq_length]
+
+@[simp, grind =]
+theorem length_toList_iter :
+    pool.iter.toList.length = pool.size := by
+  simp
+
+@[simp, grind .]
+theorem nodup_toList_iter :
+    pool.iter.toList.Nodup := by
+  simp [iter, Std.HashMap.nodup_keys]
+
+theorem distinct_toList_iter {idx idx' : Nat} (h : idx < pool.size) (h' : idx' < pool.size)
+    (diff : idx ≠ idx') :
+      pool.iter.toList[idx]'(by grind) ≠ pool.iter.toList[idx']'(by grind) := by
+  grind [@nodup_toList_iter _ pool, List.pairwise_iff_getElem]
+
+grind_pattern distinct_toList_iter => pool.iter.toList[idx]'_, pool.iter.toList[idx']'_ where
+  idx =/= idx'

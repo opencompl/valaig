@@ -11,30 +11,46 @@ namespace resetAig
 
 @[always_inline]
 private def initLeaves (aig : Aig) : Aig :=
-  aig.numInputs.repeat (·.addInput.fst) .empty
+  aig.inputs.fold addInput' .empty
 
 @[simp, grind .]
 theorem Comb_initLeaves :
     (initLeaves aig).Comb := by
-  unfold initLeaves
-  induction aig.numInputs <;> grind [Nat.repeat]
+  simp only [initLeaves, ←Std.Iter.foldl_toList]
+  apply List.foldlRecOn <;> grind
 
 @[simp, grind .]
 theorem WellFormed_initLeaves :
     (initLeaves aig).WellFormed := by
-  unfold initLeaves
-  induction aig.numInputs <;> grind [Nat.repeat]
+  suffices h : ∀ (list : List InputIdx) (state : Aig),
+      state.WellFormed → list.Nodup → (∀ idx ∈ list, ¬idx.validIn state) →
+      (list.foldl addInput' state).WellFormed by
+    simp only [initLeaves, ←Std.Iter.foldl_toList]
+    grind
+  intro list state
+  induction h : list generalizing list state <;> grind
 
 @[simp, grind =]
 theorem numInputs_initLeaves :
-  (initLeaves aig).numInputs = aig.numInputs := by
-  unfold initLeaves
-  induction aig.numInputs <;> grind [Nat.repeat]
+    (initLeaves aig).numInputs = aig.numInputs := by
+  suffices h : ∀ (list : List InputIdx) (state : Aig),
+      list.Nodup → (∀ idx ∈ list, ¬idx.validIn state) →
+      (list.foldl addInput' state).numInputs = state.numInputs + list.length by
+    simp only [initLeaves, ←Std.Iter.foldl_toList]
+    grind [Std.Iter.length_toList_eq_length]
+  intro list state
+  induction h : list generalizing list state <;> grind
 
 @[simp, grind .]
 theorem input_validIn_initLeaves {idx : InputIdx} (valid : idx.validIn aig) :
-  idx.validIn (initLeaves aig) := by
-  grind [InputIdx.validIn_eq]
+    idx.validIn (initLeaves aig) := by
+  suffices h : ∀ (tail : List InputIdx) (state : Aig),
+      (∀ idx ∉ tail, idx.validIn aig → idx.validIn state) →
+      idx.validIn (tail.foldl addInput' state) by
+    simp only [initLeaves, ←Std.Iter.foldl_toList]
+    grind
+  intro list state
+  induction h : list generalizing list state <;> grind
 
 @[always_inline]
 def step (aig : Aig) (state : Aig) (map : Array Lit) (var : Var)
@@ -104,10 +120,10 @@ where
       (wf : state.WellFormed := by grind)
       (inputsValid : {idx : InputIdx} → idx.validIn aig → idx.validIn state := by grind)
       (valid : ∀ {lit},  lit ∈ map → lit.validIn state := by grind)
-      (size : it.val.idx = map.size := by grind) :=
+      (size : (aig.iterVal it).idx = map.size := by grind) :=
     match it.step with
     | .done _ =>
-      ⟨state, fun lit => lit.val.mapTo <| map[lit.val.var.idx]'(by grind [Var.validIn_eq])⟩
+      ⟨state, fun lit => lit.val.mapTo <| map[lit.val.var.idx]'(by grind [Var.validIn_iff])⟩
     | .yield it' var _ =>
       let (eq:=_) res := resetAig.step aig state map var
       go it' res.fst res.snd
@@ -116,7 +132,7 @@ where
 namespace resetAig
 variable {it : Std.Iter Var} {state : Aig} {map : Array Lit}
 variable {swf : state.WellFormed}
-variable {size : it.val.idx = map.size}
+variable {size : (aig.iterVal it).idx = map.size}
 
 def go.induction
     (motive : (Aig × (Lit.In aig -> Lit)) -> Prop)
@@ -126,14 +142,14 @@ def go.induction
       (swf : state.WellFormed) ->
       (inputsValid : {idx : InputIdx} → idx.validIn aig → idx.validIn state) ->
       (valid : ∀ {lit},  lit ∈ map → lit.validIn state) ->
-      (valid' : it.val.validIn aig) ->
-      (size : it.val.idx = map.size) ->
+      (valid' : (aig.iterVal it).validIn aig) ->
+      (size : (aig.iterVal it).idx = map.size) ->
       (h : motive (state, (go aig wf it state map).snd)) ->
-      motive ((step aig state map it.val).fst, (go aig wf it state map).snd)) :
+      motive ((step aig state map <| aig.iterVal it).fst, (go aig wf it state map).snd)) :
     let res := go aig wf it state map swf inputsValid valid size
     motive res := by
   fun_induction go
-  · grind
+  · grind only
   next ih =>
     apply ih
     clear ih
@@ -147,10 +163,10 @@ def induction
       (swf : state.WellFormed) ->
       (inputsValid : {idx : InputIdx} → idx.validIn aig → idx.validIn state) ->
       (valid : ∀ {lit},  lit ∈ map → lit.validIn state) ->
-      (valid' : it.val.validIn aig) ->
-      (size : it.val.idx = map.size) ->
+      (valid' : (aig.iterVal it).validIn aig) ->
+      (size : (aig.iterVal it).idx = map.size) ->
       (h : motive (state, (go aig wf it state map).snd)) ->
-      motive ((step aig state map it.val).fst, (go aig wf it state map).snd)) :
+      motive ((step aig state map <| aig.iterVal it).fst, (go aig wf it state map).snd)) :
     motive aig.resetAig := by
   apply go.induction motive <;> grind
 
@@ -225,5 +241,5 @@ end denote_resetAig
 @[simp, grind =]
 theorem denote_resetAig {assign} {lit : Lit.In aig} :
     aig.resetAig.fst.denote (aig.resetAig.snd lit) 0 assign =
-    aig.denote lit 0 assign := by
+    aig.denote lit 0 assign wf := by
   grind [resetAig, denote_go]

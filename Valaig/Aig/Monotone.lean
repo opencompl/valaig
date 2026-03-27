@@ -101,6 +101,14 @@ variable {aig : Aig}
 attribute [local simp] Var.validIn InputIdx.validIn LatchIdx.validIn
 
 @[simp]
+theorem mono_addInput' {idx : InputIdx} (h : ¬idx.validIn aig) :
+    aig ≤ aig.addInput' idx := by
+  constructor <;> simp_defs <;> grind_defs
+
+grind_pattern mono_addInput' => aig.addInput' idx where
+  idx =/= aig.addInput.snd
+
+@[simp]
 theorem mono_addInput :
     aig ≤ aig.addInput.fst := by
   constructor <;> simp_defs <;> grind_defs

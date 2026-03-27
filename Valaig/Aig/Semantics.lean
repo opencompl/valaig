@@ -49,8 +49,8 @@ theorem Comb_empty :
   simp
 
 @[simp, grind =]
-theorem Comb_addInput :
-    aig.addInput.fst.Comb ↔ aig.Comb := by
+theorem Comb_addInput' {idx : InputIdx} :
+    (aig.addInput' idx).Comb ↔ aig.Comb := by
   simp
 
 @[simp, grind =]
@@ -163,7 +163,7 @@ theorem denoteCombVar_eq_of_le (assign assign' : LeafIdx -> Bool)
   next ih =>
     simp only [WellFoundedRelation.rel] at ih
     unfold denoteCombVar
-    grind
+    split <;> grind (ematch := 10)
 
 @[simp]
 theorem denoteCombVar_mono {old new : Aig} {oldWf : old.WellFormed} {newWf : new.WellFormed}
@@ -204,9 +204,9 @@ private theorem denoteComb_eq_std_denote {assign : LeafIdx -> Bool} :
     case isFalse => grind
 
 @[simp, grind =]
-theorem denoteCombVar_addInput_self {wf : aig.addInput.fst.WellFormed} :
-    aig.addInput.fst.denoteCombVar (aig.addInput.snd.getVar aig.addInput.fst) assign wf =
-    assign aig.addInput.snd := by
+theorem denoteCombVar_addInput'_self {idx : InputIdx} {wf : (aig.addInput' idx).WellFormed} :
+    (aig.addInput' idx).denoteCombVar (idx.getVar (aig.addInput' idx)) assign wf =
+    assign idx := by
   grind
 
 @[simp, grind =]
@@ -433,9 +433,9 @@ grind_pattern denoteVar_mono => new.denoteVar var frame assign newWf, old ≤ ne
 end mono
 
 @[simp, grind =]
-theorem denoteVar_addInput_self (wf : aig.addInput.fst.WellFormed) :
-    aig.addInput.fst.denoteVar (aig.addInput.snd.getVar aig.addInput.fst) frame assign wf =
-    assign aig.addInput.snd frame := by
+theorem denoteVar_addInput'_self {idx : InputIdx} (wf : (aig.addInput' idx).WellFormed) :
+    (aig.addInput' idx).denoteVar (idx.getVar (aig.addInput' idx)) frame assign wf =
+    assign idx frame := by
   grind
 
 @[simp, grind =]

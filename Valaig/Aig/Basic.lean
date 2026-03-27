@@ -3,10 +3,10 @@ module
 public import Std.Sat.AIG.Basic
 public import Std.Sat.AIG.CachedGates
 public meta import Valaig.Prelude
+public import Valaig.Utils.Pool
 public import Valaig.Aig.StdSatLemmas
 public import Valaig.Aig.Refs
 public import Valaig.ForStd
-public import Valaig.Aig.Iter
 
 namespace Valaig.Aig
 
@@ -32,9 +32,6 @@ namespace Latch
 deriving instance Hashable, DecidableEq, Repr, Inhabited for Latch
 end Latch
 
-abbrev Inputs := Array Input
-abbrev Latches := Array Latch
-
 end Valaig.Aig
 
 -- Switch to public
@@ -42,8 +39,9 @@ public section
 namespace Valaig.Aig
 
 /--
-An index to an input definition in the Aig input array. These inputs are primary inputs (PIs).
+An index to an input definition in the Aig input pool. These inputs are primary inputs (PIs).
 -/
+@[ext, grind ext]
 structure InputIdx where
   ofIdx ::
     idx : Nat
@@ -55,8 +53,9 @@ instance : LawfulHashable InputIdx where hash_eq := by simp
 end InputIdx
 
 /--
-An index to a latch definition in the Aig latch array.
+An index to a latch definition in the Aig latch pool.
 -/
+@[ext, grind ext]
 structure LatchIdx where
   ofIdx ::
     idx : Nat
@@ -69,7 +68,7 @@ end LatchIdx
 
 /--
 A leaf in the combinational aig is either an input or a latch, which is just a reference back to
-the index in the inputs or latches arrays.
+the index in the inputs or latches pools.
 These are what abc calls Combinational Inputs (CIs).
 -/
 inductive LeafIdx where
@@ -120,10 +119,10 @@ structure Aig where
       aig.decls[idx] = .false ↔ idx = 0
 
   -- A mapping from input indices (LeafIdx.input idx) to their definition
-  private _inputs : Aig.Inputs
+  private _inputs : Utils.Pool Aig.Input
 
   -- A mapping from latch indices (LeafIdx.latch idx) to their definition
-  private _latches : Aig.Latches
+  private _latches : Utils.Pool Aig.Latch
 
 variable {aig : Aig}
 
@@ -151,8 +150,8 @@ def empty : Aig :=
   {
     aig := .empty,
     hconst := by grind [Std.Sat.AIG.empty]
-    _inputs := #[],
-    _latches := #[],
+    _inputs := .empty,
+    _latches := .empty,
   }
 
 /--
@@ -212,27 +211,27 @@ abbrev In (aig : Aig) := { var : Var // var.validIn aig }
 abbrev castIn (var : Var) (aig : Aig) (valid : var.validIn aig := by grind) : Var.In aig :=
   ⟨var, valid⟩
 
-private theorem validIn_eq_lt_decls_size {var : Var} :
+private theorem validIn_iff_lt_decls_size {var : Var} :
     var.validIn aig ↔ var.idx < aig.aig.decls.size := by
   grind [validIn, Aig.size]
 
-grind_pattern validIn_eq_lt_decls_size => var.idx ≥ aig.aig.decls.size
+grind_pattern validIn_iff_lt_decls_size => var.idx ≥ aig.aig.decls.size
 
 @[simp]
 private theorem lt_decls_size_of_validIn {var : Var} (valid : var.validIn aig) :
     var.idx < aig.aig.decls.size :=
-  validIn_eq_lt_decls_size.mp valid
+  validIn_iff_lt_decls_size.mp valid
 
-theorem validIn_eq {var : Var} :
+theorem validIn_iff {var : Var} :
     var.validIn aig ↔ var.idx < aig.size := by
   grind [validIn]
 
-grind_pattern validIn_eq => var.idx ≥ aig.size
+grind_pattern validIn_iff => var.idx ≥ aig.size
 
 @[simp]
 theorem lt_size_of_validIn {var : Var} (valid : var.validIn aig) :
     var.idx < aig.size :=
-  validIn_eq.mp valid
+  validIn_iff.mp valid
 
 end Var
 
@@ -341,18 +340,16 @@ namespace InputIdx
 
 @[local simp]
 def validIn (idx : InputIdx) (aig : Aig) : Prop :=
-  idx.idx < aig.numInputs
+  idx.idx ∈ aig._inputs
 
-theorem validIn_eq {idx : InputIdx} :
-    idx.validIn aig ↔ idx.idx < aig.numInputs := by
-  grind [validIn]
-
-grind_pattern validIn_eq => idx.idx ≥ aig.numInputs
+@[always_inline]
+def instDecidableValidIn.impl (idx : InputIdx) (aig : Aig) : Bool :=
+  idx.idx ∈ aig._inputs
 
 @[always_inline]
 instance {idx : InputIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
-  have : idx.validIn aig ↔ idx.idx < aig.numInputs := by
-    simp [validIn]
+  have : idx.validIn aig ↔ instDecidableValidIn.impl idx aig := by
+    simp [instDecidableValidIn.impl]
   decidable_of_iff' _ this
 
 abbrev In (aig : Aig) := { idx : InputIdx // idx.validIn aig }
@@ -378,18 +375,16 @@ namespace LatchIdx
 
 @[local simp]
 def validIn (idx : LatchIdx) (aig : Aig) : Prop :=
-  idx.idx < aig.numLatches
+  idx.idx ∈ aig._latches
 
-theorem validIn_eq {idx : LatchIdx} :
-    idx.validIn aig ↔ idx.idx < aig.numLatches := by
-  grind [validIn]
-
-grind_pattern validIn_eq => idx.idx ≥ aig.numLatches
+@[always_inline]
+def instDecidableValidIn.impl (idx : LatchIdx) (aig : Aig) : Bool :=
+  idx.idx ∈ aig._latches
 
 @[always_inline]
 instance {idx : LatchIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
-  have : idx.validIn aig ↔ idx.idx < aig.numLatches := by
-    simp [validIn]
+  have : idx.validIn aig ↔ instDecidableValidIn.impl idx aig := by
+    simp [instDecidableValidIn.impl]
   decidable_of_iff' _ this
 
 abbrev In (aig : Aig) := { idx : LatchIdx // idx.validIn aig }
@@ -411,36 +406,34 @@ def getNext (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) :
   aig._latches[idx.idx].next
 
 @[always_inline]
-def setNext (idx : LatchIdx) (aig : Aig) (next : Lit) (valid : idx.validIn aig := by grind) : Aig :=
-  { aig with _latches := aig._latches.modifyMem idx.idx (by simp_all [numLatches]) ({ ·.val with next }) }
+def setNext (idx : LatchIdx) (aig : Aig) (next : Lit) : Aig :=
+  { aig with _latches := aig._latches.modify idx.idx ({ · with next }) }
 
 @[always_inline]
 def getReset (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
   aig._latches[idx.idx].reset
 
 @[always_inline]
-def setReset (idx : LatchIdx) (aig : Aig) (reset : Lit) (valid : idx.validIn aig := by grind) : Aig :=
-  { aig with _latches := aig._latches.modifyMem idx.idx (by simp_all [numLatches]) ({ ·.val with reset }) }
+def setReset (idx : LatchIdx) (aig : Aig) (reset : Lit) : Aig :=
+  { aig with _latches := aig._latches.modify idx.idx ({ · with reset }) }
 
 end LatchIdx
 
 theorem numInputs_zero_iff_not_validIn :
     aig.numInputs = 0 ↔ ∀ (idx : InputIdx), ¬idx.validIn aig := by
-  simp [InputIdx.validIn]
+  simp [InputIdx.validIn, numInputs, Utils.Pool.size_zero_iff_forall_not_in]
   constructor
   · grind
   · intro h
-    have := h (.ofIdx 0)
-    grind
+    grind [h (.ofIdx _)]
 
 theorem numLatches_zero_iff_not_validIn :
     aig.numLatches = 0 ↔ ∀ (idx : LatchIdx), ¬idx.validIn aig := by
-  simp [LatchIdx.validIn]
+  simp [LatchIdx.validIn, numLatches, Utils.Pool.size_zero_iff_forall_not_in]
   constructor
   · grind
   · intro h
-    have := h (.ofIdx 0)
-    grind
+    grind [h (.ofIdx _)]
 
 /-
 Arbitrary index validity and accessors, defined as abbreviations
@@ -485,12 +478,12 @@ grind_pattern validIn_iff => idx.validIn aig where
   idx =/= .input _
   idx =/= .latch _
 
-@[simp, grind =]
+@[grind =]
 theorem validIn_input {idx : InputIdx} :
     (input idx).validIn aig ↔ idx.validIn aig := by
   grind [validIn]
 
-@[simp, grind =]
+@[grind =]
 theorem validIn_latch {idx : LatchIdx} :
     (latch idx).validIn aig ↔ idx.validIn aig := by
   grind [validIn]
@@ -556,33 +549,70 @@ def getLit (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : L
 
 end LeafIdx
 
-/-
-Node constructors. There is no constant node constructor as the constant node always exists, so constant
-literals can be constructed with `Lit.true`/`Lit.false`.
--/
+/--
+Appends an input to the Aig with the given index. This is normally of use when this index is
+provably not in the Aig (for example when the Aig is empty) and it already carries meaning in
+another Aig.
 
+If another input is already registered for this index, this will overwrite it which can break
+well-formedness.
+-/
+@[inline]
+def addInput' (aig : Aig) (idx : InputIdx) : Aig :=
+  -- Construct an atom pointing to this index
+  let res := aig.aig.mkAtom <| .input idx
+
+  -- Build input metadata pointing to this new atom and update the index in the pool to this
+  let _inputs := aig._inputs.insert idx.idx { var := .ofRef res.ref }
+
+  have hconst := by grind [aig.aig.hzero, aig.hconst, Std.mkAtom_eq_decls_push]
+  { aig with aig := res.aig, hconst, _inputs }
+
+/--
+Appends an input with a fresh index to the Aig, returning the index of the input.
+-/
 @[inline]
 def addInput (aig : Aig) : Aig × InputIdx :=
-  let idx := .ofIdx aig._inputs.size
-  let res := aig.aig.mkAtom <| .input idx
-  let input := { var := .ofRef res.ref }
-  let _inputs := aig._inputs.push input
-  have hconst := by grind [aig.aig.hzero, aig.hconst, Std.mkAtom_eq_decls_push]
-  let aig := { aig with aig := res.aig, hconst, _inputs }
-  (aig, idx)
+  -- Add a new input at the next free index, and return the index
+  let idx := .ofIdx aig._inputs.nextIdx
+  (aig.addInput' idx, idx)
 
+theorem addInput_eq :
+    aig.addInput = (aig.addInput' (aig.addInput.snd), aig.addInput.snd) := by
+  simp [addInput, addInput']
+
+@[simp, grind =]
+theorem addInput_fst_eq :
+    aig.addInput.fst = aig.addInput' (aig.addInput.snd) := by
+  rw [addInput_eq]
+
+/--
+Appends a latch with a fresh index to the Aig, returning the index of the input. The next and
+reset values are set appropriately. If they are not available yet at construction time, they
+should be set to placeholders (like `Lit.false`) and updated later with `setNext`/`setReset`.
+-/
 @[inline]
 def addLatch (aig : Aig) (next reset : Lit) : Aig × LatchIdx :=
-  let idx := .ofIdx aig._latches.size
-  let res := aig.aig.mkAtom <| .latch idx
-  let latch := { var := .ofRef res.ref, next, reset }
-  let _latches := aig._latches.push latch
-  have hconst := by grind [aig.aig.hzero, aig.hconst, Std.mkAtom_eq_decls_push]
-  let aig := { aig with aig := res.aig, hconst, _latches }
-  (aig, idx)
+  -- Allocate a new latch index
+  let (eq:=_) (_latches, idxNat) := aig._latches.addD
+  let idx := .ofIdx idxNat
 
--- TODO: Currently this requires proofs that rhs0/rhs1 are valid in the aig, but after switching to
--- buffed (and getting rid of dependent typing) this won't be needed anymore
+  -- Construct an atom pointing to this index
+  let res := aig.aig.mkAtom <| .latch idx
+
+  -- Build latch metadata pointing to this new atom and update the index in the pool to this
+  let latch := { var := .ofRef res.ref, next, reset }
+  let _latches := _latches.set idxNat latch
+
+  have hconst := by grind [aig.aig.hzero, aig.hconst, Std.mkAtom_eq_decls_push]
+  ({ aig with aig := res.aig, hconst, _latches }, idx)
+
+/--
+Appends a new and gate to the Aig, applying structural hashing to exploit reuse.
+
+TODO: Currently this requires proofs that rhs0/rhs1 are valid in the aig, but after switching to
+buffed (and getting rid of dependent typing) this won't be needed anymore
+-/
 @[inline]
 def addAnd (aig : Aig) (rhs0 rhs1 : Lit)
     (valid0 : rhs0.validIn aig := by grind) (valid1 : rhs1.validIn aig := by grind) : Aig × Lit :=
@@ -595,59 +625,16 @@ def addAnd (aig : Aig) (rhs0 rhs1 : Lit)
   (aig, .ofRef res.ref)
 
 /-
-Iterator definitions.
--/
-
-abbrev VarIter (aig : Aig) :=
-  Iter (· + 1) (·.validIn aig) Var.idx Var.ofIdx aig.size
-
-instance : Iter.Lawful (· + 1) (·.validIn aig) Var.idx Var.ofIdx aig.size where
-  max := by grind
-
-/--
-A forward iterator over variables in the Aig.
--/
-@[inline]
-abbrev iter (aig : Aig) : @Std.Iter aig.VarIter Var :=
-  ⟨.init⟩
-
-abbrev InputIter (aig : Aig) :=
-  Iter (.ofIdx <| ·.idx + 1) (·.validIn aig) InputIdx.idx InputIdx.ofIdx aig.numInputs
-
-instance : Iter.Lawful (.ofIdx <| ·.idx + 1) (·.validIn aig) InputIdx.idx InputIdx.ofIdx aig.numInputs where
-  max := by grind [InputIdx.validIn]
-
-/--
-A forward iterator over inputs in the Aig.
--/
-@[inline]
-abbrev inputs (aig : Aig) : @Std.Iter aig.InputIter InputIdx :=
-  ⟨.init⟩
-
-abbrev LatchIter (aig : Aig) :=
-  Iter (.ofIdx <| ·.idx + 1) (·.validIn aig) LatchIdx.idx LatchIdx.ofIdx aig.numLatches
-
-instance : Iter.Lawful (.ofIdx <| ·.idx + 1) (·.validIn aig) LatchIdx.idx LatchIdx.ofIdx aig.numLatches where
-  max := by grind [LatchIdx.validIn]
-
-/--
-A forward iterator over latches in the Aig.
--/
-@[inline]
-abbrev latches (aig : Aig) : @Std.Iter aig.LatchIter LatchIdx :=
-  ⟨.init⟩
-
-/-
 Setup get/set definitions for use locally as grind/simp rules, with grind_def/
 simp_def tactics to make use of them.
 -/
 attribute [simp_valaig_defs, grind_valaig_defs]
-  Aig.get Aig.instGetElemVar Aig.size Aig.numLatches Aig.numInputs
+  Aig.get Aig.instGetElemVar Aig.size
   Aig.empty
   InputIdx.getVar
   LatchIdx.getVar LatchIdx.getNext LatchIdx.getReset
   LatchIdx.setNext LatchIdx.setReset
-  Aig.addInput Aig.addLatch Aig.addAnd
+  Aig.addInput Aig.addInput' Aig.addLatch Aig.addAnd
 
 attribute [grind_valaig_defs] InputIdx LatchIdx
 attribute [simp_valaig_defs] Var.ext_idx

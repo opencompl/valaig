@@ -67,7 +67,10 @@ private def addGate (s : State aig) (rhs0 rhs1 : Fanin)
   rlet (aig, lhs) := s.aig.addAnd rhs0 rhs1
   let map := s.map.push lhs
 
-  have hmap := by grind
+  have hmap := by
+    simp_all only [Array.mem_push, Lit.validIn]
+    intro x h
+    cases h <;> grind
   have hlatch := by grind
   have hatom := by grind
   have hwf := by grind

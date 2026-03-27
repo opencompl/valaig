@@ -154,7 +154,7 @@ theorem toList_eq_toList_inner [Std.Iterators.Finite α Id] {it : @Std.Iter (Det
   induction it using Std.Iter.inductSteps
   grind [Std.Iter.toList_eq_match_step]
 
-@[expose, reducible]
+@[expose]
 def instMemToList : Membership β (@Std.Iter α β) where
   mem it out := out ∈ it.toList
 
