@@ -26,7 +26,7 @@ The metadata of a latch in the Aig.
 structure Latch where
   var : Var
   next : Lit
-  reset : Lit
+  reset : Option Lit
 
 namespace Latch
 deriving instance Hashable, DecidableEq, Repr, Inhabited for Latch
@@ -410,11 +410,11 @@ def setNext (idx : LatchIdx) (aig : Aig) (next : Lit) : Aig :=
   { aig with _latches := aig._latches.modify idx.idx ({ · with next }) }
 
 @[always_inline]
-def getReset (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
+def getReset (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Option Lit :=
   aig._latches[idx.idx].reset
 
 @[always_inline]
-def setReset (idx : LatchIdx) (aig : Aig) (reset : Lit) : Aig :=
+def setReset (idx : LatchIdx) (aig : Aig) (reset : Option Lit) : Aig :=
   { aig with _latches := aig._latches.modify idx.idx ({ · with reset }) }
 
 end LatchIdx
@@ -579,7 +579,7 @@ def addInput (aig : Aig) : Aig × InputIdx :=
 
 theorem addInput_eq :
     aig.addInput = (aig.addInput' (aig.addInput.snd), aig.addInput.snd) := by
-  simp [addInput, addInput']
+  simp [addInput]
 
 @[simp, grind =]
 theorem addInput_fst_eq :
@@ -587,25 +587,45 @@ theorem addInput_fst_eq :
   rw [addInput_eq]
 
 /--
-Appends a latch with a fresh index to the Aig, returning the index of the input. The next and
-reset values are set appropriately. If they are not available yet at construction time, they
-should be set to placeholders (like `Lit.false`) and updated later with `setNext`/`setReset`.
+Appends an latch to the Aig with the given index. This is normally of use when this index is
+provably not in the Aig (for example when the Aig is empty) and it already carries meaning in
+another Aig.
+
+If another latch is already registered for this index, this will overwrite it which can break
+well-formedness.
 -/
 @[inline]
-def addLatch (aig : Aig) (next reset : Lit) : Aig × LatchIdx :=
-  -- Allocate a new latch index
-  let (eq:=_) (_latches, idxNat) := aig._latches.addD
-  let idx := .ofIdx idxNat
-
+def addLatch' (aig : Aig) (idx : LatchIdx) (next : Lit) (reset : Option Lit) : Aig :=
   -- Construct an atom pointing to this index
   let res := aig.aig.mkAtom <| .latch idx
 
   -- Build latch metadata pointing to this new atom and update the index in the pool to this
   let latch := { var := .ofRef res.ref, next, reset }
-  let _latches := _latches.set idxNat latch
+  let _latches := aig._latches.insert idx.idx latch
 
   have hconst := by grind [aig.aig.hzero, aig.hconst, Std.mkAtom_eq_decls_push]
-  ({ aig with aig := res.aig, hconst, _latches }, idx)
+  { aig with aig := res.aig, hconst, _latches }
+
+/--
+Appends a latch with a fresh index to the Aig, returning the index of the input. The next and
+reset values are set appropriately. If they are not available yet at construction time, they
+should be set to placeholders (like `Lit.false`) and updated later with `setNext`/`setReset`.
+-/
+@[inline]
+def addLatch (aig : Aig) (next : Lit) (reset : Option Lit) : Aig × LatchIdx :=
+  -- Add a new latch at the next free index, and return the index
+  let idx := .ofIdx aig._latches.nextIdx
+  (aig.addLatch' idx next reset, idx)
+
+theorem addLatch_eq {next : Lit} {reset : Option Lit} :
+    aig.addLatch next reset =
+    (aig.addLatch' (aig.addLatch next reset |>.snd) next reset, aig.addLatch next reset |>.snd) := by
+  simp [addLatch]
+
+@[simp, grind =]
+theorem addLatch_fst_eq {next : Lit} {reset : Option Lit} :
+    (aig.addLatch next reset).fst = aig.addLatch' (aig.addLatch next reset |>.snd) next reset := by
+  rw [addLatch_eq]
 
 /--
 Appends a new and gate to the Aig, applying structural hashing to exploit reuse.
@@ -634,7 +654,9 @@ attribute [simp_valaig_defs, grind_valaig_defs]
   InputIdx.getVar
   LatchIdx.getVar LatchIdx.getNext LatchIdx.getReset
   LatchIdx.setNext LatchIdx.setReset
-  Aig.addInput Aig.addInput' Aig.addLatch Aig.addAnd
+  Aig.addInput Aig.addInput'
+  Aig.addLatch Aig.addLatch'
+  Aig.addAnd
 
 attribute [grind_valaig_defs] InputIdx LatchIdx
 attribute [simp_valaig_defs] Var.ext_idx

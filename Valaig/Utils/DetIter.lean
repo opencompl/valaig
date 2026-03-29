@@ -164,7 +164,7 @@ theorem instMemToList_iff {it : @Std.Iter α β} {out : β} :
   rfl
 
 @[always_inline]
-instance instForIn' [Monad n] [Std.Iterators.Finite α Id] :
+instance instForIn' {n : Type _ -> Type _} [Monad n] [Std.Iterators.Finite α Id] :
     ForIn' n (@Std.Iter α β) β instMemToList where
   forIn' it init f :=
     Std.IteratorLoop.finiteForIn' (fun _ _ f c => f c.run)

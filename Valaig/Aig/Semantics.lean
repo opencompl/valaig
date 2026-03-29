@@ -15,49 +15,6 @@ An timeframe (step) index of the model.
 -/
 abbrev Frame := Nat
 
-/--
-A combinational Aig has no latches.
--/
-def Comb (aig : Aig) :=
-  aig.numLatches = 0
-
-@[local simp]
-theorem Comb_def :
-    aig.Comb ↔ aig.numLatches = 0 := by
-  rfl
-
-grind_pattern Comb_def => aig.Comb, aig.numLatches
-
-theorem Comb_iff_latch_not_validIn :
-    aig.Comb ↔ ∀ {latch : LatchIdx}, ¬latch.validIn aig := by
-  simp [numLatches_zero_iff_not_validIn]
-
-@[simp]
-theorem latch_not_validIn_of_Comb (comb : aig.Comb) (latch : LatchIdx) :
-    ¬latch.validIn aig :=
-  Comb_iff_latch_not_validIn.mp comb
-
-grind_pattern latch_not_validIn_of_Comb => aig.Comb, latch.validIn aig
-
-/-
-Adding just inputs/gates doesn't change that the aig is combinational
--/
-
-@[simp, grind .]
-theorem Comb_empty :
-    Aig.empty.Comb := by
-  simp
-
-@[simp, grind =]
-theorem Comb_addInput' {idx : InputIdx} :
-    (aig.addInput' idx).Comb ↔ aig.Comb := by
-  simp
-
-@[simp, grind =]
-theorem Comb_addAnd {rhs0 rhs1 : Lit} {h0 : rhs0.validIn aig} {h1 : rhs1.validIn aig} :
-    (aig.addAnd rhs0 rhs1 h0 h1).fst.Comb ↔ aig.Comb := by
-  simp
-
 variable {var : Var} {lit : Lit} {frame : Frame}
 variable {valid : var.validIn aig} {litValid : lit.validIn aig} {wf : aig.WellFormed}
 
@@ -210,10 +167,11 @@ theorem denoteCombVar_addInput'_self {idx : InputIdx} {wf : (aig.addInput' idx).
   grind
 
 @[simp, grind =]
-theorem denoteCombVar_addLatch_self {next reset : Lit} (wf : (aig.addLatch next reset).fst.WellFormed) :
-    (aig.addLatch next reset).fst.denoteCombVar
-      ((aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst) assign wf =
-    assign (aig.addLatch next reset).snd := by
+theorem denoteCombVar_addLatch'_self {idx : LatchIdx} {next : Lit} {reset : Option Lit}
+    (wf : (aig.addLatch' idx next reset).WellFormed) :
+    (aig.addLatch' idx next reset).denoteCombVar
+      (idx.getVar (aig.addLatch' idx next reset)) assign wf =
+    assign idx := by
   grind
 
 @[simp, grind =]
@@ -237,7 +195,7 @@ mutual
 Denotation of the sequential semantics of the Aig in each timeframe, taking a function to assign
 values to the inputs in each frame.
 -/
-def denoteVar (aig : Aig) (var : Var) (frame : Frame) (assign : InputIdx -> Frame -> Bool)
+def denoteVar (aig : Aig) (var : Var) (frame : Frame) (assign : LeafIdx -> Frame -> Bool)
       (wf : aig.WellFormed := by grind) : Bool :=
     match _ : aig[var]? with
     | none
@@ -245,18 +203,42 @@ def denoteVar (aig : Aig) (var : Var) (frame : Frame) (assign : InputIdx -> Fram
     | some (.input idx)     => assign idx frame
     | some (.latch idx)     =>
       match frame with
-      | 0                   => aig.denote (idx.getReset aig) 0 assign
-      | n + 1               => aig.denote (idx.getNext aig)  n assign
+      | 0                   =>
+        match _ : idx.getReset aig with
+        | none              => assign idx frame
+        | some reset        => aig.denote reset 0 assign
+      | n + 1               => aig.denote (idx.getNext aig) n assign
     | some (.and rhs0 rhs1) => aig.denote rhs0 frame assign && aig.denote rhs1 frame assign
   termination_by (frame, var, 0)
   decreasing_by all_goals grind
 
-def denote (aig : Aig) (lit : Lit) (frame : Frame) (assign : InputIdx -> Frame -> Bool)
+def denote (aig : Aig) (lit : Lit) (frame : Frame) (assign : LeafIdx -> Frame -> Bool)
     (wf : aig.WellFormed := by grind) : Bool :=
   lit.inverted ^^ aig.denoteVar lit.var frame assign
   termination_by (frame, lit.var, 1)
 
 end -- mutual
+
+def denoteResetVar (aig : Aig) (var : Var) (assign : LeafIdx -> Bool) (wf : aig.WellFormed := by grind) : Bool :=
+  aig.denoteVar var 0 (fun idx _ => assign idx) wf
+
+@[simp, grind =]
+theorem denoteResetVar_eq {var : Var} {assign wf} :
+    aig.denoteResetVar var assign wf = aig.denoteVar var 0 (fun idx _ => assign idx) wf := by
+  rfl
+
+def denoteReset (aig : Aig) (lit : Lit) (assign : LeafIdx -> Bool) (wf : aig.WellFormed := by grind) : Bool :=
+  aig.denote lit 0 (fun idx _ => assign idx) wf
+
+@[simp, grind =]
+theorem denoteReset_eq {lit : Lit} {assign wf} :
+    aig.denoteReset lit assign wf = aig.denote lit 0 (fun idx _ => assign idx) wf := by
+  rfl
+
+theorem denoteReset_eq_denoteResetVar {lit : Lit} {assign wf} :
+    aig.denoteReset lit assign wf = (lit.inverted ^^ aig.denoteResetVar lit.var assign wf) := by
+  simp [denote]
+
 
 /--
 To allow reasoning about different possible interpretations of the leaves of the Aig (e.g. when
@@ -268,7 +250,7 @@ defining sequential computation, allowing an external semantics to be shown equi
 equivalence to this.
 -/
 @[expose]
-def assignSeq (aig : Aig) (frame : Frame) (assign : InputIdx -> Frame -> Bool) (wf : aig.WellFormed := by grind) :
+def assignSeq (aig : Aig) (frame : Frame) (assign : LeafIdx -> Frame -> Bool) (wf : aig.WellFormed := by grind) :
     LeafIdx -> Bool :=
   fun idx =>
     match _ : idx with
@@ -276,13 +258,16 @@ def assignSeq (aig : Aig) (frame : Frame) (assign : InputIdx -> Frame -> Bool) (
     | .latch idx =>
       if h : idx.validIn aig then
         match frame with
-        | 0      => aig.denote (idx.getReset aig) 0 assign
-        | n + 1  => aig.denote (idx.getNext aig)  n assign
+        | 0 =>
+          match idx.getReset aig with
+          | none       => assign idx 0
+          | some reset => aig.denote reset 0 assign
+        | n + 1        => aig.denote (idx.getNext aig)  n assign
       else
         false
 
 section denote
-variable {assign : InputIdx -> Frame -> Bool}
+variable {assign : LeafIdx -> Frame -> Bool}
 
 @[simp, grind =]
 theorem assignSeq_input (idx : InputIdx) :
@@ -293,8 +278,11 @@ theorem assignSeq_input (idx : InputIdx) :
 theorem assignSeq_latch {idx : LatchIdx} (valid : idx.validIn aig) :
     (aig.assignSeq frame assign wf) idx =
     match frame with
-    | 0 => aig.denote (idx.getReset aig) 0 assign
-    | n + 1 => aig.denote (idx.getNext aig) n assign := by
+    | 0 =>
+      match idx.getReset aig with
+      | none       => assign idx 0
+      | some reset => aig.denote reset 0 assign
+    | n + 1        => aig.denote (idx.getNext aig) n assign := by
   simp [assignSeq, valid]
 
 @[simp, grind =]
@@ -363,19 +351,25 @@ theorem denoteVar_input_getVar {idx : InputIdx} (valid : idx.validIn aig) :
 theorem denoteVar_get_latch {idx : LatchIdx} (h : aig.get var valid = .latch idx) :
     aig.denoteVar var frame assign wf =
     match frame with
-    | 0 => aig.denote (idx.getReset aig) 0 assign wf
+    | 0 =>
+      match idx.getReset aig with
+      | none       => assign idx 0
+      | some reset => aig.denote reset 0 assign wf
     | n + 1 => aig.denote (idx.getNext aig) n assign wf := by
   grind
 
 grind_pattern denoteVar_get_latch => aig.get var, Node.latch idx, aig.denoteVar var frame assign wf where
   var =/= idx.getVar aig
-  idx =/= ((_ : Aig).addLatch _ _).snd
+  idx =/= ((_ : Aig).addLatch' _ _ _)
 
 @[simp, grind =]
 theorem denoteVar_latch_getVar {idx : LatchIdx} (valid : idx.validIn aig) :
     aig.denoteVar (idx.getVar aig valid) frame assign wf =
     match frame with
-    | 0 => aig.denote (idx.getReset aig) 0 assign wf
+    | 0 =>
+      match idx.getReset aig with
+      | none       => assign idx 0
+      | some reset => aig.denote reset 0 assign wf
     | n + 1 => aig.denote (idx.getNext aig) n assign wf := by
   grind
 
@@ -387,8 +381,8 @@ theorem denoteVar_get_and {rhs0 rhs1 : Lit} (h : aig.get var valid = .and rhs0 r
 
 grind_pattern denoteVar_get_and => aig.get var, Node.and rhs0 rhs1, aig.denoteVar var frame assign wf
 
-theorem denoteVar_eq_of_le (assign assign' : InputIdx -> Frame -> Bool)
-    (h : {idx : InputIdx} -> (valid : idx.validIn aig) -> {frame' : Frame} ->
+theorem denoteVar_eq_of_le (assign assign' : LeafIdx -> Frame -> Bool)
+    (h : {idx : LeafIdx} -> (valid : idx.validIn aig) -> {frame' : Frame} ->
       frame' < frame ∨ (frame' = frame ∧ idx.getVar aig valid ≤ var) ->
       assign' idx frame' = assign idx frame') :
     aig.denoteVar var frame assign' wf = aig.denoteVar var frame assign wf := by
@@ -400,7 +394,9 @@ theorem denoteVar_eq_of_le (assign assign' : InputIdx -> Frame -> Bool)
     apply denoteCombVar_eq_of_le
     case h =>
       unfold assignSeq
-      cases frame <;> grind
+      cases frame
+      · grind (splits := 15)
+      · grind
     all_goals trivial
 
 section mono
@@ -418,8 +414,12 @@ theorem assignSeq_mono {idx : LeafIdx} (valid : idx.validIn old) :
     cases idx with
     | input _ => clear ih; grind only
     | latch idx =>
-      have : (idx.getReset old).var < idx.getVar old := by clear ih; grind
-      cases frame <;> grind [denoteCombVar_eq_of_le]
+      cases h : idx.getReset old with
+      | none =>
+        cases frame <;> grind [denoteCombVar_eq_of_le]
+      | some reset =>
+        have : reset.var < idx.getVar old := by clear ih; grind
+        cases frame <;> grind [denoteCombVar_eq_of_le]
 
 grind_pattern assignSeq_mono => (new.assignSeq frame assign newWf) idx, old ≤ new
 
@@ -438,14 +438,48 @@ theorem denoteVar_addInput'_self {idx : InputIdx} (wf : (aig.addInput' idx).Well
     assign idx frame := by
   grind
 
-@[simp, grind =]
-theorem denoteVar_addLatch_self {next reset : Lit} (nextValid : next.validIn aig) (resetValid : reset.validIn aig)
-    (wf' : (aig.addLatch next reset).fst.WellFormed) :
-    (aig.addLatch next reset).fst.denoteVar ((aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst) frame assign wf' =
+section addLatch'
+variable {idx : LatchIdx} {next : Lit} {reset : Option Lit}
+
+@[simp]
+theorem denoteVar_addLatch'_self_none (nextValid : next.validIn aig) (h : ¬idx.validIn aig) :
+    let res := aig.addLatch' idx next none
+    res.denoteVar (idx.getVar res) frame assign =
+    match frame with
+    | 0 => assign idx 0
+    | n + 1 => aig.denote next n assign wf := by
+  grind
+
+@[simp]
+theorem denoteVar_addLatch'_self_some {reset : Lit} (nextValid : next.validIn aig)
+    (resetValid : reset.validIn aig) (h : ¬idx.validIn aig) :
+    let res := aig.addLatch' idx next <| some reset
+    res.denoteVar (idx.getVar res) frame assign =
     match frame with
     | 0 => aig.denote reset 0 assign wf
     | n + 1 => aig.denote next n assign wf := by
   grind
+
+theorem denoteVar_addLatch'_self (nextValid : next.validIn aig)
+    (resetValid :
+      match reset with
+      | none => True
+      | some lit => lit.validIn aig)
+    (h : ¬idx.validIn aig) :
+    let res := aig.addLatch' idx next reset
+    res.denoteVar (idx.getVar res) frame assign =
+    match frame with
+    | 0 =>
+      match reset with
+      | none => assign idx 0
+      | some lit => aig.denote lit 0 assign wf
+    | n + 1 => aig.denote next n assign wf := by
+  grind [denoteVar_addLatch'_self_none, denoteVar_addLatch'_self_some]
+
+grind_pattern denoteVar_addLatch'_self =>
+  (aig.addLatch' idx next reset).denoteVar (idx.getVar (aig.addLatch' idx next reset)) frame assign
+
+end addLatch'
 
 @[simp, grind =]
 theorem denote_addAnd_self {rhs0 rhs1 : Lit} (h0 : rhs0.validIn aig) (h1 : rhs1.validIn aig)
@@ -453,24 +487,6 @@ theorem denote_addAnd_self {rhs0 rhs1 : Lit} (h0 : rhs0.validIn aig) (h1 : rhs1.
     (aig.addAnd rhs0 rhs1 h0 h1).fst.denote (aig.addAnd rhs0 rhs1 h0 h1).snd frame assign wf' =
     (aig.denote rhs0 frame assign wf && aig.denote rhs1 frame assign wf) := by
   grind [denote_eq_denoteComb, denoteCombVar_mono, denoteCombVar_eq_of_le]
-
-theorem denoteCombVar_eq_denoteVar_of_Comb' {assign : LeafIdx -> Bool} (frame : Frame) (comb : aig.Comb) :
-    aig.denoteCombVar var assign wf =
-    aig.denoteVar var frame (fun idx _ => assign idx) wf := by
-  grind [denoteCombVar_eq_of_le]
-
-theorem denoteCombVar_eq_denoteVar_of_Comb {assign : LeafIdx -> Bool} (comb : aig.Comb) :
-    aig.denoteCombVar var assign wf =
-    aig.denoteVar var 0 (fun idx _ => assign idx) wf :=
-  denoteCombVar_eq_denoteVar_of_Comb' 0 comb
-
-theorem denoteVar_eq_denoteComb_of_Comb {assign : InputIdx -> Frame -> Bool} (frame : Frame) (comb : aig.Comb) :
-    aig.denoteVar var frame assign wf =
-    aig.denoteCombVar var (fun idx =>
-      match idx with
-      | .input idx => assign idx frame
-      | .latch _ => false) wf := by
-  grind [denoteCombVar_eq_of_le]
 
 end denote
 
@@ -498,7 +514,7 @@ def Unreachable (aig : Aig) (lit : Lit) (wf : aig.WellFormed := by grind) :=
   ∀ {frame assign},
     aig.denote lit frame assign wf = false
 
-def Unreachable_of_induction
+theorem Unreachable_of_induction
     (init : ∀ {assign}, aig.denote lit 0 assign wf = false)
     (trans : ∀ {frame assign}, aig.denote lit frame assign wf = false → aig.denote lit (frame + 1) assign wf = false) :
     aig.Unreachable lit wf := by

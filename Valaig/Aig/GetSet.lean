@@ -24,16 +24,11 @@ and the following modifiers:
 - LatchIdx.setReset
 - Aig.addInput'
 - Aig.addInput
+- Aig.addLatch'
 - Aig.addLatch
 - Aig.addAnd
 
 TODO: macro generate these
-
-We include the (by grind) arguments throughout because lean's elaboration seems
-to be significantly slower otherwise (for unclear reasons).
-
-TODO: only use get/sets for the bodies of theorems, and use existing validity
-theorems for proving arguments valid.
 -/
 
 local macro "simp_grind" : tactic => `(tactic| ((try simp_defs) <;> grind_defs))
@@ -98,28 +93,28 @@ theorem numLatches_setNext :
 
 @[simp, grind =]
 theorem get_setNext {var : Var} (valid : var.validIn aig) :
-    (setIdx.setNext aig newNext).get var (by grind) = aig.get var valid := by
+    (setIdx.setNext aig newNext).get var = aig.get var valid := by
   simp_grind
 
 @[simp, grind =]
 theorem input_getVar_setNext {idx : InputIdx} (valid : idx.validIn aig) :
-    idx.getVar (setIdx.setNext aig newNext) (by grind) = idx.getVar aig valid := by
+    idx.getVar (setIdx.setNext aig newNext) = idx.getVar aig valid := by
   simp_grind
 
 @[simp, grind =]
 theorem latch_getVar_setNext {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getVar (setIdx.setNext aig newNext) (by grind) = idx.getVar aig valid := by
+    idx.getVar (setIdx.setNext aig newNext) = idx.getVar aig valid := by
   simp_grind
 
 @[simp, grind =]
 theorem getNext_setNext_self {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getNext (setIdx.setNext aig newNext) (by grind) =
+    idx.getNext (setIdx.setNext aig newNext) =
     if idx = setIdx then newNext else idx.getNext aig valid := by
   simp_grind
 
 @[simp, grind =]
 theorem getReset_setNext {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getReset (setIdx.setNext aig newNext) (by grind) = idx.getReset aig valid := by
+    idx.getReset (setIdx.setNext aig newNext) = idx.getReset aig valid := by
   simp_grind
 
 end setNext
@@ -128,7 +123,7 @@ end setNext
 LatchIdx.setReset Lemmas.
 -/
 section setReset
-variable {setIdx : LatchIdx} {newReset : Lit}
+variable {setIdx : LatchIdx} {newReset : Option Lit}
 
 @[simp, grind =]
 theorem size_setReset :
@@ -147,27 +142,27 @@ theorem numLatches_setReset :
 
 @[simp, grind =]
 theorem get_setReset {var : Var} {valid : var.validIn aig} :
-    (setIdx.setReset aig newReset).get var (by grind) = aig.get var valid := by
+    (setIdx.setReset aig newReset).get var = aig.get var valid := by
   simp_grind
 
 @[simp, grind =]
 theorem input_getVar_setReset {idx : InputIdx} (valid : idx.validIn aig) :
-    idx.getVar (setIdx.setReset aig newReset) (by grind) = idx.getVar aig valid := by
+    idx.getVar (setIdx.setReset aig newReset) = idx.getVar aig valid := by
   simp_grind
 
 @[simp, grind =]
 theorem latch_getVar_setReset {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getVar (setIdx.setReset aig newReset) (by grind) = idx.getVar aig valid := by
+    idx.getVar (setIdx.setReset aig newReset) = idx.getVar aig valid := by
   simp_grind
 
 @[simp, grind =]
 theorem getNext_setReset {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getNext (setIdx.setReset aig newReset) (by grind) = idx.getNext aig valid := by
+    idx.getNext (setIdx.setReset aig newReset) = idx.getNext aig valid := by
   simp_grind
 
 @[simp, grind =]
 theorem getReset_setReset {idx : LatchIdx} (valid : idx.validIn aig) :
-    idx.getReset (setIdx.setReset aig newReset) (by grind) =
+    idx.getReset (setIdx.setReset aig newReset) =
     if idx = setIdx then newReset else idx.getReset aig valid := by
   simp_grind
 
@@ -203,52 +198,55 @@ theorem numLatches_addInput' :
 
 @[simp, grind =]
 theorem get_addInput'_self (aig : Aig) :
-    (aig.addInput' idx).get (idx.getVar (aig.addInput' idx)) (by grind) =
+    (aig.addInput' idx).get (idx.getVar (aig.addInput' idx)) =
     .input idx := by
   simp_grind
 
 end addInput'
 
 /-
-Aig.addLatch Lemmas.
+Aig.addLatch' Lemmas.
 -/
-section addLatch
-variable {next reset : Lit}
+section addLatch'
+variable {idx : LatchIdx} {next : Lit} {reset : Option Lit}
 
 @[simp, grind =]
-theorem size_addLatch :
-    (aig.addLatch next reset).fst.size = aig.size + 1 := by
+theorem size_addLatch' :
+    (aig.addLatch' idx next reset).size = aig.size + 1 := by
   simp_grind
 
 @[simp, grind =]
-theorem numInputs_addLatch :
-    (aig.addLatch next reset).fst.numInputs = aig.numInputs := by
+theorem numInputs_addLatch' :
+    (aig.addLatch' idx next reset).numInputs = aig.numInputs := by
   simp_grind
 
 @[simp, grind =]
-theorem numLatches_addLatch :
-    (aig.addLatch next reset).fst.numLatches = aig.numLatches + 1 := by
+theorem numLatches_addLatch' :
+    (aig.addLatch' idx next reset).numLatches =
+    if idx.validIn aig then
+      aig.numLatches
+    else
+      aig.numLatches + 1 := by
+  simp_defs
+  grind [LatchIdx.validIn]
+
+@[simp, grind =]
+theorem get_addLatch'_self :
+    (aig.addLatch' idx next reset).get (idx.getVar (aig.addLatch' idx next reset)) =
+    .latch idx := by
   simp_grind
 
 @[simp, grind =]
-theorem get_addLatch_self :
-    (aig.addLatch next reset).fst.get
-      ((aig.addLatch next reset).snd.getVar (aig.addLatch next reset).fst)
-      (by grind) =
-    .latch (aig.addLatch next reset).snd := by
+theorem getNext_addLatch'_self :
+  idx.getNext (aig.addLatch' idx next reset) = next := by
   simp_grind
 
 @[simp, grind =]
-theorem getNext_addLatch_self :
-  (aig.addLatch next reset).snd.getNext (aig.addLatch next reset).fst (by grind) = next := by
+theorem getReset_addLatch'_self :
+  idx.getReset (aig.addLatch' idx next reset) = reset := by
   simp_grind
 
-@[simp, grind =]
-theorem getReset_addLatch_self :
-  (aig.addLatch next reset).snd.getReset (aig.addLatch next reset).fst (by grind) = reset := by
-  simp_grind
-
-end addLatch
+end addLatch'
 
 /-
 Aig.addAnd Lemmas.

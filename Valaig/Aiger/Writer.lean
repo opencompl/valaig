@@ -19,7 +19,10 @@ def writeAag (aiger : Aiger) (file : IO.FS.Stream) : IO Unit := do
 
   -- Latch lines
   for h : latch in aig.latches do
-    file.putStrLn s!"{latch.getLit aig |>.idx} {latch.getNext aig |>.idx} {latch.getReset aig |>.idx}"
+    file.putStr s!"{latch.getLit aig |>.idx} {latch.getNext aig |>.idx}"
+    if let some reset:= latch.getReset aig then
+      file.putStr s!" {reset.idx}"
+    file.putStrLn ""
 
   -- Bad lines
   for bad in aiger.bads do

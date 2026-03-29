@@ -116,7 +116,15 @@ theorem mono_addInput :
 grind_pattern mono_addInput => aig.addInput.fst
 
 @[simp]
-theorem mono_addLatch {next reset : Lit} :
+theorem mono_addLatch' {idx : LatchIdx} (h : ¬idx.validIn aig) {next : Lit} {reset : Option Lit} :
+    aig ≤ (aig.addLatch' idx next reset) := by
+  constructor <;> simp_defs <;> grind_defs
+
+grind_pattern mono_addLatch' => aig.addLatch' idx next reset where
+  idx =/= aig.addLatch next reset |>.snd
+
+@[simp]
+theorem mono_addLatch {next : Lit} {reset : Option Lit} :
     aig ≤ (aig.addLatch next reset).fst := by
   constructor <;> simp_defs <;> grind_defs
 
