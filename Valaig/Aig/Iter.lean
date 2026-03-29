@@ -257,6 +257,10 @@ theorem length_inputs :
     aig.inputs.length = aig.numInputs := by
   grind [inputs, numInputs]
 
+theorem length_toList_inputs :
+    aig.inputs.toList.length = aig.numInputs := by
+  grind
+
 @[simp, grind =]
 theorem mem_inputs_iff {idx : InputIdx} :
     idx ∈ aig.inputs.toList ↔ idx.validIn aig := by
@@ -275,6 +279,17 @@ theorem distinct_toList_inputs {idx idx' : Nat} (h : idx < aig.inputs.length) (h
 grind_pattern distinct_toList_inputs => aig.inputs.toList[idx], aig.inputs.toList[idx'] where
   idx =/= idx'
 
+theorem Perm_inputs_iff_validIn {aig aig' : Aig} :
+    aig'.inputs.toList.Perm aig.inputs.toList ↔
+    ∀ (idx : InputIdx), idx.validIn aig' ↔ idx.validIn aig := by
+  constructor
+  · grind [=_ mem_inputs_iff, List.Perm.mem_iff]
+  · grind [List.Nodup.count]
+
+theorem numInputs_eq_of_validIn_eq {aig aig' : Aig} (h : ∀ (idx : InputIdx), idx.validIn aig' ↔ idx.validIn aig) :
+    aig'.numInputs = aig.numInputs := by
+  grind [=_ length_toList_inputs, Perm_inputs_iff_validIn, List.Perm.length_eq]
+
 /--
 A forward iterator over latches in the Aig.
 -/
@@ -286,6 +301,10 @@ def latches (aig : Aig) :=
 theorem length_latches :
     aig.latches.length = aig.numLatches := by
   grind [latches, numLatches]
+
+theorem length_toList_latches :
+    aig.latches.toList.length = aig.numLatches := by
+  grind
 
 @[simp, grind =]
 theorem mem_latches_iff {idx : LatchIdx} :
@@ -304,3 +323,14 @@ theorem distinct_toList_latches {idx idx' : Nat} (h : idx < aig.latches.length) 
 
 grind_pattern distinct_toList_latches => aig.latches.toList[idx], aig.latches.toList[idx'] where
   idx =/= idx'
+
+theorem Perm_latches_iff_validIn {aig aig' : Aig} :
+    aig'.latches.toList.Perm aig.latches.toList ↔
+    ∀ (idx : LatchIdx), idx.validIn aig' ↔ idx.validIn aig := by
+  constructor
+  · grind [=_ mem_latches_iff, List.Perm.mem_iff]
+  · grind [List.Nodup.count]
+
+theorem numLatches_eq_of_validIn_eq {aig aig' : Aig} (h : ∀ (idx : LatchIdx), idx.validIn aig' ↔ idx.validIn aig) :
+    aig'.numLatches = aig.numLatches := by
+  grind [=_ length_toList_latches, Perm_latches_iff_validIn, List.Perm.length_eq]
