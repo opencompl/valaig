@@ -198,8 +198,7 @@ theorem numLatches_addInput' :
 
 @[simp, grind =]
 theorem get_addInput'_self (aig : Aig) :
-    (aig.addInput' idx).get (idx.getVar (aig.addInput' idx)) =
-    .input idx := by
+    (aig.addInput' idx).get (idx.getVar (aig.addInput' idx)) = .input idx := by
   simp_grind
 
 end addInput'
@@ -232,8 +231,7 @@ theorem numLatches_addLatch' :
 
 @[simp, grind =]
 theorem get_addLatch'_self :
-    (aig.addLatch' idx next reset).get (idx.getVar (aig.addLatch' idx next reset)) =
-    .latch idx := by
+    (aig.addLatch' idx next reset).get (idx.getVar (aig.addLatch' idx next reset)) = .latch idx := by
   simp_grind
 
 @[simp, grind =]

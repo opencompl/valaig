@@ -229,6 +229,11 @@ theorem length_iter :
     aig.iter.length = aig.size := by
   grind [VarIter.length_eq_size_sub_iterVal]
 
+@[simp, grind =]
+theorem length_toList_iter :
+    aig.iter.toList.length = aig.size := by
+  grind
+
 @[grind =]
 theorem toList_iter :
     aig.iter.toList = List.ofFn (fun (n : Fin aig.size) => .ofIdx n) := by
@@ -245,6 +250,30 @@ theorem mem_iter_iff {var : Var} :
   · intro h
     exists ⟨var.idx, by grind⟩
 
+@[simp, grind .]
+theorem nodup_toList_iter :
+    aig.iter.toList.Nodup := by
+  grind [iter, List.pairwise_iff_getElem]
+
+theorem distinct_toList_iter {idx idx' : Nat} (h : idx < aig.iter.length) (h' : idx' < aig.iter.length)
+    (diff : idx ≠ idx') :
+      aig.iter.toList[idx] ≠ aig.iter.toList[idx'] := by
+  grind [@nodup_toList_iter aig, List.pairwise_iff_getElem]
+
+grind_pattern distinct_toList_iter => aig.iter.toList[idx], aig.iter.toList[idx'] where
+  idx =/= idx'
+
+theorem Perm_iter_iff_validIn {aig aig' : Aig} :
+    aig'.iter.toList.Perm aig.iter.toList ↔
+    ∀ (var : Var), var.validIn aig' ↔ var.validIn aig := by
+  constructor
+  · grind [=_ mem_iter_iff, List.Perm.mem_iff]
+  · grind [List.Nodup.count]
+
+theorem size_eq_of_validIn_eq {aig aig' : Aig} (h : ∀ (var : Var), var.validIn aig' ↔ var.validIn aig) :
+    aig'.size = aig.size := by
+  grind [=_ length_toList_iter, Perm_iter_iff_validIn, List.Perm.length_eq]
+
 /--
 A forward iterator over inputs in the Aig.
 -/
@@ -257,6 +286,7 @@ theorem length_inputs :
     aig.inputs.length = aig.numInputs := by
   grind [inputs, numInputs]
 
+@[simp, grind =]
 theorem length_toList_inputs :
     aig.inputs.toList.length = aig.numInputs := by
   grind
@@ -302,6 +332,7 @@ theorem length_latches :
     aig.latches.length = aig.numLatches := by
   grind [latches, numLatches]
 
+@[simp, grind =]
 theorem length_toList_latches :
     aig.latches.toList.length = aig.numLatches := by
   grind

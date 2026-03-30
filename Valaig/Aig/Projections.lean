@@ -152,11 +152,12 @@ where
       (res.snd lit).validIn res.fst := by
     fun_induction resetAig.go <;> grind
 
-section denote_resetAig
+namespace resetAig
 
 variable {state : Aig} {map : Array Lit} {swf : state.WellFormed}
 variable {denote : ∀ {assign} {var : Var} (lt : var.idx < map.size),
            state.denoteComb map[var.idx] assign = aig.denoteResetVar var assign}
+variable {assign : LeafIdx -> Bool}
 
 include denote in
 theorem denote_mapTo (lit : Lit) {lt : lit.var.idx < map.size} :
@@ -195,10 +196,182 @@ theorem denote_go (lit : Lit.In aig) {it a b c d wf'} :
     intros
     apply denote_step <;> grind
 
-end denote_resetAig
+end resetAig
 
 @[simp, grind =]
 theorem denote_resetAig {assign} {lit : Lit.In aig} :
     aig.resetAig.fst.denoteComb (aig.resetAig.snd lit) assign =
     aig.denoteReset lit assign wf := by
-  grind [resetAig, denote_go]
+  grind [resetAig, resetAig.denote_go]
+
+namespace transAig
+
+@[always_inline]
+def step (aig : Aig) (state : Aig) (map : Array Lit) (var : Var)
+    (valid : var.validIn aig := by grind)
+    (wf : aig.WellFormed := by grind)
+    (mono : aig ≤ state := by grind)
+    (valid : ∀ lit ∈ map, lit.validIn state := by grind)
+    (size : var.idx = map.size := by grind) :
+    Aig × Array Lit :=
+  let mapLit (lit : Lit) (h : lit.var < var := by grind) : Lit.In state :=
+    lit.mapTo map[lit.var.idx] |>.castIn state
+
+  let (eq:=_) (state, lit) : Aig × Lit :=
+    match _ : aig[var] with
+    | .false         => (state, .false)
+    | .input _       => let (eq:=_) (state, idx) := state.addInput
+                        (state, idx.getLit state)
+    | .latch idx     => (state, idx.getNext state)
+    | .and rhs0 rhs1 => state.addAnd (mapLit rhs0) (mapLit rhs1)
+
+  (state, map.push lit)
+
+variable {aig state : Aig} {map : Array Lit} {var : Var}
+variable {valid : var.validIn aig} {wf : aig.WellFormed}
+variable {mono : aig ≤ state} {valid : ∀ lit ∈ map, lit.validIn state}
+variable {size : var.idx = map.size}
+
+@[simp, grind =]
+theorem size_step :
+    (step aig state map var).snd.size = map.size + 1 := by
+  unfold step
+  grind
+
+@[simp, grind =]
+theorem step_snd_eq :
+    (step aig state map var).snd = map.push ((step aig state map var).snd[map.size]) := by
+  unfold step
+  grind
+
+@[simp, grind .]
+theorem mono_step :
+    state ≤ (step aig state map var).fst := by
+  unfold step
+  grind
+
+grind_pattern mono_step => (step aig state map var).fst
+
+@[simp, grind .]
+theorem WellFormed_step {swf : state.WellFormed} :
+    (step aig state map var).fst.WellFormed := by
+  unfold step
+  grind
+
+@[simp, grind .]
+theorem valid_step {swf : state.WellFormed} :
+    let res := step aig state map var
+    ∀ lit ∈ res.snd, lit.validIn res.fst := by
+  unfold step
+  grind
+
+end transAig
+
+def transAig (aig : Aig) (wf : aig.WellFormed := by grind) :  Aig × (Lit.In aig -> Fin 2 -> Lit) :=
+  go aig.iter aig (.emptyWithCapacity aig.size)
+where
+  go it (state : Aig) (map : Array Lit)
+      (wf : state.WellFormed := by grind)
+      (mono : aig ≤ state := by grind)
+      (valid : ∀ lit ∈ map, lit.validIn state := by grind)
+      (size : (aig.iterVal it).idx = map.size := by grind) :
+      Aig × (Lit.In aig -> Fin 2 -> Lit) :=
+    match it.step with
+    | .done _ =>
+      ⟨state, fun lit frame =>
+        match frame with
+        | 0 => lit
+        | 1 => lit.val.mapTo <| map[lit.val.var.idx]'(by grind [Var.validIn_iff])⟩
+    | .yield it' var _ =>
+      let (eq:=_) res := transAig.step aig state map var
+      go it' res.fst res.snd
+  termination_by it.finitelyManySteps
+
+@[simp, grind .]
+theorem WellFormed_transAig :
+    aig.transAig.fst.WellFormed := by
+  unfold transAig
+  apply WellFormed_go
+where
+  WellFormed_go {a b c d e f g} :
+      (transAig.go aig wf a b c d e f g).fst.WellFormed := by
+    fun_induction transAig.go <;> grind
+
+@[simp]
+theorem transAig.mono_go {a state c d e f g} :
+    state ≤ (transAig.go aig wf a state c d e f g).fst := by
+  fun_induction transAig.go <;> grind
+
+grind_pattern transAig.mono_go => (transAig.go aig wf a state c).fst
+
+@[simp]
+theorem mono_transAig :
+    aig ≤ aig.transAig.fst := by
+  unfold transAig
+  apply transAig.mono_go
+
+grind_pattern mono_transAig => aig.transAig.fst
+
+@[simp, grind =]
+theorem transAig_map_zero {lit : Lit.In aig} :
+    aig.transAig.snd lit 0 = lit := by
+  unfold transAig
+  apply go_map_zero
+where
+  go_map_zero {a b c d e f g} :
+      let res := transAig.go aig wf a b c d e f g
+      res.snd lit 0 = lit := by
+    fun_induction transAig.go <;> grind
+
+@[simp, grind .]
+theorem transAig.go_validIn {lit : Lit.In aig} {frame : Fin 2} {a b c d e f g} :
+    let res := transAig.go aig wf a b c d e f g
+    (res.snd lit frame).validIn res.fst := by
+  fun_induction transAig.go <;> grind
+
+@[simp, grind .]
+theorem transAig_validIn {lit : Lit.In aig} {frame : Fin 2} :
+    (aig.transAig.snd lit frame).validIn aig.transAig.fst := by
+  unfold transAig
+  apply transAig.go_validIn
+
+@[simp, grind =]
+theorem transAig_map_matches_input {idx : InputIdx} (valid : idx.validIn aig) :
+      aig.transAig.fst[(aig.transAig.snd (idx.getLit aig |>.castIn aig) 1).var] matches .input _ := by
+  unfold transAig
+  apply go <;> grind
+where
+  go {it state map a b c d} {lit : Lit.In aig} {swf : state.WellFormed}
+      {ih : ∀ {lit : Lit.In aig} (lt : lit.val.var.idx < map.size),
+        aig[lit.val.var] matches .input _ →
+          state[map[lit.val.var.idx].var] matches .input _} :
+      let res := transAig.go aig wf it state map a b c d
+      aig[lit.val.var] matches .input _ →
+        res.fst[res.snd lit 1 |>.var] matches .input _ := by
+    fun_induction transAig.go
+    · simp only
+      unfold transAig.go
+      grind
+    next eq res _ ih1 =>
+      simp only
+      unfold transAig.go
+      simp only [eq]
+      simp only at ih1
+      apply ih1
+      · grind
+      · clear ih1
+        grind [transAig.step]
+
+/--
+TODO: This should be discouraged against actually using as it can break linearity
+-/
+@[always_inline]
+def transAig.mapIdx (idx : LeafIdx) (frame : Frame) : LeafIdx :=
+  match frame, _ : idx, _ : decide (idx.validIn aig) with
+  | 1, .input idx, true =>
+    match h : aig.transAig.fst[(aig.transAig.snd (idx.getLit aig |>.castIn aig) 1).var] with
+    | .input idx => idx
+    | .false
+    | .latch _
+    | .and _ _ => by grind [transAig_map_matches_input]
+  | _, _, _ => idx
