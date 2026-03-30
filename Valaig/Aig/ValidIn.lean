@@ -148,6 +148,7 @@ grind_pattern addInput'_getVar_mono => idx.getVar (aig.addInput' idx) > var wher
 theorem var_validIn_addInput'_iff {var : Var} :
     var.validIn (aig.addInput' idx) ↔
       var.validIn aig ∨ var = idx.getVar (aig.addInput' idx) := by
+  rw [Var.ext_iff]
   simp_defs
   grind only
 

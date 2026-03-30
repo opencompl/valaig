@@ -31,10 +31,6 @@ deriving instance DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq for Var
 
 instance : EquivBEq Var := by constructor
 
-theorem ext_idx (var var' : Var) :
-    var = var' ↔ var.idx = var'.idx := by
-  grind only [Var]
-
 -- Instantiate these directly for inlining
 instance : Ord Var where compare := (compare ·.idx ·.idx)
 
@@ -139,7 +135,7 @@ These are represented by storing the inversion in the least significant bit and 
 left-shifted by one in the higher bits. Although this detail is exposed for use with contiguous
 containers, care should be taken to avoid relying on it whenever possible.
 -/
-@[ext, grind ext]
+@[ext, local grind ext]
 structure Lit where
   ofIdx ::
     idx : Nat
@@ -150,52 +146,17 @@ variable {lit : Lit}
 deriving instance DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq for Lit
 instance : EquivBEq Lit := by constructor
 
-theorem ext_idx {lit' : Lit} :
-    lit = lit' ↔ lit.idx = lit'.idx := by
-  grind only [Lit]
-
 -- Hash the inner value directly to avoid a mixHash use
 instance : Hashable Lit where hash := (hash ·.idx)
 instance : LawfulHashable Lit where hash_eq := by simp
 
 /--
-Returns a literal referencing a variable which is optionally inverted.
--/
-@[inline]
-def mk (var : Var) (invert : Bool := false) : Lit :=
-  .ofIdx <| var.idx <<< 1 ||| invert.toNat
-
-@[simp]
-theorem idx_mk {var : Var} {invert : Bool} :
-    (mk var invert).idx = var.idx * 2 + invert.toNat := by
-  have := @Nat.two_pow_add_eq_or_of_lt 1
-  grind only [Bool.toNat_lt, Nat.shiftLeft_eq, mk]
-
-@[grind =]
-theorem idx_mk_cases {var : Var} {invert : Bool} :
-    (mk var invert).idx =
-    if invert then
-      var.idx * 2 + 1
-    else
-      var.idx * 2 := by
-  grind [idx_mk]
-
-/--
 Returns the variable referenced by a literal.
 -/
-@[inline]
-def var (l : Lit) : Var :=
+@[inline, local grind]
+def var (lit : Lit) : Var :=
   -- TODO(u32): Switch to left shift
-  .ofIdx <| l.idx / 2
-
-@[simp, grind =]
-theorem var_mk (var : Var) (invert : Bool) :
-    (Lit.mk var invert).var = var := by
-  have : invert.toNat / 2 = 0 := by
-    have := Bool.toNat_le invert
-    omega
-  rw [Lit.var, mk, Nat.or_div_two, this, Nat.or_zero, Nat.shiftLeft_eq, Nat.mul_div_cancel]
-  omega
+  .ofIdx <| lit.idx / 2
 
 @[simp]
 theorem idx_lt_of_var_lt {lit' : Lit} (lt : lit.var < lit'.var) :
@@ -210,8 +171,9 @@ grind_pattern idx_lt_of_var_lt => lit'.idx, lit.var ≥ lit'.var
 /--
 Returns the whether the literal is inverted.
 -/
-def inverted (l : Lit) : Prop :=
-  (l.idx % 2) ≠ 0
+@[local grind]
+def inverted (lit : Lit) : Prop :=
+  (lit.idx % 2) ≠ 0
 
 @[inline]
 instance {l : Lit} : Decidable l.inverted :=
@@ -219,42 +181,42 @@ instance {l : Lit} : Decidable l.inverted :=
     simp [inverted, ←UInt8.toNat_inj]
   decidable_of_iff _ this
 
-@[simp, grind .]
-theorem inverted_mk (var : Var) (invert : Bool) :
-    (Lit.mk var invert).inverted = invert := by
-  unfold mk inverted
-  by_cases invert <;> simp_all
+@[simp, ext, grind ext]
+theorem ext_of {lit lit' : Lit} (var : lit.var = lit'.var) (inverted : lit.inverted = lit'.inverted) :
+    lit = lit' := by
+  grind [Lit.var, Lit.inverted]
 
-@[simp, grind =, local grind! .]
-theorem mk_self_eq :
-    Lit.mk lit.var lit.inverted = lit := by
-  rw [mk, var, ext_idx]
-  by_cases h : lit.inverted
-  · simp_all [inverted]; rw [←Nat.shiftLeft_add_eq_or_of_lt] <;> omega
-  · simp_all [inverted] <;> omega
+theorem idx_eq :
+    lit.idx = lit.var.idx * 2 + (decide lit.inverted).toNat := by
+  grind [Bool.toNat_lt, Nat.shiftLeft_eq]
 
-@[simp]
-theorem mk_self_of_inverted (h : lit.inverted) :
-    Lit.mk lit.var true = lit := by
+@[grind =]
+theorem idx_eq_cases {lit : Lit} :
+    lit.idx =
+    if lit.inverted then
+      lit.var.idx * 2 + 1
+    else
+      lit.var.idx * 2 := by
   grind
 
-grind_pattern mk_self_of_inverted => Lit.mk lit.var true, lit.inverted
-
-@[simp]
-theorem mk_self_of_not_inverted (h : ¬lit.inverted) :
-    Lit.mk lit.var false = lit := by
-  grind
-
-grind_pattern mk_self_of_inverted => Lit.mk lit.var false, lit.inverted
-
-theorem ext_args {lit lit' : Lit} :
-    lit = lit' ↔ (lit.var = lit'.var ∧ lit.inverted = lit'.inverted) := by
-  grind
+/--
+Returns a literal referencing a variable which is optionally inverted.
+-/
+@[inline]
+def mk (var : Var) (invert : Bool := false) : Lit :=
+  .ofIdx <| var.idx <<< 1 ||| invert.toNat
 
 @[simp, grind =]
-theorem mk_ext {var var' : Var} {invert invert' : Bool} :
-    (mk var invert = mk var' invert') ↔ (var = var' ∧ invert = invert') := by
-  grind
+theorem var_mk {var : Var} {invert : Bool} :
+    (mk var invert).var = var := by
+  have : invert.toNat / 2 = 0 := by grind only [Bool.toNat_le invert]
+  grind only [mk, Lit.var, Nat.or_div_two, Nat.shiftLeft_eq]
+
+@[simp, grind =]
+theorem inverted_mk {var : Var} {invert : Bool} :
+    (mk var invert).inverted = invert := by
+  unfold mk inverted
+  by_cases invert <;> simp_all
 
 /--
 Returns the constant literal of specified value.
@@ -264,9 +226,19 @@ def constant (value : Bool) : Lit :=
   .ofIdx value.toNat
 
 @[simp, grind =]
-theorem constant_eq :
-    constant invert = mk .constant invert := by
-  simp [constant, mk, Var.constant]
+theorem var_constant {value : Bool} :
+    (constant value).var = .constant := by
+  cases value <;> grind [constant]
+
+@[simp, grind =]
+theorem inverted_constant {value : Bool} :
+    (constant value).inverted = value := by
+  grind [constant]
+
+@[simp, grind =]
+theorem idx_constant {value : Bool} :
+    (constant value).idx = value.toNat := by
+  grind
 
 /--
 The (single) false literal.
@@ -297,9 +269,8 @@ theorem true_eq :
 /--
 True iff the literal references a constant.
 -/
-@[inline]
-def isConstant (l : Lit) : Prop :=
-  l.var = .constant
+def isConstant (lit : Lit) : Prop :=
+  lit.var = .constant
 
 @[inline]
 instance {l : Lit} : Decidable l.isConstant :=
@@ -308,19 +279,19 @@ instance {l : Lit} : Decidable l.isConstant :=
   decidable_of_iff _ this
 
 @[simp, grind =]
-theorem isConstant_eq :
-    lit.isConstant ↔ lit.var = .constant := by
-  rw [isConstant]
+theorem isConstant_iff :
+    lit.isConstant ↔ lit = constant lit.inverted := by
+  grind [isConstant]
 
-@[simp]
+@[simp, grind .]
 theorem isConstant_true :
     true.isConstant := by
-  simp [isConstant]
+  simp
 
-@[simp]
+@[simp, grind .]
 theorem isConstant_false :
     false.isConstant := by
-  simp [isConstant]
+  simp
 
 theorem isConstant_iff_eq_false_or_eq_true :
     lit.isConstant ↔ lit = false ∨ lit = true := by
@@ -331,25 +302,27 @@ Returns `some` of the constant value if the literal references a constant, or
 otherwise `none`.
 -/
 @[inline]
-def asConstant (l : Lit) : Option Bool :=
-  if l.isConstant then
+def asConstant (lit : Lit) : Option Bool :=
+  if lit.isConstant then
     -- Comparing to 1 seems to avoid a branch. We use toUInt8 to prevent
     -- checking for boxing
-    some (l.idx.toUInt8 = 1)
+    some (lit.idx.toUInt8 = 1)
   else
     none
 
 @[simp]
 theorem asConstant_false_iff :
     lit.asConstant = some .false ↔ lit = .false := by
-  simp [asConstant, Var.constant, var, mk, UInt8.ofNat_eq_iff_mod_eq_toNat]
-  grind only
+  by_cases lit.inverted
+  · simp_all [asConstant]; grind
+  · simp_all [asConstant]
 
 @[simp]
 theorem asConstant_true_iff :
     lit.asConstant = some .true ↔ lit = .true := by
-  simp [asConstant, Var.constant, var, mk, UInt8.ofNat_eq_iff_mod_eq_toNat]
-  grind only
+  by_cases lit.inverted
+  · simp_all [asConstant]
+  · simp_all [asConstant]; grind
 
 @[simp]
 theorem asConstant_none_iff :
@@ -371,64 +344,86 @@ theorem asConstant_eq :
 Optionally inverts the polarity of a literal.
 -/
 @[inline]
-def invert (l : Lit) (doInvert : Bool := .true) : Lit :=
-  .ofIdx <| l.idx ^^^ doInvert.toNat
-
-@[simp, local grind =]
-theorem invert_false :
-    lit.invert .false = lit := by
-  simp [invert]
-
-@[simp, local grind =]
-theorem invert_true :
-    lit.invert .true = mk lit.var ¬lit.inverted := by
-  simp [ext_args, invert]
-  simp [var, inverted, Nat.xor_div_two]
+def invert (lit : Lit) (doInvert : Bool := .true) : Lit :=
+  .ofIdx <| lit.idx ^^^ doInvert.toNat
 
 @[simp, grind =]
-theorem invert_eq {doInvert : Bool} :
-    lit.invert doInvert = mk lit.var (lit.inverted ≠ doInvert) := by
-  simp; grind
+theorem inverted_invert_false :
+    (lit.invert .false).inverted = lit.inverted := by
+  simp [invert]
+
+@[simp, grind =]
+theorem inverted_invert_true :
+    (lit.invert .true).inverted = ¬lit.inverted := by
+  simp [invert, inverted]
+
+theorem inverted_invert {doInvert : Bool} :
+    (lit.invert doInvert).inverted = (doInvert ≠ lit.inverted) := by
+  cases doInvert <;> grind
+
+grind_pattern inverted_invert => (lit.invert doInvert).inverted where
+  doInvert =/= Bool.false
+  doInvert =/= Bool.true
+
+@[simp, grind =]
+theorem var_invert {doInvert : Bool} :
+    (lit.invert doInvert).var = lit.var := by
+  simp only [invert, var, Nat.xor_div_two]
+  cases doInvert <;> simp
 
 /--
 Sets a literal's polarity to false.
 This implementation is more efficient than using `Lit.mk l.var false`.
 -/
 @[inline]
-def strip (l : Lit) : Lit :=
+def strip (lit : Lit) : Lit :=
   -- TODO(u32): Switch this to bit clearing
-  .ofIdx <| l.idx ^^^ (l.idx &&& 1)
+  .ofIdx <| lit.idx ^^^ (lit.idx &&& 1)
 
 @[simp, grind =]
-theorem strip_eq :
-    lit.strip = mk lit.var .false := by
-  rw [strip, ext_args] <;> simp
-  simp [var, inverted, Nat.xor_div_two]
+theorem var_strip :
+    lit.strip.var = lit.var := by
+  simp [strip, var, Nat.xor_div_two]
+
+@[simp, grind .]
+theorem inverted_strip :
+    ¬lit.strip.inverted := by
+  simp [strip, inverted]
 
 /--
 Maps the literal's variable to a new literal, before inverting the new literal if the
 original was also inverted.
 -/
 @[inline]
-def mapTo (l new : Lit) : Lit :=
-  new.invert l.inverted
+def mapTo (lit new : Lit) : Lit :=
+  new.invert lit.inverted
 
 @[simp, grind =]
-theorem mapTo_eq {new : Lit} :
-    lit.mapTo new = mk new.var (new.inverted != lit.inverted) := by
+theorem var_mapTo {new : Lit} :
+    (lit.mapTo new).var = new.var := by
+  simp [mapTo]
+
+@[simp, grind =]
+theorem inverted_mapTo {new : Lit} :
+    (lit.mapTo new).inverted = (new.inverted ≠ lit.inverted) := by
   grind [mapTo]
 
 /--
 Replaces the literal's variable to a literal with a new variable, keeping the inversion.
 -/
 @[inline]
-def mapToVar (l : Lit) (var : Var) : Lit :=
-  mk var l.inverted
+def mapToVar (lit : Lit) (var : Var) : Lit :=
+  mk var lit.inverted
 
 @[simp, grind =]
-theorem mapToVar_eq {var : Var} :
-    lit.mapToVar var = mk var lit.inverted := by
-  rfl
+theorem var_mapToVar {var : Var} :
+    (lit.mapToVar var).var = var := by
+  simp [mapToVar]
+
+@[simp, grind =]
+theorem inverted_mapToVar {var : Var} :
+    (lit.mapToVar var).inverted = lit.inverted := by
+  simp [mapToVar]
 
 @[inline]
 def ofFanin (fi : Std.Sat.AIG.Fanin) : Lit :=
@@ -436,22 +431,15 @@ def ofFanin (fi : Std.Sat.AIG.Fanin) : Lit :=
   -- convert between them
   .ofIdx fi.val
 
--- Should we prove this by showing individually that gate and invert map?
-open Std.Sat.AIG in
 @[simp, grind =]
-theorem ofFanin_eq (fi : Fanin) :
-    ofFanin fi = mk (.ofIdx fi.gate) fi.invert := by
-  rw [ext_args]
-  unfold ofFanin Fanin.gate Fanin.invert mk var inverted
-  simp [Nat.or_div_two]
-  constructor
-  · conv =>
-      pattern Bool.toNat _ / 2
-      rw [Nat.div_eq_of_lt]
-      · skip
-      · apply Bool.toNat_lt
-    simp [Nat.or_zero, Nat.shiftLeft_eq]
-  · grind only [Bool.toNat_true, Bool.toNat_false]
+theorem var_ofFanin (fi : Std.Sat.AIG.Fanin) :
+    (ofFanin fi).var = .ofIdx fi.gate := by
+  simp [ofFanin, Std.Sat.AIG.Fanin.gate, var]
+
+@[simp, grind =]
+theorem inverted_ofFanin (fi : Std.Sat.AIG.Fanin) :
+    (ofFanin fi).inverted = fi.invert := by
+  simp [ofFanin, Std.Sat.AIG.Fanin.invert, inverted]
 
 @[inline]
 def toFanin (lit : Lit) : Std.Sat.AIG.Fanin :=
@@ -459,13 +447,13 @@ def toFanin (lit : Lit) : Std.Sat.AIG.Fanin :=
 
 open Std.Sat.AIG in
 @[simp, grind =]
-theorem toFanin_gate :
+theorem gate_toFanin :
     lit.toFanin.gate = lit.var.idx := by
   simp [toFanin, Fanin.gate, var]
 
 open Std.Sat.AIG in
 @[simp, grind =]
-theorem toFanin_invert :
+theorem invert_toFanin :
     lit.toFanin.invert = lit.inverted := by
   simp [toFanin, Fanin.invert, inverted]
 
@@ -487,26 +475,31 @@ def ofRef (ref : aig.Ref) : Lit :=
   mk (.ofRef ref) ref.invert
 
 @[simp, grind =]
-theorem ofRef_eq (ref : aig.Ref) :
-    ofRef ref = mk (.ofRef ref) ref.invert := by
-  rw [ofRef]
+theorem var_ofRef (ref : aig.Ref) :
+    (ofRef ref).var = (.ofRef ref) := by
+  simp [ofRef]
+
+@[simp, grind =]
+theorem inverted_ofRef (ref : aig.Ref) :
+    (ofRef ref).inverted = ref.invert := by
+  simp [ofRef]
 
 @[inline]
 def toRef (lit : Lit) (h : lit.var.idx < aig.decls.size) : aig.Ref :=
   .mk lit.var.idx lit.inverted h
 
 @[simp, grind =]
-theorem toRef_gate (h : lit.var.idx < aig.decls.size) :
+theorem gate_toRef (h : lit.var.idx < aig.decls.size) :
     (toRef lit h).gate = lit.var.idx := by
   rw [toRef]
 
 @[simp]
-theorem toRef_invert_eq_true (h : lit.var.idx < aig.decls.size) :
+theorem invert_toRef_eq_true (h : lit.var.idx < aig.decls.size) :
     (toRef lit h).invert = lit.inverted := by
   simp [toRef]
 
 @[simp, grind =]
-theorem toRef_invert (h : lit.var.idx < aig.decls.size) :
+theorem invert_toRef (h : lit.var.idx < aig.decls.size) :
     (toRef lit h).invert = decide lit.inverted := by
   simp [toRef]
 
@@ -519,6 +512,39 @@ end
 
 end Lit
 
-@[inline, expose, reducible, simp, grind unfold]
-def Var.toLit (var : Var) (invert : Bool := false) : Lit :=
+namespace Var
+variable {var : Var}
+
+@[inline]
+def toLit (var : Var) (invert : Bool := false) : Lit :=
   .mk var invert
+
+@[simp, grind =]
+theorem var_toLit {invert : Bool} :
+    (var.toLit invert).var = var := by
+  simp [toLit]
+
+@[simp, grind =]
+theorem inverted_toLit {invert : Bool} :
+    (var.toLit invert).inverted = invert := by
+  simp [toLit]
+
+@[inline]
+def toLit' (var : Var) : Lit :=
+  var.toLit
+
+@[always_inline]
+instance : Coe Var Lit where
+  coe := Var.toLit'
+
+@[simp, grind =]
+theorem var_toLit' :
+    var.toLit'.var = var := by
+  simp [toLit']
+
+@[simp, grind =]
+theorem inverted_toLit' :
+    var.toLit'.inverted = False := by
+  simp [toLit']
+
+end Var

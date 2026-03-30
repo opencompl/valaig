@@ -364,7 +364,7 @@ def getVar (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : 
 
 @[always_inline, simp]
 abbrev getLit (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
-  idx.getVar aig valid |>.toLit
+  idx.getVar aig valid
 
 end InputIdx
 
@@ -399,7 +399,7 @@ def getVar (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : 
 
 @[always_inline, simp]
 abbrev getLit (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
-  idx.getVar aig valid |>.toLit
+  idx.getVar aig valid
 
 @[always_inline]
 def getNext (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
@@ -545,7 +545,7 @@ theorem getVar_latch {idx : LatchIdx} (valid : (latch idx).validIn aig) :
 
 @[always_inline, expose, simp, grind unfold]
 def getLit (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
-  idx.getVar aig valid |>.toLit
+  idx.getVar aig valid
 
 end LeafIdx
 
@@ -659,7 +659,6 @@ attribute [simp_valaig_defs, grind_valaig_defs]
   Aig.addAnd
 
 attribute [grind_valaig_defs] InputIdx LatchIdx
-attribute [simp_valaig_defs] Var.ext_idx
 
 attribute [simp_valaig_defs, grind_valaig_defs =]
   Std.mkAtom_eq_decls_push Std.mkAtom_size Std.mkAtom_ref_eq_decls_size
