@@ -156,22 +156,21 @@ namespace resetAig
 
 variable {state : Aig} {map : Array Lit} {swf : state.WellFormed}
 variable {denote : ∀ {assign} {var : Var} (lt : var.idx < map.size),
-           state.denoteComb map[var.idx] assign = aig.denoteResetVar var assign}
-variable {assign : LeafIdx -> Bool}
+           ⟦state, map[var.idx], assign⟧c0 = ⟦aig, var, assign⟧sv0}
+variable {assign : LeafIdx -> Frame -> Bool}
+include denote
 
-include denote in
 theorem denote_mapTo (lit : Lit) {lt : lit.var.idx < map.size} :
-      state.denoteComb (lit.mapTo map[lit.var.idx]) assign swf = aig.denoteReset lit assign wf := by
-    grind [denoteReset_eq_denoteResetVar]
+      ⟦state, lit.mapTo map[lit.var.idx], assign⟧c0 = ⟦aig, lit, assign⟧s0 := by
+    grind
 
-include denote in
 @[local grind =]
 theorem denote_step {var var' a b c}
     {inputInvalid : ∀ {idx}, aig[var'] = .input idx → ¬idx.validIn state}
     {latchInvalid : ∀ {idx}, aig[var'] = .latch idx → ¬idx.validIn state} :
     let res := resetAig.step aig state map var' a wf b c
     (lt : var.idx < res.snd.size) →
-      res.fst.denoteComb res.snd[var.idx] assign = aig.denoteResetVar var assign := by
+      ⟦res.fst, res.snd[var.idx], assign⟧c0 = ⟦aig, var, assign⟧sv0 := by
   intro res h
   rw [show res.snd[var.idx] = (map.push res.snd[map.size])[var.idx] by simp [res, resetAig.step], Array.getElem_push]
   split
@@ -185,10 +184,9 @@ theorem denote_step {var var' a b c}
     · grind -splitIte [denote_mapTo (aig := aig)]
     · grind -splitMatch -splitIte [denote_mapTo (aig := aig)]
 
-include denote in
 theorem denote_go (lit : Lit.In aig) {it a b c d wf'} :
     let res := resetAig.go aig wf it state map swf a b c d
-    res.fst.denoteComb (res.snd lit) assign wf' = aig.denoteReset lit assign := by
+    res.fst.denoteC (res.snd lit) assign 0 wf' = ⟦aig, lit, assign⟧s0 := by
   fun_induction resetAig.go
   · grind only [denote_mapTo]
   next ih =>
@@ -200,8 +198,7 @@ end resetAig
 
 @[simp, grind =]
 theorem denote_resetAig {assign} {lit : Lit.In aig} :
-    aig.resetAig.fst.denoteComb (aig.resetAig.snd lit) assign =
-    aig.denoteReset lit assign wf := by
+    ⟦aig.resetAig.fst, aig.resetAig.snd lit, assign⟧c0 = ⟦aig, lit, assign⟧s0 := by
   grind [resetAig, resetAig.denote_go]
 
 namespace transAig

@@ -364,7 +364,7 @@ def getVar (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : 
 
 @[always_inline, simp]
 abbrev getLit (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
-  idx.getVar aig valid
+  idx.getVar aig valid |>.toLit
 
 end InputIdx
 
@@ -399,7 +399,7 @@ def getVar (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : 
 
 @[always_inline, simp]
 abbrev getLit (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
-  idx.getVar aig valid
+  idx.getVar aig valid |>.toLit
 
 @[always_inline]
 def getNext (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
@@ -545,7 +545,7 @@ theorem getVar_latch {idx : LatchIdx} (valid : (latch idx).validIn aig) :
 
 @[always_inline, expose, simp, grind unfold]
 def getLit (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
-  idx.getVar aig valid
+  idx.getVar aig valid |>.toLit
 
 end LeafIdx
 
