@@ -8,6 +8,12 @@ public section
 This module just marks some useful iterator based simp lemmas as grind, making them more useful.
 -/
 
+-- Init.Data.Iterators.Lemmas.Combinators.Monadic.Append
+attribute [simp, grind =]
+   Std.IterM.toList_append
+   Std.IterM.toListRev_append
+   Std.IterM.toArray_append
+
 -- Init.Data.Iterators.Lemmas.Combinators.Monadic.FilterMap
 attribute [simp, grind =]
   Std.IterM.toList_filterMap
@@ -66,6 +72,12 @@ attribute [simp, grind =]
 attribute [simp, grind =]
   Std.IterM.toList_take_zero
   Std.IterM.toList_toTake
+
+-- Init.Data.Iterators.Lemmas.Combinators.Append
+attribute [simp, grind =]
+  Std.Iter.toList_append
+  Std.Iter.toListRev_append
+  Std.Iter.toArray_append
 
 -- Init.Data.Iterators.Lemmas.Combinators.FilterMap
 attribute [simp, grind =]
@@ -337,7 +349,6 @@ attribute [simp, grind =]
 
 -- Std.Data.Iterators.Lemmas.Producers.Repeat
 attribute [simp, grind =]
-  Std.Iter.atIdxSlow?_repeat
   Std.Iter.toList_take_repeat_succ
 
 -- Std.Data.Iterators.Lemmas.Producers.Slice

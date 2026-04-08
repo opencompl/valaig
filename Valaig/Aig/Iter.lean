@@ -275,7 +275,7 @@ theorem size_eq_of_validIn_eq {aig aig' : Aig} (h : ∀ (var : Var), var.validIn
   grind [=_ length_toList_iter, Perm_iter_iff_validIn, List.Perm.length_eq]
 
 /--
-A forward iterator over inputs in the Aig.
+An iterator over inputs in the Aig.
 -/
 @[inline]
 def inputs (aig : Aig) :=
@@ -297,16 +297,16 @@ theorem mem_inputs_iff {idx : InputIdx} :
   grind [inputs, InputIdx.validIn]
 
 @[simp, grind .]
-theorem nodup_toList_inputs :
+theorem nodup_inputs :
     aig.inputs.toList.Nodup := by
   grind [inputs, List.pairwise_iff_getElem]
 
-theorem distinct_toList_inputs {idx idx' : Nat} (h : idx < aig.inputs.length) (h' : idx' < aig.inputs.length)
+theorem distinct_inputs {idx idx' : Nat} (h : idx < aig.inputs.length) (h' : idx' < aig.inputs.length)
     (diff : idx ≠ idx') :
       aig.inputs.toList[idx] ≠ aig.inputs.toList[idx'] := by
-  grind [@nodup_toList_inputs aig, List.pairwise_iff_getElem]
+  grind [@nodup_inputs aig, List.pairwise_iff_getElem]
 
-grind_pattern distinct_toList_inputs => aig.inputs.toList[idx], aig.inputs.toList[idx'] where
+grind_pattern distinct_inputs => aig.inputs.toList[idx], aig.inputs.toList[idx'] where
   idx =/= idx'
 
 theorem Perm_inputs_iff_validIn {aig aig' : Aig} :
@@ -321,7 +321,7 @@ theorem numInputs_eq_of_validIn_eq {aig aig' : Aig} (h : ∀ (idx : InputIdx), i
   grind [=_ length_toList_inputs, Perm_inputs_iff_validIn, List.Perm.length_eq]
 
 /--
-A forward iterator over latches in the Aig.
+An iterator over latches in the Aig.
 -/
 @[inline]
 def latches (aig : Aig) :=
@@ -343,16 +343,16 @@ theorem mem_latches_iff {idx : LatchIdx} :
   grind [latches, LatchIdx.validIn]
 
 @[simp, grind .]
-theorem nodup_toList_latches :
+theorem nodup_latches :
     aig.latches.toList.Nodup := by
   grind [latches, List.pairwise_iff_getElem]
 
-theorem distinct_toList_latches {idx idx' : Nat} (h : idx < aig.latches.length) (h' : idx' < aig.latches.length)
+theorem distinct_latches {idx idx' : Nat} (h : idx < aig.latches.length) (h' : idx' < aig.latches.length)
     (diff : idx ≠ idx') :
       aig.latches.toList[idx] ≠ aig.latches.toList[idx'] := by
-  grind [@nodup_toList_latches aig, List.pairwise_iff_getElem]
+  grind [@nodup_latches aig, List.pairwise_iff_getElem]
 
-grind_pattern distinct_toList_latches => aig.latches.toList[idx], aig.latches.toList[idx'] where
+grind_pattern distinct_latches => aig.latches.toList[idx], aig.latches.toList[idx'] where
   idx =/= idx'
 
 theorem Perm_latches_iff_validIn {aig aig' : Aig} :
@@ -365,3 +365,46 @@ theorem Perm_latches_iff_validIn {aig aig' : Aig} :
 theorem numLatches_eq_of_validIn_eq {aig aig' : Aig} (h : ∀ (idx : LatchIdx), idx.validIn aig' ↔ idx.validIn aig) :
     aig'.numLatches = aig.numLatches := by
   grind [=_ length_toList_latches, Perm_latches_iff_validIn, List.Perm.length_eq]
+
+/--
+An iterator over leaves in the Aig.
+-/
+@[inline]
+def leaves (aig : Aig) :=
+  aig.inputs.map LeafIdx.input |>.append <| aig.latches.map LeafIdx.latch
+
+@[simp, grind =]
+theorem length_leaves :
+    aig.leaves.length = aig.numInputs + aig.numLatches := by
+  simp [leaves, ←Std.Iter.length_toList_eq_length]
+
+@[simp, grind =]
+theorem length_toList_leaves :
+    aig.leaves.toList.length = aig.numInputs + aig.numLatches := by
+  grind
+
+@[simp, grind =]
+theorem mem_leaves_iff {idx : LeafIdx} :
+    idx ∈ aig.leaves.toList ↔ idx.validIn aig := by
+  grind [leaves]
+
+@[simp, grind .]
+theorem nodup_leaves :
+    aig.leaves.toList.Nodup := by
+  simp only [leaves, Std.Iter.toList_append, Std.Iter.toList_map]
+  grind [List.pairwise_iff_getElem]
+
+theorem distinct_leaves {idx idx' : Nat} (h : idx < aig.leaves.length) (h' : idx' < aig.leaves.length)
+    (diff : idx ≠ idx') :
+      aig.leaves.toList[idx] ≠ aig.leaves.toList[idx'] := by
+  grind [@nodup_leaves aig, List.pairwise_iff_getElem]
+
+grind_pattern distinct_leaves => aig.leaves.toList[idx], aig.leaves.toList[idx'] where
+  idx =/= idx'
+
+theorem Perm_leaves_iff_validIn {aig aig' : Aig} :
+    aig'.leaves.toList.Perm aig.leaves.toList ↔
+    ∀ (idx : LeafIdx), idx.validIn aig' ↔ idx.validIn aig := by
+  constructor
+  · grind [=_ mem_leaves_iff, List.Perm.mem_iff]
+  · grind [List.Nodup.count]
