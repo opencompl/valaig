@@ -438,12 +438,14 @@ variable {h : s.var.validIn src}
 @[simp, grind .]
 theorem validIn_nextLit :
     s.nextLit.snd.validIn s.nextLit.fst := by
-  grind [nextLit]
+  unfold nextLit
+  split <;> (try simp only; split) <;> grind
 
 @[simp]
 theorem mono_nextLit :
     s.aig ≤ s.nextLit.fst := by
-  grind [nextLit]
+  unfold nextLit
+  split <;> (try simp only; split) <;> grind
 
 grind_pattern mono_nextLit => s.nextLit.fst
 
@@ -457,7 +459,8 @@ grind_pattern mono_nextLit' => s.nextLit.fst
 @[simp, grind .]
 theorem WellFormed_nextLit :
     s.nextLit.fst.WellFormed := by
-  grind [nextLit]
+  unfold nextLit
+  split <;> (try simp only; split) <;> grind
 
 end nextLit
 

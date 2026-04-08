@@ -154,8 +154,13 @@ theorem toList_eq_toList_inner [Std.Iterators.Finite α Id] {it : @Std.Iter (Det
   induction it using Std.Iter.inductSteps
   grind [Std.Iter.toList_eq_match_step]
 
-@[expose]
-def instMemToList : Membership β (@Std.Iter α β) where
+@[local grind =]
+theorem wrap_toList_eq_toList [Std.Iterators.Finite α Id] {it : @Std.Iter α β} :
+    (wrap it).toList = it.toList := by
+  simp [toList_eq_toList_inner]
+
+-- TODO: This should ideally be a def not an instance but this seems to break grind
+instance instMemToList : Membership β (@Std.Iter α β) where
   mem it out := out ∈ it.toList
 
 @[simp, grind =]

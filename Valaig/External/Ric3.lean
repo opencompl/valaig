@@ -5,6 +5,7 @@ public import Valaig.External.Basic
 public section
 namespace Valaig.External
 
+@[reducible]
 def rIC3
     (timeoutMs : Option Nat := none)
     (engine : String := "ic3")

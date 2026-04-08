@@ -30,7 +30,7 @@ def writeAag (aiger : Aiger) (file : IO.FS.Stream) : IO Unit := do
 
   -- Gates
   for h : var in aig.iter do
-    if let .and rhs0 rhs1 := aig[var]'(by grind) then
+    if let .and rhs0 rhs1 := aig[var]'(by simp_all) then
       file.putStrLn s!"{var.toLit.idx} {rhs0.idx} {rhs1.idx}"
 
   -- TODO: Symbols/comments
