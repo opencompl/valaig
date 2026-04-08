@@ -221,7 +221,7 @@ theorem inverted_mk {var : Var} {invert : Bool} :
 /--
 Returns the constant literal of specified value.
 -/
-@[inline]
+@[inline, coe]
 def constant (value : Bool) : Lit :=
   .ofIdx value.toNat
 
@@ -244,6 +244,10 @@ theorem constant_eq {value : Bool} :
 theorem idx_constant {value : Bool} :
     (constant value).idx = value.toNat := by
   grind
+
+@[inline]
+instance : Coe Bool Lit where
+  coe := constant
 
 /--
 The (single) false literal.
