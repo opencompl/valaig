@@ -550,6 +550,67 @@ grind_pattern denoteS_addAnd_self => ⟦(aig.addAnd rhs0 rhs1 h0 h1).fst, (aig.a
 
 end addAnd
 
+section denote_of_assign_eq
+variable (assign' : LeafIdx -> Frame -> Bool)
+
+section lit
+variable (h : ∀ (idx frame') (valid : idx.validIn aig),
+           frame' < frame ∨ (frame' = frame ∧ idx.getVar aig valid ≤ lit.var) →
+             assign idx frame' = assign' idx frame')
+include h
+
+theorem denoteC_of_assign_eq :
+    ⟦aig, lit, frame, assign⟧c = ⟦aig, lit, frame, assign'⟧c := by
+  induction _ : (frame, lit.var) using WellFounded.induction generalizing lit frame
+  exact WellFoundedRelation.wf
+  next ih _ =>
+    simp only [WellFoundedRelation.rel, Prod.lex_def, InvImage, sizeOf_nat] at ih
+    unfold denoteC
+    split
+    · clear ih h; grind
+    · clear ih h; grind
+    · clear ih; grind [h (frame' := frame)]
+    · split
+      · grind
+      · grind
+    · grind
+
+theorem denoteS_of_assign_eq :
+    ⟦aig, lit, frame, assign⟧s = ⟦aig, lit, frame, assign'⟧s := by
+  induction _ : (frame, lit.var) using WellFounded.induction generalizing lit frame
+  exact WellFoundedRelation.wf
+  next ih _ =>
+    simp only [WellFoundedRelation.rel, Prod.lex_def, InvImage, sizeOf_nat] at ih
+    unfold denoteS
+    split
+    · clear ih h; grind
+    · clear ih h; grind
+    · clear ih; grind [h (frame' := frame)]
+    · split
+      · grind
+      · grind
+    · grind
+
+end lit
+
+section var
+variable (h : ∀ (idx frame') (valid : idx.validIn aig),
+           frame' < frame ∨ (frame' = frame ∧ idx.getVar aig valid ≤ var) →
+             assign idx frame' = assign' idx frame')
+include h
+
+theorem denoteCV_of_assign_eq :
+    ⟦aig, var, frame, assign⟧cv = ⟦aig, var, frame, assign'⟧cv := by
+  grind [denoteCV_eq, denoteC_of_assign_eq]
+
+theorem denoteSV_of_assign_eq :
+    ⟦aig, var, frame, assign⟧sv = ⟦aig, var, frame, assign'⟧sv := by
+  grind [denoteSV_eq, denoteS_of_assign_eq]
+
+end var
+
+end denote_of_assign_eq
+
 /--
 A literal is unsatisfiable in an Aig if for all assignments to inputs and latches its value is
 false.
