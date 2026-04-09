@@ -1,7 +1,6 @@
 module
 
 public import Valaig.Aig.Basic
-public import Valaig.Aig.Iter
 import all Valaig.Aig.Basic
 public import Valaig.Aig.StdSatLemmas
 
@@ -94,54 +93,6 @@ theorem getReset_mono {idx : LatchIdx} (valid : idx.validIn old) :
   mono.getReset valid
 
 grind_pattern getReset_mono => idx.getReset new, old ≤ new
-
-@[simp]
-theorem size_mono :
-    new.size ≥ old.size := by
-  have {n : Nat} := @mono.varValid (.ofIdx n)
-  simp only [Var.validIn_iff] at this
-  grind
-
-grind_pattern size_mono => new.size, old ≤ new
-
-@[simp]
-theorem toList_iter_prefix_mono :
-    old.iter.toList <+: new.iter.toList := by
-  grind [List.prefix_iff_getElem]
-
-grind_pattern toList_iter_prefix_mono => new.iter.toList, old ≤ new
-
-@[simp]
-theorem toList_inputs_subset_mono :
-    old.inputs.toList ⊆ new.inputs.toList := by
-  grind
-
-grind_pattern toList_inputs_subset_mono => new.inputs.toList, old ≤ new
-
-@[simp]
-theorem numInputs_mono :
-    new.numInputs ≥ old.numInputs := by
-  let new' := new.inputs.toList.filter (·.validIn old)
-  have : new'.Perm old.inputs.toList := by grind [List.Nodup.count, List.pairwise_iff_getElem]
-  grind [List.Perm.length_eq, =_ length_toList_inputs]
-
-grind_pattern numInputs_mono => new.numInputs, old ≤ new
-
-@[simp]
-theorem toList_latches_subset_mono :
-    old.latches.toList ⊆ new.latches.toList := by
-  grind
-
-grind_pattern toList_latches_subset_mono => new.latches.toList, old ≤ new
-
-@[simp]
-theorem numLatches_mono :
-    new.numLatches ≥ old.numLatches := by
-  let new' := new.latches.toList.filter (·.validIn old)
-  have : new'.Perm old.latches.toList := by grind [List.Nodup.count, List.pairwise_iff_getElem]
-  grind [List.Perm.length_eq, =_ length_toList_latches]
-
-grind_pattern numLatches_mono => new.numLatches, old ≤ new
 
 end Monotone
 

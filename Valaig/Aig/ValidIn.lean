@@ -34,6 +34,11 @@ theorem true_validIn :
     Lit.true.validIn aig := by
   simp
 
+@[simp, grind =]
+theorem validIn_maxVar {var : Var} :
+    var ≤ aig.maxVar ↔ var.validIn aig := by
+  grind [maxVar, Var.validIn_iff, aig.aig.hzero, size]
+
 end
 
 attribute [local simp] Var.validIn Lit.validIn InputIdx.validIn LatchIdx.validIn numInputs numLatches

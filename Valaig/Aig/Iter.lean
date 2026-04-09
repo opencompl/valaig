@@ -2,6 +2,7 @@ module
 
 public import Valaig.Aig.Basic
 import all Valaig.Aig.Basic
+public import Valaig.Aig.ValidIn
 import Valaig.Utils.GrindIter
 import Valaig.Utils.DetIter
 
@@ -14,6 +15,9 @@ A custom iterator type for the forward iteration of variables that is easy to re
 -/
 structure VarIter (aig : Aig) where
   var : Var
+  -- We store the max size in the iterator to prevent holding a reference to the Aig
+  size : Nat
+  sized : size = aig.size := by grind
   range : var.validIn aig ∨ var.idx = aig.size := by grind
 
 /--
@@ -21,7 +25,7 @@ A forward iterator over variables in the Aig. See also `iterVal`.
 -/
 @[inline]
 def iter (aig : Aig) : @Std.Iter aig.VarIter Var :=
-  ⟨.ofIdx 0, by grind [Var.validIn_iff]⟩
+  ⟨VarIter.mk .constant aig.size⟩
 
 /--
 The next value to be returned by a variable iterator, or `Var.ofIdx aig.size` if the iterator is
@@ -30,6 +34,13 @@ done.
 @[inline]
 def iterVal (aig : Aig) (it : @Std.Iter aig.VarIter Var) : Var :=
   it.internalState.var
+
+/--
+The final variable iterator value that returns done.
+-/
+@[inline]
+def iterEnd (aig : Aig) : @Std.Iter aig.VarIter Var :=
+  ⟨VarIter.mk (.ofIdx aig.size) aig.size⟩
 
 namespace VarIter
 
@@ -43,8 +54,8 @@ attribute [local grind] Std.Iter.toIterM
 @[always_inline, local grind]
 def step (it : @Std.IterM aig.VarIter m Var) : Std.IterStep (@Std.IterM aig.VarIter m Var) Var :=
   let var := it.internalState.var
-  if h : var.validIn aig then
-    .yield ⟨⟨var + 1, by grind⟩⟩ var
+  if h : var.idx < it.internalState.size then
+    .yield ⟨{ it.internalState with var := var + 1, range := by grind }⟩ var
   else
     .done
 
@@ -209,6 +220,40 @@ theorem toList_yield (h : it.IsPlausibleStep (.yield it' out)) :
   | cons out' tail ih => grind [Std.Iter.toList_eq_match_step]
 
 grind_pattern toList_yield => it.IsPlausibleStep (.yield it' out), it.toList
+
+@[simp]
+theorem iterEnd_done (h : it.IsPlausibleStep .done) :
+    it = aig.iterEnd := by
+  grind [iterEnd]
+
+grind_pattern iterEnd_done => it.IsPlausibleStep .done, aig.iterEnd
+
+@[simp, grind =]
+theorem step_iterEnd :
+    aig.iterEnd.step.val = .done := by
+  grind [iterEnd]
+
+@[simp, grind .]
+theorem iterVal_le_iterEnd :
+    aig.iterVal it ≤ (aig.iterVal aig.iterEnd) := by
+  grind [iterEnd]
+
+@[simp, grind .]
+theorem not_validIn_iterEnd :
+    ¬(aig.iterVal aig.iterEnd).validIn aig := by
+  grind [iterEnd]
+
+@[simp]
+theorem validIn_iff_not_iterEnd :
+    (aig.iterVal it).validIn aig ↔ it ≠ aig.iterEnd := by
+  grind [iterEnd]
+
+@[simp, grind =]
+theorem idx_iterEnd :
+    (aig.iterVal aig.iterEnd).idx = aig.size := by
+  grind [iterEnd]
+
+grind_pattern validIn_iff_not_iterEnd => (aig.iterVal it).validIn aig, aig.iterEnd
 
 end VarIter
 
@@ -408,3 +453,58 @@ theorem Perm_leaves_iff_validIn {aig aig' : Aig} :
   constructor
   · grind [=_ mem_leaves_iff, List.Perm.mem_iff]
   · grind [List.Nodup.count]
+
+section mono
+variable {old new : Aig} (mono : old ≤ new)
+include mono
+
+@[simp]
+theorem size_mono :
+    new.size ≥ old.size := by
+  have {n : Nat} := @mono.varValid (.ofIdx n)
+  simp only [Var.validIn_iff] at this
+  grind
+
+grind_pattern size_mono => new.size, old ≤ new
+
+@[simp]
+theorem toList_iter_prefix_mono :
+    old.iter.toList <+: new.iter.toList := by
+  grind [List.prefix_iff_getElem]
+
+grind_pattern toList_iter_prefix_mono => new.iter.toList, old ≤ new
+
+@[simp]
+theorem toList_inputs_subset_mono :
+    old.inputs.toList ⊆ new.inputs.toList := by
+  grind
+
+grind_pattern toList_inputs_subset_mono => new.inputs.toList, old ≤ new
+
+@[simp]
+theorem numInputs_mono :
+    new.numInputs ≥ old.numInputs := by
+  let new' := new.inputs.toList.filter (·.validIn old)
+  have : new'.Perm old.inputs.toList := by grind [List.Nodup.count, List.pairwise_iff_getElem]
+  grind [List.Perm.length_eq, =_ length_toList_inputs]
+
+grind_pattern numInputs_mono => new.numInputs, old ≤ new
+
+@[simp]
+theorem toList_latches_subset_mono :
+    old.latches.toList ⊆ new.latches.toList := by
+  grind
+
+grind_pattern toList_latches_subset_mono => new.latches.toList, old ≤ new
+
+@[simp]
+theorem numLatches_mono :
+    new.numLatches ≥ old.numLatches := by
+  let new' := new.latches.toList.filter (·.validIn old)
+  have : new'.Perm old.latches.toList := by grind [List.Nodup.count, List.pairwise_iff_getElem]
+  grind [List.Perm.length_eq, =_ length_toList_latches]
+
+grind_pattern numLatches_mono => new.numLatches, old ≤ new
+
+
+end mono
