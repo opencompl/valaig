@@ -101,7 +101,7 @@ end Binary
 def asLit (n : Nat) : BodyM Lit := do
   let lit := .ofIdx n
   if lit.var > (←getHeader).maxVar then
-    failM "non-zero integer expected"
+    failM "literal exceeds maximum variable specified in header"
   return lit
 
 -- Validates a literal used to define a gate/latch that must be even and non-zero
