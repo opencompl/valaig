@@ -317,7 +317,7 @@ def parseGates : BodyM (Std.HashMap Var Gate) := do
 
 end Binary
 
-public def parse (M : (Type -> Type)) [Monad M] [MonadLiftT Parser M] : M (Header × Aiger) := do
+public def parse (M : (Type -> Type)) [Monad M] [MonadLiftT Parser M] : M Aiger := do
   let header ← parseHeader
 
   -- Run everything within a context where it can read the header
@@ -348,13 +348,13 @@ public def parse (M : (Type -> Type)) [Monad M] [MonadLiftT Parser M] : M (Heade
   let comments ← parseComments
   (eof : Parser _)
 
-  return (header, { inputs, latches, outputs, bads, constraints, gates, symbols, comments })
+  return { header, inputs, latches, outputs, bads, constraints, gates, symbols, comments }
 
 end Parser
 end Parser
 
 @[inline]
-public def parse (input : ByteArray) : Except String (Parser.Header × Parser.Aiger) :=
+public def parse (input : ByteArray) : Except String Parser.Aiger :=
   Parser.parse Std.Internal.Parsec.ByteArray.Parser |>.run input
 
 end Valaig.Aiger

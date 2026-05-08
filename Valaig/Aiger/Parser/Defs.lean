@@ -56,6 +56,7 @@ constructs a looser structure that just corresponds to the Aiger file first, fro
 legalised Aig is constructed.
 -/
 structure Aiger where
+  header : Header
   inputs : Array Input
   latches : Array Latch
   outputs : Array Output
