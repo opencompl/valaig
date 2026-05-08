@@ -174,7 +174,7 @@ def parseSymbolLine : Parser Symbol := do
     | 'c' => pure SymbolType.constraint
     | 'j' => pure SymbolType.justice
     | 'f' => pure SymbolType.fairness
-    | c => fail s!"Unsupported symbol type {c}"
+    | c => fail s!"unsupported symbol type {c}"
 
   let idx ← parseNat
   let symb ←
@@ -183,7 +183,7 @@ def parseSymbolLine : Parser Symbol := do
   skipNewline
 
   match String.fromUTF8? symb.toByteArray with
-  | none => fail "Couldn't decode non-UTF8 symbol"
+  | none => fail "couldn't decode non-UTF8 symbol"
   | some sym => return ((type, idx), sym)
 
 @[inline]
@@ -196,7 +196,7 @@ partial def parseSymbols : BodyM (Std.HashMap SymbolIndex String) := do
       let (contains, s) := symbols.containsThenInsert idx symbol
       symbols := s
       if contains then
-        failM s!"Symbol {repr idx} defined multiple times"
+        failM s!"symbol {repr idx} defined multiple times"
   return symbols
 
 @[inline]
@@ -204,7 +204,7 @@ def parseCommentLine : Parser String := do
   let comment ← takeUntil (. = '\n'.toUInt8)
   skipNewline
   match String.fromUTF8? comment.toByteArray with
-  | none => fail "Couldn't decode non-UTF8 comment"
+  | none => fail "couldn't decode non-UTF8 comment"
   | some c => return c
 
 @[inline]
@@ -234,7 +234,7 @@ def parseGates : BodyM (Std.HashMap Var Gate) := do
     let (contains, g) := gates.containsThenInsert var gate
     gates := g
     if contains then
-      failM s!"Gate {var.idx} defined multiple times"
+      failM s!"gate {var.idx} defined multiple times"
   return gates
 
 end ASCII
@@ -324,7 +324,7 @@ public def parse (M : (Type -> Type)) [Monad M] [MonadLiftT Parser M] : M (Heade
   (ReaderT.run · header) <| do
 
   if header.numFairness > 0 || header.numJustice > 0 then
-    failM "Justice and Fairness properties not yet supported"
+    failM "justice and fairness properties not yet supported"
 
   if header.binary then
     if header.numInputs + header.numLatches + header.numAnds ≠ header.maxVar.idx then
