@@ -39,6 +39,16 @@ theorem validIn_maxVar {var : Var} :
     var ≤ aig.maxVar ↔ var.validIn aig := by
   grind [maxVar, Var.validIn_iff, aig.aig.hzero, size]
 
+@[simp, grind =]
+theorem validIn_mapToVar {lit : Lit} {var : Var} :
+    (lit.mapToVar var).validIn aig ↔ var.validIn aig := by
+  simp
+
+@[simp, grind =]
+theorem validIn_mapTo {lit new : Lit} :
+    (lit.mapTo new).validIn aig ↔ new.validIn aig := by
+  simp
+
 end
 
 attribute [local simp] Var.validIn Lit.validIn InputIdx.validIn LatchIdx.validIn numInputs numLatches
