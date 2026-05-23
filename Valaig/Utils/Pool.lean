@@ -183,31 +183,31 @@ Removes an element from the pool by index. If there is no element allocated with
 pool is returned unchanged.
 -/
 @[inline]
-def remove (pool : Pool α) (idx : Nat) : Pool α :=
+def erase (pool : Pool α) (idx : Nat) : Pool α :=
   { pool with
     values := pool.values.erase idx
     ltIdx := by have := @pool.ltIdx; grind
   }
 
 @[simp, grind =]
-theorem mem_remove_iff :
-    idx ∈ (pool.remove idx') ↔
+theorem mem_erase_iff :
+    idx ∈ (pool.erase idx') ↔
       idx ≠ idx' ∧ idx ∈ pool := by
-  grind [remove]
+  grind [erase]
 
 @[simp, grind =]
-theorem getElem_remove (h : idx ∈ pool.remove idx') :
-    (pool.remove idx')[idx] = pool[idx]'(by grind) := by
-  grind [remove]
+theorem getElem_erase (h : idx ∈ pool.erase idx') :
+    (pool.erase idx')[idx] = pool[idx]'(by grind) := by
+  grind [erase]
 
 @[simp, grind =]
-theorem size_remove :
-    (pool.remove idx).size =
+theorem size_erase :
+    (pool.erase idx).size =
     if idx ∈ pool then
       pool.size - 1
     else
       pool.size := by
-  grind [remove]
+  grind [erase]
 
 /--
 Inserts a new element at an index in the pool, growing the pool if needed. If the pool already

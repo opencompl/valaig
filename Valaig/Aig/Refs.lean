@@ -181,7 +181,7 @@ instance {l : Lit} : Decidable l.inverted :=
     simp [inverted, ←UInt8.toNat_inj]
   decidable_of_iff _ this
 
-@[simp, ext, grind ext]
+@[ext, grind ext]
 theorem ext_of {lit lit' : Lit} (var : lit.var = lit'.var) (inverted : lit.inverted = lit'.inverted) :
     lit = lit' := by
   grind [Lit.var, Lit.inverted]
@@ -581,3 +581,9 @@ end Lit
 @[inline, expose, reducible, simp, grind unfold]
 def Var.toLit (var : Var) (invert : Bool := false) : Lit :=
   .mk var invert
+
+@[inline]
+instance : Coe Var Lit where
+  coe := Var.toLit
+
+end Valaig

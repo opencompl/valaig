@@ -1,17 +1,16 @@
 module
 
-public import Std.Sat.AIG.Basic
-public import Std.Sat.AIG.CachedGates
 public meta import Valaig.Prelude
 public import Valaig.Utils.Pool
-public import Valaig.Aig.StdSatLemmas
+public import Valaig.Utils.Map
 public import Valaig.Aig.Refs
 public import Valaig.ForStd
 
+public section
 namespace Valaig.Aig
 
 /--
-The metadata of an input in the Aig.
+  The metadata of an input in the Aig.
 -/
 structure Input where
   var : Var
@@ -21,7 +20,12 @@ deriving instance Hashable, DecidableEq, Repr, Inhabited for Input
 end Input
 
 /--
-The metadata of a latch in the Aig.
+  We require the inputs we store in the array to only track non-constant indices.
+-/
+private abbrev InputData := { input : Input // input.var ≠ .constant }
+
+/--
+  The metadata of a latch in the Aig.
 -/
 structure Latch where
   var : Var
@@ -32,14 +36,17 @@ namespace Latch
 deriving instance Hashable, DecidableEq, Repr, Inhabited for Latch
 end Latch
 
+/--
+  We require the inputs we store in the array to only track non-constant indices.
+-/
+private abbrev LatchData := { latch : Latch // latch.var ≠ .constant }
+
 end Valaig.Aig
 
--- Switch to public
-public section
 namespace Valaig.Aig
 
 /--
-An index to an input definition in the Aig input pool. These inputs are primary inputs (PIs).
+  An index to an input definition in the Aig. These inputs are primary inputs (PIs).
 -/
 @[ext, grind ext]
 structure InputIdx where
@@ -53,7 +60,7 @@ instance : LawfulHashable InputIdx where hash_eq := by simp
 end InputIdx
 
 /--
-An index to a latch definition in the Aig latch pool.
+  An index to a latch definition in the Aig.
 -/
 @[ext, grind ext]
 structure LatchIdx where
@@ -67,9 +74,9 @@ instance : LawfulHashable LatchIdx where hash_eq := by simp
 end LatchIdx
 
 /--
-A leaf in the combinational aig is either an input or a latch, which is just a reference back to
-the index in the inputs or latches pools.
-These are what abc calls Combinational Inputs (CIs).
+  A leaf in the Aig is either an input or a latch, which is a reference back to the index
+  in the inputs or latches.
+  These are what abc calls Combinational Inputs (CIs).
 -/
 inductive LeafIdx where
 | input (idx : InputIdx)
@@ -90,8 +97,96 @@ instance : Coe LatchIdx LeafIdx where
 end LeafIdx
 
 /--
-An output of interest in the circuit - this is also used to represent other
-nameable nodes in the Aiger format like bad and constraint nodes.
+  A representation of the node data stored for a particular variable in an `Aig`. For inputs and
+  latches this requires a further lookup with `InputIdx.get` or `LatchIdx.get`.
+-/
+inductive Node where
+  | false
+  | input (idx : InputIdx)
+  | latch (idx : LatchIdx)
+  | and (lhs rhs : Lit)
+
+@[always_inline]
+instance : Coe InputIdx Node where
+  coe := (.input ·)
+
+@[always_inline]
+instance : Coe LatchIdx Node where
+  coe := (.latch ·)
+
+@[always_inline]
+instance : Coe LeafIdx Node where
+  coe
+  | .input idx
+  | .latch idx => idx
+
+namespace Node
+deriving instance Hashable, DecidableEq, Repr, Inhabited for Node
+end Node
+
+/--
+  The generic representation of nodes in the Aig, including inputs, latches and
+  gates. These are interpreted relative to their position in the Aig to give
+  semantics, see `NodeData.toNode`.
+-/
+private abbrev NodeData := Lit × Lit
+
+namespace NodeData
+
+private def false : NodeData :=
+  (.false, .false)
+
+@[always_inline, local simp, local grind]
+private def input (idx : InputIdx) (var : Var) : NodeData :=
+  (var.toLit .false, .ofIdx idx.idx)
+
+@[always_inline, local simp, local grind]
+private def latch (idx : LatchIdx) (var : Var) : NodeData :=
+  (var.toLit .true, .ofIdx idx.idx)
+
+@[always_inline, local simp, local grind]
+private def and (rhs0 rhs1 : Lit) : NodeData :=
+  (rhs0, rhs1)
+
+@[always_inline, local simp, local grind]
+private def toNode (data : NodeData) (var : Var) : Node :=
+  if var = .constant then
+    .false
+  else if data.fst.var = var then
+    if !data.fst.inverted then
+      .input <| .ofIdx data.snd.idx
+    else
+      .latch <| .ofIdx data.snd.idx
+  else
+    .and data.fst data.snd
+
+@[simp, grind =]
+private theorem toNode_constant {data : NodeData} :
+    data.toNode .constant = .false := by
+  simp
+
+@[simp, grind =]
+private theorem toNode_input {idx : InputIdx} {var : Var} (notConst : var ≠ .constant) :
+    (input idx var).toNode var = idx := by
+  grind
+
+@[simp, grind =]
+private theorem toNode_latch {idx : LatchIdx} {var : Var} (notConst : var ≠ .constant) :
+    (latch idx var).toNode var = idx := by
+  grind
+
+set_option linter.unusedVariables false in
+@[simp, grind =]
+private theorem toNode_and {rhs0 rhs1 : Lit} {var : Var} (notConst : var ≠ .constant)
+    (h0 : rhs0.var ≠ var) (h1 : rhs1.var ≠ var) :
+    (and rhs0 rhs1).toNode var = .and rhs0 rhs1 := by
+  grind
+
+end NodeData
+
+/--
+  An output of interest in the circuit - this is also used to represent other
+  referenced nodes in the Aiger format like bad and constraint nodes.
 -/
 structure Output where
   lit : Lit
@@ -105,97 +200,188 @@ abbrev Outputs := Array Output
 end Aig
 
 /--
-A sequential And-Inverter Graph consisting of inputs, latches and And gates. Outputs should be
-stored separately as `Lit`s in the `Aig`.
+  A sequential And-Inverter Graph consisting of inputs, latches and And gates.
 -/
 structure Aig where
-  -- The underlying AIG
-  private aig : Std.Sat.AIG Aig.LeafIdx
+  /-- The core array of nodes making up the Aig. -/
+  private _nodes : Array Aig.NodeData
 
-  -- This is a temporary constraint, later we will enforce this by simply not storing a false node
-  -- in the aig and always treating the constant variable as referring to false
-  private hconst :
-    ∀ (idx : Nat) (valid : idx < aig.decls.size),
-      aig.decls[idx] = .false ↔ idx = 0
+  /-- A mapping from input indices (`InputIdx`) to their definition. -/
+  private _inputs : Utils.Pool Aig.InputData
 
-  -- A mapping from input indices (LeafIdx.input idx) to their definition
-  private _inputs : Utils.Pool Aig.Input
+  /-- A mapping from latch indices (`LatchIdx`) to their definition. -/
+  private _latches : Utils.Pool Aig.LatchData
 
-  -- A mapping from latch indices (LeafIdx.latch idx) to their definition
-  private _latches : Utils.Pool Aig.Latch
+  /--
+    We always store at least one element, which regardless of value represents the constant false.
+  -/
+  private sized : _nodes.size > 0
 
 variable {aig : Aig}
 
 namespace Aig
 
 /--
-A representation of the node data stored for a particular variable in an `Aig`. For inputs and
-latches this requires a further lookup with `InputIdx.get` or `LatchIdx.get`.
+  A general error type for fallible Aig functions.
 -/
-inductive Node where
-  | false
-  | input (idx : InputIdx)
-  | latch (idx : LatchIdx)
-  | and (lhs rhs : Lit)
+inductive Err
+/-- Returned by `function!` functions if argument `arg` is invalid in the Aig when it is expected to be valid. -/
+| invalidIdx (function : String) (arg : String)
+/-- Generic error messages with an associated function. `Err.str` can be used to avoid defining a function location. -/
+| other (function : String) (msg : String)
 
-namespace Node
-deriving instance Hashable, DecidableEq, Repr, Inhabited for Node
-end Node
+namespace Err
+deriving instance Hashable, DecidableEq, Repr, Inhabited for Err
+
+@[always_inline]
+def str (msg : String) : Err :=
+  .other "" msg
+
+end Err
+
+abbrev Except (α : Type) := _root_.Except Err α
+
+@[always_inline]
+instance : Utils.Map.AsNat Var where
+  toNat := Var.idx
+  ofNat := Var.ofIdx
 
 /--
-An `Aig` with just the constant node.
+  An abstract representation of the mapping from variables to the corresponding node in the Aig.
+  This allows an abstract representation of variable validity (`var ∈ aig.nodes`),
+  lookup (`aig.nodes[var]`) and size (`aig.nodes.size`).
+
+  NOTE: This should not be used in computation, instead preferring `var.validIn aig`, `aig[var]`
+  and `aig.size`.
 -/
-@[inline]
-def empty : Aig :=
-  {
-    aig := .empty,
-    hconst := by grind [Std.Sat.AIG.empty]
-    _inputs := .empty,
-    _latches := .empty,
-  }
+@[always_inline]
+def nodes (aig : Aig) : Utils.Map Var Node :=
+  .mk
+    (valid := (·.idx < aig._nodes.size))
+    (map := fun var valid => aig._nodes[var.idx].toNode var)
+    (size := aig._nodes.size)
+
+@[always_inline]
+instance : Utils.Map.AsNat InputIdx where
+  toNat := InputIdx.idx
+  ofNat := InputIdx.ofIdx
 
 /--
-The number of nodes currently allocated in aig.
+  An abstract representation of the mapping from `InputIdx`s to the corresponding input in the Aig.
+  This allows an abstract representation of index validity (`idx ∈ aig.inputs`),
+  lookup (`aig.inputs[idx]`) and size (`aig.inputs.size`).
+
+  NOTE: This should not be used in computation, instead preferring `idx.validIn aig`,
+  `idx.getVar aig` and `aig.numInputs`.
+-/
+@[always_inline]
+def inputs (aig : Aig) : Utils.Map InputIdx Input :=
+  Utils.Map.ofPool aig._inputs InputIdx |>.mapVal (·.val)
+
+@[always_inline]
+instance : Utils.Map.AsNat LatchIdx where
+  toNat := LatchIdx.idx
+  ofNat := LatchIdx.ofIdx
+
+/--
+  An abstract representation of the mapping from `LatchIdx`s to the corresponding latch in the Aig.
+  This allows an abstract representation of index validity (`idx ∈ aig.latches`),
+  lookup (`aig.latches[idx]`) and size (`aig.latches.size`).
+
+  NOTE: This should not be used in computation, instead preferring `idx.validIn aig`,
+  `idx.getVar aig`/`idx.getNext aig`/`idx.getReset aig` and `aig.numLatches`.
+-/
+@[always_inline]
+def latches (aig : Aig) : Utils.Map LatchIdx Latch :=
+  Utils.Map.ofPool aig._latches LatchIdx |>.mapVal (·.val)
+
+/--
+  The number of nodes currently allocated in the Aig.
+  This includes both And gates as well as inputs and latches.
 -/
 @[always_inline]
 def size (aig : Aig) : Nat :=
-  aig.aig.decls.size
+  aig._nodes.size
 
 /--
-The maximum variable currently allocated in the aig.
--/
-@[always_inline]
-def maxVar (aig : Aig) : Var :=
-  .ofIdx <| aig.size - 1
-
-/--
-The number of input nodes in the aig.
+  The number of inputs in the Aig.
 -/
 @[always_inline]
 def numInputs (aig : Aig) : Nat :=
   aig._inputs.size
 
 /--
-The number of latch nodes in the aig.
+  The number of latches in the Aig.
 -/
 @[always_inline]
 def numLatches (aig : Aig) : Nat :=
   aig._latches.size
 
 /--
-The number of gate nodes in the aig.
+  The number of and gate nodes in the Aig.
 -/
-@[always_inline]
 abbrev numGates (aig : Aig) : Nat :=
   aig.size - aig.numInputs - aig.numLatches - 1
+
+/--
+  The variable with the highest index currently allocated in the Aig.
+  All variables up to this variable are also allocated.
+-/
+@[always_inline]
+def maxVar (aig : Aig) : Var :=
+  .ofIdx <| aig.size - 1
+
+/--
+  The smallest variable not currently allocated in the Aig.
+  This is the variable that is allocated for methods that append a node.
+-/
+@[always_inline]
+def nextVar (aig : Aig) : Var :=
+  .ofIdx <| aig.size
+
+@[simp, grind .]
+theorem not_constant_next_var :
+    aig.nextVar ≠ .constant := by
+  grind [nextVar, size, aig.sized]
+
+/--
+  The (arbitrary) next input index not currently allocated in the Aig.
+  This is the index that is allocated for methods that append an input.
+-/
+@[always_inline]
+def newInputIdx (aig : Aig) : InputIdx :=
+  .ofIdx aig._inputs.nextIdx
+
+/--
+  The (arbitrary) next latch index not currently allocated in the Aig.
+  This is the index that is allocated for methods that append a latch.
+-/
+@[always_inline]
+def newLatchIdx (aig : Aig) : LatchIdx :=
+  .ofIdx aig._latches.nextIdx
+
+/--
+  An Aig with just the constant node.
+-/
+def empty : Aig :=
+  {
+    _nodes := #[.false],
+    _inputs := .empty,
+    _latches := .empty,
+    sized := by grind
+  }
 
 end Aig
 
 /-
-Variable accessors.
+  Validity predicates.
 -/
 namespace Var 
 
+/--
+  A variable is `validIn` an Aig iff it has a node defined for it.
+-/
+@[expose]
 def validIn (var : Var) (aig : Aig) : Prop :=
   var.idx < aig.size
 
@@ -205,39 +391,28 @@ instance {var : Var} {aig : Aig} : Decidable (var.validIn aig) :=
     simp [Var.validIn]
   decidable_of_iff' _ this
 
+/--
+  A dependently type variable that is known to be valid in a given Aig.
+  This allows packing the proof of validity together with the variable.
+-/
 abbrev In (aig : Aig) := { var : Var // var.validIn aig }
 
+/--
+  Cast a `Var` into a `Var.In aig`. This tries to use `grind` to prove that the variable is
+  valid in the Aig.
+-/
 @[always_inline, simp]
 abbrev castIn (var : Var) (aig : Aig) (valid : var.validIn aig := by grind) : Var.In aig :=
   ⟨var, valid⟩
-
-private theorem validIn_iff_lt_decls_size {var : Var} :
-    var.validIn aig ↔ var.idx < aig.aig.decls.size := by
-  grind [validIn, Aig.size]
-
-grind_pattern validIn_iff_lt_decls_size => var.idx ≥ aig.aig.decls.size
-
-@[simp]
-private theorem lt_decls_size_of_validIn {var : Var} (valid : var.validIn aig) :
-    var.idx < aig.aig.decls.size :=
-  validIn_iff_lt_decls_size.mp valid
-
-theorem validIn_iff {var : Var} :
-    var.validIn aig ↔ var.idx < aig.size := by
-  grind [validIn]
-
-grind_pattern validIn_iff => var.idx ≥ aig.size
-
-@[simp]
-theorem lt_size_of_validIn {var : Var} (valid : var.validIn aig) :
-    var.idx < aig.size :=
-  validIn_iff.mp valid
 
 end Var
 
 namespace Lit
 
-@[expose, reducible, simp, grind unfold]
+/--
+  A literal is `validIn` an Aig iff its variable is also.
+-/
+@[always_inline, reducible, expose, simp, grind unfold]
 def validIn (lit : Lit) (aig : Aig) : Prop :=
   lit.var.validIn aig
 
@@ -246,8 +421,16 @@ instance {lit : Lit} {aig : Aig} : Decidable (lit.validIn aig) :=
   have : lit.validIn aig ↔ lit.var.validIn aig := by simp
   decidable_of_iff' _ this
 
+/--
+  A dependently type literal that is known to be valid in a given Aig.
+  This allows packing the proof of validity together with the literal.
+-/
 abbrev In (aig : Aig) := { lit : Lit // lit.validIn aig }
 
+/--
+  Cast a `Lit` into a `Lit.In aig`. This tries to use `grind` to prove that the literal is
+  valid in the Aig.
+-/
 @[always_inline, simp]
 abbrev castIn (lit : Lit) (aig : Aig) (valid : lit.validIn aig := by grind) : Lit.In aig :=
   ⟨lit, valid⟩
@@ -256,188 +439,250 @@ end Lit
 
 namespace Aig
 
-variable {aig : Aig}
-
-@[always_inline]
-def get (aig : Aig) (var : Var) (valid : var.validIn aig := by grind) : Node :=
-  match aig.aig.decls[var.idx] with
-  | .false => .false
-  | .atom (.input idx) => .input idx
-  | .atom (.latch idx) => .latch idx
-  | .gate rhs0 rhs1 => .and (.ofFanin rhs0) (.ofFanin rhs1)
-
-private theorem getElem_decls_eq_get {idx : Nat} (valid : idx < aig.aig.decls.size) :
-    aig.aig.decls[idx] =
-    match aig.get (Var.ofIdx idx) (by grind [Var.validIn, size]) with
-    | .false     => .false
-    | .input idx => .atom (.input idx)
-    | .latch idx => .atom (.latch idx)
-    | .and rhs0 rhs1 => .gate rhs0.toFanin rhs1.toFanin := by
-  grind [Aig.get]
-
-private theorem get_eq_getElem_decls {var : Var} (valid : var.validIn aig) :
-    aig.get var valid =
-    match aig.aig.decls[var.idx]'valid with
-    | .false     => .false
-    | .atom (.input idx) => .input idx
-    | .atom (.latch idx) => .latch idx
-    | .gate rhs0 rhs1 => .and (.ofFanin rhs0) (.ofFanin rhs1) := by
-  grind [Aig.get]
-
-private theorem get_eq_getElem_decls_false {var : Var} (valid : var.validIn aig)
-    (h : aig.get var valid = .false) :
-    aig.aig.decls[var.idx]'valid = .false := by
-  grind [get_eq_getElem_decls valid]
-
-private theorem get_eq_getElem_decls_input {var : Var} (valid : var.validIn aig)
-    {idx : InputIdx} (h : aig.get var valid = .input idx) :
-    aig.aig.decls[var.idx]'valid = .atom (.input idx) := by
-  grind [get_eq_getElem_decls valid]
-
-private theorem get_eq_getElem_decls_latch {var : Var} (valid : var.validIn aig)
-    {idx : LatchIdx} (h : aig.get var valid = .latch idx) :
-    aig.aig.decls[var.idx]'valid = .atom (.latch idx) := by
-  grind [get_eq_getElem_decls valid]
-
-private theorem get_eq_getElem_decls_and {var : Var} (valid : var.validIn aig)
-    {rhs0 rhs1 : Lit} (h : aig.get var valid = .and rhs0 rhs1) :
-    aig.aig.decls[var.idx]'valid = .gate rhs0.toFanin rhs1.toFanin := by
-  grind [get_eq_getElem_decls valid]
-
-@[always_inline, expose, reducible]
-instance instGetElemVar : GetElem Aig Var Node (fun aig var => var.validIn aig) where
-  getElem aig var (h := by grind) :=
-    aig.get var h
-
-@[simp, grind =]
-theorem getElem_eq_get {var : Var} (valid : var.validIn aig) :
-    aig[var]'valid = aig.get var valid := by
-  rfl
-
-@[simp, grind =]
-theorem getElem?_eq {var : Var} :
-    aig[var]? =
-    if h : var.validIn aig then
-      some aig[var]
-    else
-      none := by
-  split
-  · rw [getElem?_eq_some_getElem_iff]
-    trivial
-  · grind
-
-@[simp]
-theorem validIn_of_getElem?_some {var : Var} {node : Node} (h : aig[var]? = some node) :
-    var.validIn aig := by
-  grind
-
-grind_pattern validIn_of_getElem?_some => aig[var]?, some node, var.validIn aig
-
-/-
-Input accessors.
--/
 namespace InputIdx
 
+/--
+  An input is `validIn` an Aig iff it is a member of `aig.inputs`.
+-/
 @[local simp]
 def validIn (idx : InputIdx) (aig : Aig) : Prop :=
   idx.idx ∈ aig._inputs
 
+/-- NOTE: Do not rely on this function externally! -/
 @[always_inline]
 def instDecidableValidIn.impl (idx : InputIdx) (aig : Aig) : Bool :=
   idx.idx ∈ aig._inputs
 
 @[always_inline]
-instance {idx : InputIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
+instance {idx : InputIdx} : Decidable (idx.validIn aig) :=
   have : idx.validIn aig ↔ instDecidableValidIn.impl idx aig := by
     simp [instDecidableValidIn.impl]
   decidable_of_iff' _ this
 
+/--
+  A dependently type `InputIdx` that is known to be valid in a given Aig.
+  This allows packing the proof of validity together with the index.
+-/
 abbrev In (aig : Aig) := { idx : InputIdx // idx.validIn aig }
 
+/--
+  Cast an `InputIdx` into an `InputIdx.In aig`. This tries to use `grind` to prove that the index is
+  valid in the Aig.
+-/
 @[always_inline, simp]
 abbrev castIn (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : InputIdx.In aig :=
   ⟨idx, valid⟩
 
-@[always_inline]
-def getVar (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
-  aig._inputs[idx.idx].var
-
-@[always_inline, simp]
-abbrev getLit (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
-  idx.getVar aig valid |>.toLit
-
 end InputIdx
 
-/-
-Latch accessors.
--/
 namespace LatchIdx
 
+/--
+  A latch is `validIn` an Aig iff it is a member of `aig.latches`.
+-/
 @[local simp]
 def validIn (idx : LatchIdx) (aig : Aig) : Prop :=
   idx.idx ∈ aig._latches
 
+/-- NOTE: Do not rely on this function externally! -/
 @[always_inline]
 def instDecidableValidIn.impl (idx : LatchIdx) (aig : Aig) : Bool :=
   idx.idx ∈ aig._latches
 
 @[always_inline]
-instance {idx : LatchIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
+instance {idx : LatchIdx} : Decidable (idx.validIn aig) :=
   have : idx.validIn aig ↔ instDecidableValidIn.impl idx aig := by
     simp [instDecidableValidIn.impl]
   decidable_of_iff' _ this
 
+/--
+  A dependently type `LatchIdx` that is known to be valid in a given Aig.
+  This allows packing the proof of validity together with the index.
+-/
 abbrev In (aig : Aig) := { idx : LatchIdx // idx.validIn aig }
 
+/--
+  Cast an `LatchIdx` into an `LatchIdx.In aig`. This tries to use `grind` to prove that the index is
+  valid in the Aig.
+-/
 @[always_inline, simp]
 abbrev castIn (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : LatchIdx.In aig :=
   ⟨idx, valid⟩
 
-@[always_inline]
-def getVar (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
-  aig._latches[idx.idx].var
+end LatchIdx
 
-@[always_inline, simp]
-abbrev getLit (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
+/-- NOTE: Do not rely on this function externally! -/
+@[always_inline]
+def instGetElemVar.impl (aig : Aig) (var : Var) (valid : var.validIn aig := by grind) : Node :=
+  aig._nodes[var.idx].toNode var
+
+@[always_inline]
+instance instGetElemVar : GetElem Aig Var Node (fun aig var => var.validIn aig) where
+  getElem aig var (h := by grind) :=
+    instGetElemVar.impl aig var h
+
+/-
+  Input accessors.
+-/
+namespace InputIdx
+
+/--
+  Lookup the variable (PI) defined by this input in the Aig.
+-/
+@[inline]
+def getVar (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
+  aig._inputs[idx.idx].val.var
+
+/--
+  Lookup the variable (PI) defined by this input in the Aig.
+
+  If `idx` isn't valid in the Aig, throws `err`.
+-/
+@[always_inline]
+def getVar! (idx : InputIdx) (aig : Aig) (err : Err := .invalidIdx "InputIdx.getVar!" "idx") : Except Var :=
+  match aig._inputs[idx.idx]? with
+  | some input => return input.val.var
+  | none       => throw err
+
+/--
+  Lookup the variable defined by this input in the Aig and cast it to an uninverted literal.
+-/
+@[inline]
+def getLit (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
   idx.getVar aig valid |>.toLit
 
+/--
+  Lookup the variable defined by this input in the Aig and cast it to an uninverted literal.
+
+  If `idx` isn't valid in the Aig, throws `err`.
+-/
 @[always_inline]
+def getLit! (idx : InputIdx) (aig : Aig) (err : Err := .invalidIdx "InputIdx.getLit!" "idx") : Except Lit :=
+  match aig._inputs[idx.idx]? with
+  | some input => return input.val.var.toLit
+  | none       => throw err
+
+end InputIdx
+
+/-
+  Latch accessors.
+-/
+namespace LatchIdx
+
+/--
+  Lookup the variable (CI) defined by this latch in the Aig.
+-/
+@[inline]
+def getVar (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
+  aig._latches[idx.idx].val.var
+
+/--
+  Lookup the variable (CI) defined by this latch in the Aig.
+
+  If `idx` isn't valid in the Aig, throws `err`.
+-/
+@[always_inline]
+def getVar! (idx : LatchIdx) (aig : Aig) (err : Err := .invalidIdx "LatchIdx.getVar!" "idx") : Except Var :=
+  match aig._latches[idx.idx]? with
+  | some latch => return latch.val.var
+  | none       => throw err
+
+/--
+  Lookup the variable defined by this latch in the Aig and cast it to an uninverted literal.
+-/
+@[inline]
+def getLit (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
+  idx.getVar aig valid |>.toLit
+
+/--
+  Lookup the variable defined by this latch in the Aig and cast it to an uninverted literal.
+
+  If `idx` isn't valid in the Aig, throws `err`.
+-/
+@[always_inline]
+def getLit! (idx : LatchIdx) (aig : Aig) (err : Err := .invalidIdx "LatchIdx.getLit!" "idx") : Except Lit :=
+  match aig._latches[idx.idx]? with
+  | some latch => return latch.val.var.toLit
+  | none       => throw err
+
+/--
+  Lookup the next state function defined for this latch in the Aig.
+-/
+@[inline]
 def getNext (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
-  aig._latches[idx.idx].next
+  aig._latches[idx.idx].val.next
 
-@[always_inline]
-def setNext (idx : LatchIdx) (aig : Aig) (next : Lit) : Aig :=
-  { aig with _latches := aig._latches.modify idx.idx ({ · with next }) }
+/--
+  Lookup the next state function defined for this latch in the Aig.
 
+  If `idx` isn't valid in the Aig, throws `err`.
+-/
 @[always_inline]
+def getNext! (idx : LatchIdx) (aig : Aig) (err : Err := .invalidIdx "LatchIdx.getNext!" "idx") : Except Lit :=
+  match aig._latches[idx.idx]? with
+  | some latch => return latch.val.next
+  | none       => throw err
+
+/--
+  Lookup the optional reset function defined for this latch in the Aig.
+-/
+@[inline]
 def getReset (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Option Lit :=
-  aig._latches[idx.idx].reset
+  aig._latches[idx.idx].val.reset
 
+/--
+  Lookup the optional reset function defined for this latch in the Aig.
+
+  If `idx` isn't valid in the Aig, throws `err`.
+-/
 @[always_inline]
-def setReset (idx : LatchIdx) (aig : Aig) (reset : Option Lit) : Aig :=
-  { aig with _latches := aig._latches.modify idx.idx ({ · with reset }) }
+def getReset! (idx : LatchIdx) (aig : Aig) (err : Err := .invalidIdx "LatchIdx.getReset!" "idx") : Except (Option Lit) :=
+  match aig._latches[idx.idx]? with
+  | some latch => return latch.val.reset
+  | none       => throw err
+
+set_option linter.unusedVariables false in
+/--
+  Update the next state function for a latch in the Aig.
+-/
+@[inline]
+def setNext (idx : LatchIdx) (aig : Aig) (next : Lit) (valid : idx.validIn aig := by grind) : Aig :=
+  { aig with _latches := aig._latches.modify idx.idx (⟨{ ·.val with next }, by grind⟩) }
+
+/--
+  Update the next state function for a latch in the Aig.
+
+  If `idx` isn't valid in the Aig, throws `err`.
+-/
+@[always_inline]
+def setNext! (idx : LatchIdx) (aig : Aig) (next : Lit) (err : Err := .invalidIdx "LatchIdx.setNext!" "idx") : Except Aig :=
+  if _ : idx.validIn aig then
+    return idx.setNext aig next
+  else
+    throw err
+
+set_option linter.unusedVariables false in
+/--
+  Update the reset function for a latch in the Aig.
+-/
+@[inline]
+def setReset (idx : LatchIdx) (aig : Aig) (reset : Option Lit) (valid : idx.validIn aig := by grind) : Aig :=
+  { aig with _latches := aig._latches.modify idx.idx (⟨{ ·.val with reset }, by grind⟩) }
+
+/--
+  Update the reset function for a latch in the Aig.
+
+  If `idx` isn't valid in the Aig, throws `err`.
+-/
+@[always_inline]
+def setReset! (idx : LatchIdx) (aig : Aig) (reset : Option Lit) (err : Err := .invalidIdx "LatchIdx.setReset!" "idx") : Except Aig :=
+  if _ : idx.validIn aig then
+    return idx.setReset aig reset
+  else
+    throw err
 
 end LatchIdx
 
-theorem numInputs_zero_iff_not_validIn :
-    aig.numInputs = 0 ↔ ∀ (idx : InputIdx), ¬idx.validIn aig := by
-  simp [InputIdx.validIn, numInputs, Utils.Pool.size_zero_iff_forall_not_in]
-  constructor
-  · grind
-  · intro h
-    grind [h (.ofIdx _)]
-
-theorem numLatches_zero_iff_not_validIn :
-    aig.numLatches = 0 ↔ ∀ (idx : LatchIdx), ¬idx.validIn aig := by
-  simp [LatchIdx.validIn, numLatches, Utils.Pool.size_zero_iff_forall_not_in]
-  constructor
-  · grind
-  · intro h
-    grind [h (.ofIdx _)]
-
-/-
-Arbitrary index validity and accessors, defined as abbreviations
--/
 namespace LeafIdx
 
 @[inline]
@@ -445,61 +690,29 @@ def asInput (idx : LeafIdx) (h : idx matches .input _ := by grind) : InputIdx :=
   match idx, h with
   | .input idx, _ => idx
 
-@[simp, grind =]
-theorem asInput_of_input {idx : InputIdx} :
-    (input idx).asInput = idx := by
-  rfl
-
 @[inline]
 def asLatch (idx : LeafIdx) (h : idx matches .latch _ := by grind) : LatchIdx :=
   match idx, h with
   | .latch idx, _ => idx
 
-@[simp, grind =]
-theorem asLatch_of_latch {idx : LatchIdx} :
-    (latch idx).asLatch = idx := by
-  rfl
-
+@[local grind]
 def validIn (idx : LeafIdx) (aig : Aig) : Prop :=
   match idx with
-  | .input idx => idx.validIn aig
+  | .input idx
   | .latch idx => idx.validIn aig
 
-@[simp]
-theorem validIn_iff {idx : LeafIdx} :
-    idx.validIn aig ↔
-    match idx with
-    | .input idx => idx.validIn aig
-    | .latch idx => idx.validIn aig := by
-  grind [validIn]
-
--- Only unfold with this pattern when not trivially an input or latch
-grind_pattern validIn_iff => idx.validIn aig where
-  idx =/= .input _
-  idx =/= .latch _
-
-@[grind =]
-theorem validIn_input {idx : InputIdx} :
-    (input idx).validIn aig ↔ idx.validIn aig := by
-  grind [validIn]
-
-@[grind =]
-theorem validIn_latch {idx : LatchIdx} :
-    (latch idx).validIn aig ↔ idx.validIn aig := by
-  grind [validIn]
-
 instance {idx : InputIdx} : Coe (idx.validIn aig) ((idx : LeafIdx).validIn aig) where
-  coe := by grind
+  coe := by grind [validIn]
 
 instance {idx : LatchIdx} : Coe (idx.validIn aig) ((idx : LeafIdx).validIn aig) where
-  coe := by grind
+  coe := by grind [validIn]
 
 @[always_inline]
-instance {idx : LeafIdx} {aig : Aig} : Decidable (idx.validIn aig) := by
-  rw [validIn_iff]
-  match idx with
-  | .input idx => infer_instance
-  | .latch idx => infer_instance
+instance {idx : LeafIdx} {aig : Aig} : Decidable (idx.validIn aig) :=
+  match h : idx with
+  | .input idx
+  | .latch idx =>
+    decidable_of_bool (idx.validIn aig) (by grind)
 
 abbrev In (aig : Aig) := { idx : LeafIdx // idx.validIn aig }
 
@@ -515,153 +728,404 @@ instance : Coe (InputIdx.In aig) (LeafIdx.In aig) where
 instance : Coe (LatchIdx.In aig) (LeafIdx.In aig) where
   coe idx := ⟨idx, idx.property⟩
 
+/--
+  Lookup the variable(CI) defined by this leaf in the Aig.
+-/
 @[always_inline]
 def getVar (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
   match idx with
-  | .input idx => idx.getVar aig
+  | .input idx
   | .latch idx => idx.getVar aig
 
-@[simp]
-theorem getVar_def {idx : LeafIdx} (valid : idx.validIn aig) :
-    idx.getVar aig valid =
-    match idx with
-    | .input idx => idx.getVar aig
-    | .latch idx => idx.getVar aig := by
-  grind [getVar]
+/--
+  Lookup the variable (CI) defined by this leaf in the Aig.
 
-grind_pattern getVar_def => idx.getVar aig where
-  idx =/= .input _
-  idx =/= .latch _
+  If `idx` isn't valid in the Aig, throws `err`.
+-/
+@[always_inline]
+def getVar! (idx : LeafIdx) (aig : Aig) (err : Err := .invalidIdx "LeafIdx.getVar!" "idx") : Except Var :=
+  match idx with
+  | .input idx
+  | .latch idx => idx.getVar! aig err
 
-@[simp, grind =]
-theorem getVar_input {idx : InputIdx} (valid : (input idx).validIn aig) :
-    (input idx).getVar aig = idx.getVar aig := by
-  grind [getVar]
-
-@[simp, grind =]
-theorem getVar_latch {idx : LatchIdx} (valid : (latch idx).validIn aig) :
-    (latch idx).getVar aig = idx.getVar aig := by
-  grind [getVar]
-
-@[always_inline, expose, simp, grind unfold]
+/--
+  Lookup the variable (CI) defined by this leaf in the Aig and cast it to an uninverted literal.
+-/
+@[always_inline]
 def getLit (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
   idx.getVar aig valid |>.toLit
+
+/--
+  Lookup the variable (CI) defined by this leaf in the Aig and cast it to an uninverted literal.
+
+  If `idx` isn't valid in the Aig, throws `err`.
+-/
+@[always_inline]
+def getLit! (idx : LeafIdx) (aig : Aig) (err : Err := .invalidIdx "LeafIdx.getLit!" "idx") : Except Lit :=
+  match idx with
+  | .input idx
+  | .latch idx => idx.getLit! aig err
 
 end LeafIdx
 
 /--
-Appends an input to the Aig with the given index. This is normally of use when this index is
-provably not in the Aig (for example when the Aig is empty) and it already carries meaning in
-another Aig.
-
-If another input is already registered for this index, this will overwrite it which can break
-well-formedness.
+  Push a new node onto the `Aig` from its data. This has the variable `aig.nextVar`.
 -/
-@[inline]
-def addInput' (aig : Aig) (idx : InputIdx) : Aig :=
-  -- Construct an atom pointing to this index
-  let res := aig.aig.mkAtom <| .input idx
-
-  -- Build input metadata pointing to this new atom and update the index in the pool to this
-  let _inputs := aig._inputs.insert idx.idx { var := .ofRef res.ref }
-
-  have hconst := by grind [aig.aig.hzero, aig.hconst, Std.mkAtom_eq_decls_push]
-  { aig with aig := res.aig, hconst, _inputs }
+@[always_inline]
+private def pushNode (aig : Aig) (node : NodeData) : Aig :=
+  { aig with _nodes := aig._nodes.push node, sized := by grind }
 
 /--
-Appends an input with a fresh index to the Aig, returning the index of the input.
+  Overwrite a node at a given index in the `Aig`.
+  TODO: This currently breaks linearity, so the existing node data is dealloced and
+  a new node alloced.
 -/
-@[inline]
+@[always_inline]
+private def setNode (aig : Aig) (var : Var) (node : NodeData) (valid : var.validIn aig := by grind) : Aig :=
+  { aig with _nodes := aig._nodes.set var.idx node, sized := by grind [aig.sized] }
+
+@[always_inline]
+private def insertInput (aig : Aig) (idx : InputIdx) (input : Input) (h : input.var ≠ .constant := by grind) : Aig :=
+  { aig with _inputs := aig._inputs.insert idx.idx ⟨input, h⟩ }
+
+@[always_inline]
+private def insertLatch (aig : Aig) (idx : LatchIdx) (latch : Latch) (h : latch.var ≠ .constant := by grind) : Aig :=
+  { aig with _latches := aig._latches.insert idx.idx ⟨latch, h⟩ }
+
+@[always_inline]
+private def eraseInput (aig : Aig) (idx : InputIdx) : Aig :=
+  { aig with _inputs := aig._inputs.erase idx.idx }
+
+@[always_inline]
+private def eraseLatch (aig : Aig) (idx : LatchIdx) : Aig :=
+  { aig with _latches := aig._latches.erase idx.idx }
+
+attribute [local grind] InputIdx.validIn LatchIdx.validIn newInputIdx newLatchIdx
+
+set_option linter.unusedVariables false in
+/--
+  Append an input with a new index to the Aig, returning the index of the input.
+-/
+@[always_inline]
 def addInput (aig : Aig) : Aig × InputIdx :=
-  -- Add a new input at the next free index, and return the index
-  let idx := .ofIdx aig._inputs.nextIdx
-  (aig.addInput' idx, idx)
-
-theorem addInput_eq :
-    aig.addInput = (aig.addInput' (aig.addInput.snd), aig.addInput.snd) := by
-  simp [addInput]
-
-@[simp, grind =]
-theorem addInput_fst_eq :
-    aig.addInput.fst = aig.addInput' (aig.addInput.snd) := by
-  rw [addInput_eq]
+  let idx := aig.newInputIdx
+  let var := aig.nextVar
+  let aig := aig.pushNode <| .input idx var
+  let aig := aig.insertInput idx { var }
+  (aig, idx)
 
 /--
-Appends an latch to the Aig with the given index. This is normally of use when this index is
-provably not in the Aig (for example when the Aig is empty) and it already carries meaning in
-another Aig.
+  Append a latch with a new index to the Aig, returning the index of the latch.
 
-If another latch is already registered for this index, this will overwrite it which can break
-well-formedness.
+  If `next` and `reset` are not known yet, they should be set to placeholders
+  (like `Lit.false`/`Option.none`) and updated later with `LatchIdx.setNext`/`LatchIdx.setReset`.
 -/
-@[inline]
-def addLatch' (aig : Aig) (idx : LatchIdx) (next : Lit) (reset : Option Lit) : Aig :=
-  -- Construct an atom pointing to this index
-  let res := aig.aig.mkAtom <| .latch idx
-
-  -- Build latch metadata pointing to this new atom and update the index in the pool to this
-  let latch := { var := .ofRef res.ref, next, reset }
-  let _latches := aig._latches.insert idx.idx latch
-
-  have hconst := by grind [aig.aig.hzero, aig.hconst, Std.mkAtom_eq_decls_push]
-  { aig with aig := res.aig, hconst, _latches }
+@[always_inline]
+def addLatch (aig : Aig) (next : Lit) (reset : Option Lit := none) : Aig × LatchIdx :=
+  let idx := aig.newLatchIdx
+  let var := aig.nextVar
+  let aig := aig.pushNode <| .latch idx var
+  let aig := aig.insertLatch idx { var, next, reset }
+  (aig, idx)
 
 /--
-Appends a latch with a fresh index to the Aig, returning the index of the input. The next and
-reset values are set appropriately. If they are not available yet at construction time, they
-should be set to placeholders (like `Lit.false`) and updated later with `setNext`/`setReset`.
+  Append an and gate to the Aig, returning the variable defined by the new gate.
+  This does not perform any optimizations.
+
+  Note that neither input shuld be set to `nextVar` (equivalent to `Var.ofIdx aig.size`)
+  or internal invariants are broken.
 -/
-@[inline]
-def addLatch (aig : Aig) (next : Lit) (reset : Option Lit) : Aig × LatchIdx :=
-  -- Add a new latch at the next free index, and return the index
-  let idx := .ofIdx aig._latches.nextIdx
-  (aig.addLatch' idx next reset, idx)
-
-theorem addLatch_eq {next : Lit} {reset : Option Lit} :
-    aig.addLatch next reset =
-    (aig.addLatch' (aig.addLatch next reset |>.snd) next reset, aig.addLatch next reset |>.snd) := by
-  simp [addLatch]
-
-@[simp, grind =]
-theorem addLatch_fst_eq {next : Lit} {reset : Option Lit} :
-    (aig.addLatch next reset).fst = aig.addLatch' (aig.addLatch next reset |>.snd) next reset := by
-  rw [addLatch_eq]
+@[always_inline]
+def addAnd (aig : Aig) (rhs0 rhs1 : Lit) : Aig × Var :=
+  let var := aig.nextVar
+  let aig := aig.pushNode <| .and rhs0 rhs1
+  (aig, var)
 
 /--
-Appends a new and gate to the Aig, applying structural hashing to exploit reuse.
+  Convert an input into a new latch that defines the same variable, deleting the input.
+-/
+def InputIdx.convertToLatch (idx : InputIdx) (aig : Aig) (next : Lit) (reset : Option Lit := none)
+    (valid : idx.validIn aig := by grind)
+    (varValid : (idx.getVar aig).validIn aig := by grind) : Aig × LatchIdx :=
+  let var := idx.getVar aig
+  let latch := aig.newLatchIdx
+  let aig := aig.setNode var <| .latch latch var
+  let aig := aig.eraseInput idx
+  let aig := aig.insertLatch latch { var, next, reset } (by grind [getVar])
+  (aig, latch)
 
-TODO: Currently this requires proofs that rhs0/rhs1 are valid in the aig, but after switching to
-buffed (and getting rid of dependent typing) this won't be needed anymore
+/--
+  Convert an input into a new latch that defines the same variable, deleting the input.
+
+  If `idx` is not valid in `aig`, throws `errInvalid`.
+  Otherwise if `idx.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
+-/
+@[always_inline]
+def InputIdx.convertToLatch! (idx : InputIdx) (aig : Aig) (next : Lit) (reset : Option Lit := none)
+    (errInvalid    : Err := .invalidIdx "InputIdx.convertToLatch!" "idx")
+    (errVarInvalid : Err := .invalidIdx "InputIdx.convertToLatch!" "idx.getVar aig") : Except (Aig × LatchIdx) :=
+  if _ : ¬idx.validIn aig then
+    throw errInvalid
+  else if _ : ¬(idx.getVar aig).validIn aig then
+    throw errVarInvalid
+  else
+    return idx.convertToLatch aig next reset
+
+/--
+  Convert an input into a new and gate that defines the same variable, deleting the input.
 -/
 @[inline]
-def addAnd (aig : Aig) (rhs0 rhs1 : Lit)
-    (valid0 : rhs0.validIn aig := by grind) (valid1 : rhs1.validIn aig := by grind) : Aig × Lit :=
-  let res := aig.aig.mkAndCached ⟨rhs0.toRef valid0, rhs1.toRef valid1⟩
-  have hconst := by
-    intro i
-    by_cases i ≥ aig.aig.decls.size
-    <;> grind [aig.aig.hzero, aig.hconst, aig.aig.mkAndCached_decl_eq, Std.mkAndCached_matches_gate (aig := aig.aig)]
-  let aig := { aig with aig := res.aig, hconst }
-  (aig, .ofRef res.ref)
+def InputIdx.convertToAnd (idx : InputIdx) (aig : Aig) (rhs0 rhs1 : Lit)
+    (valid : idx.validIn aig := by grind)
+    (varValid : (idx.getVar aig).validIn aig := by grind) : Aig :=
+  let var := idx.getVar aig
+  let aig := aig.setNode var <| .and rhs0 rhs1
+  let aig := aig.eraseInput idx
+  aig
 
-/-
-Setup get/set definitions for use locally as grind/simp rules, with grind_def/
-simp_def tactics to make use of them.
+/--
+  Convert an input into a new and gate that defines the same variable, deleting the input.
+
+  If `idx` is not valid in `aig`, throws `errInvalid`.
+  Otherwise if `idx.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
 -/
-attribute [simp_valaig_defs, grind_valaig_defs]
-  Aig.get Aig.instGetElemVar Aig.size
-  Aig.empty
-  InputIdx.getVar
-  LatchIdx.getVar LatchIdx.getNext LatchIdx.getReset
-  LatchIdx.setNext LatchIdx.setReset
-  Aig.addInput Aig.addInput'
-  Aig.addLatch Aig.addLatch'
-  Aig.addAnd
+@[always_inline]
+def InputIdx.convertToAnd! (idx : InputIdx) (aig : Aig) (rhs0 rhs1 : Lit)
+    (errInvalid    : Err := .invalidIdx "InputIdx.convertToAnd!" "idx")
+    (errVarInvalid : Err := .invalidIdx "InputIdx.convertToAnd!" "idx.getVar aig") : Except Aig :=
+  if _ : ¬idx.validIn aig then
+    throw errInvalid
+  else if _ : ¬(idx.getVar aig).validIn aig then
+    throw errVarInvalid
+  else
+    return idx.convertToAnd aig rhs0 rhs1
 
-attribute [grind_valaig_defs] InputIdx LatchIdx
+set_option linter.unusedVariables false in
+/--
+  Change the input index used to define an input to a new known unused one.
+  This is mainly useful when trying to build a new Aig while preserving indices from an existing one.
+-/
+@[inline]
+def InputIdx.changeIdx (old new : InputIdx) (aig : Aig)
+    (valid : old.validIn aig := by grind)
+    (varValid : (old.getVar aig).validIn aig := by grind)
+    (unused : ¬new.validIn aig ∨ old = new := by grind) : Aig :=
+  let data := aig._inputs[old.idx]
+  let var := data.val.var
+  let aig := aig.setNode data.val.var (.input new data.val.var) (by grind [getVar])
+  let aig := aig.eraseInput old
+  let aig := aig.insertInput new data
+  aig
 
-attribute [simp_valaig_defs, grind_valaig_defs =]
-  Std.mkAtom_eq_decls_push Std.mkAtom_size Std.mkAtom_ref_eq_decls_size
-  Std.Sat.AIG.mkAndCached_decl_eq
+/--
+  Change the input index used to define an input to a new known unused one.
+  This is mainly useful when trying to build a new Aig while preserving indices from an existing one.
 
-attribute [grind_valaig_defs! .] Std.Sat.AIG.mkAndCached_le_size
+  If `old` is not valid in `aig`, throws `errInvalid`.
+  Otherwise if `old.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
+  Otherwise if `new` is already valid in `aig` and not equal to `old`, throws `errUsed`.
+-/
+@[inline]
+def InputIdx.changeIdx! (old new : InputIdx) (aig : Aig)
+    (errInvalid    : Err := .invalidIdx "InputIdx.changeIdx!" "old")
+    (errVarInvalid : Err := .invalidIdx "InputIdx.changeIdx!" "old.getVar aig")
+    (errUsed       : Err := .other      "InputIdx.changeIdx!" "index new is already used") : Except Aig :=
+  if _ : ¬old.validIn aig then
+    throw errInvalid
+  else if _ : ¬(old.getVar aig).validIn aig then
+    throw errVarInvalid
+  else if _ : new ≠ old ∧ new.validIn aig then
+    throw errUsed
+  else
+    return old.changeIdx new aig
+
+/--
+  Convert a latch into a new input that defines the same variable, deleting the latch.
+-/
+def LatchIdx.convertToInput (idx : LatchIdx) (aig : Aig)
+    (valid : idx.validIn aig := by grind)
+    (varValid : (idx.getVar aig).validIn aig := by grind) : Aig × InputIdx :=
+  let var := idx.getVar aig
+  let input := aig.newInputIdx
+  let aig := aig.setNode var <| .input input var
+  let aig := aig.eraseLatch idx
+  let aig := aig.insertInput input { var } (by grind [getVar])
+  (aig, input)
+
+/--
+  Convert a latch into a new input that defines the same variable, deleting the latch.
+
+  If `idx` is not valid in `aig`, throws `errInvalid`.
+  Otherwise if `idx.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
+-/
+@[always_inline]
+def LatchIdx.convertToInput! (idx : LatchIdx) (aig : Aig)
+    (errInvalid    : Err := .invalidIdx "LatchIdx.convertToInput!" "idx")
+    (errVarInvalid : Err := .invalidIdx "LatchIdx.convertToInput!" "idx.getVar aig") : Except (Aig × InputIdx) :=
+  if _ : ¬idx.validIn aig then
+    throw errInvalid
+  else if _ : ¬(idx.getVar aig).validIn aig then
+    throw errVarInvalid
+  else
+    return idx.convertToInput aig
+
+/--
+  Convert a latch into a new and gate that defines the same variable, deleting the latch.
+-/
+@[inline]
+def LatchIdx.convertToAnd (idx : LatchIdx) (aig : Aig) (rhs0 rhs1 : Lit)
+    (valid : idx.validIn aig := by grind)
+    (varValid : (idx.getVar aig).validIn aig := by grind) : Aig :=
+  let var := idx.getVar aig
+  let aig := aig.setNode var <| .and rhs0 rhs1
+  let aig := aig.eraseLatch idx
+  aig
+
+/--
+  Convert a latch into a new and gate that defines the same variable, deleting the latch.
+
+  If `idx` is not valid in `aig`, throws `errInvalid`.
+  Otherwise if `idx.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
+-/
+@[always_inline]
+def LatchIdx.convertToAnd! (idx : LatchIdx) (aig : Aig) (rhs0 rhs1 : Lit)
+    (errInvalid    : Err := .invalidIdx "LatchIdx.convertToAnd!" "idx")
+    (errVarInvalid : Err := .invalidIdx "LatchIdx.convertToAnd!" "idx.getVar aig") : Except Aig :=
+  if _ : ¬idx.validIn aig then
+    throw errInvalid
+  else if _ : ¬(idx.getVar aig).validIn aig then
+    throw errVarInvalid
+  else
+    return idx.convertToAnd aig rhs0 rhs1
+
+set_option linter.unusedVariables false in
+/--
+  Change the latch index used to define a latch to a new known unused one.
+  This is mainly useful when trying to build a new Aig while preserving indices from an existing one.
+-/
+@[inline]
+def LatchIdx.changeIdx (old new : LatchIdx) (aig : Aig)
+    (valid : old.validIn aig := by grind)
+    (varValid : (old.getVar aig).validIn aig := by grind)
+    (unused : ¬new.validIn aig ∨ old = new := by grind) : Aig :=
+  let data := aig._latches[old.idx]
+  let var := data.val.var
+  let aig := aig.setNode data.val.var (.latch new data.val.var) (by grind [getVar])
+  let aig := aig.eraseLatch old
+  let aig := aig.insertLatch new data
+  aig
+
+/--
+  Change the latch index used to define a latch to a new known unused one.
+  This is mainly useful when trying to build a new Aig while preserving indices from an existing one.
+
+  If `old` is not valid in `aig`, throws `errInvalid`.
+  Otherwise if `old.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
+  Otherwise if `new` is already valid in `aig` and not equal to `old`, throws `errUsed`.
+-/
+@[always_inline]
+def LatchIdx.changeIdx! (old new : LatchIdx) (aig : Aig)
+    (errInvalid    : Err := .invalidIdx "LatchIdx.changeIdx!" "old")
+    (errVarInvalid : Err := .invalidIdx "LatchIdx.changeIdx!" "old.getVar aig")
+    (errUsed       : Err := .other      "LatchIdx.changeIdx!" "index new is already used") : Except Aig :=
+  if _ : ¬old.validIn aig then
+    throw errInvalid
+  else if _ : ¬(old.getVar aig).validIn aig then
+    throw errVarInvalid
+  else if _ : new ≠ old ∧ new.validIn aig then
+    throw errUsed
+  else
+    return old.changeIdx new aig
+
+set_option linter.unusedVariables false in
+/--
+  Convert an and gate to a new input.
+-/
+@[inline]
+def convertAndToInput (aig : Aig) (var : Var)
+    (valid : var.validIn aig := by grind)
+    (isAnd : aig[var] matches .and _ _ := by grind) : Aig × InputIdx :=
+  let idx := aig.newInputIdx
+  let aig := aig.setNode var <| .input idx var
+  let aig := aig.insertInput idx { var }
+    (by simp only [instGetElemVar, instGetElemVar.impl, NodeData.toNode] at isAnd; grind)
+  (aig, idx)
+
+/--
+  Convert an and gate to a new input.
+
+  If `var` is not valid in `aig`, throws `errInvalid`.
+  Otherwise if `var` does not define an and gate, throws `errIsAnd`.
+-/
+@[always_inline]
+def convertAndToInput! (aig : Aig) (var : Var)
+    (errInvalid : Err := .invalidIdx "convertAndToInput!" "var")
+    (errIsAnd   : Err := .other      "convertAndToInput!" "expected existing node to be an and gate") : Except (Aig × InputIdx) :=
+  if _ : ¬var.validIn aig then
+    throw errInvalid
+  else if _ : ¬aig[var] matches .and _ _ then
+    throw errIsAnd
+  else
+    return aig.convertAndToInput var
+
+set_option linter.unusedVariables false in
+/--
+  Convert an and gate to a new latch.
+-/
+def convertAndToLatch (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit := none)
+    (valid : var.validIn aig := by grind)
+    (isAnd : aig[var] matches .and _ _ := by grind) : Aig × LatchIdx :=
+  let idx := aig.newLatchIdx
+  let aig := aig.setNode var <| .latch idx var
+  let aig := aig.insertLatch idx { var, next, reset }
+    (by simp only [instGetElemVar, instGetElemVar.impl, NodeData.toNode] at isAnd; grind)
+  (aig, idx)
+
+/--
+  Convert an and gate to a new latch.
+
+  If `var` is not valid in `aig`, throws `errInvalid`.
+  Otherwise if `var` does not define an and gate, throws `errIsAnd`.
+-/
+@[always_inline]
+def convertAndToLatch! (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit := none)
+    (errInvalid : Err := .invalidIdx "convertAndToLatch!" "var")
+    (errIsAnd   : Err := .other      "convertAndToLatch!" "expected existing node to be an and gate") : Except (Aig × LatchIdx) :=
+  if _ : ¬var.validIn aig then
+    throw errInvalid
+  else if _ : ¬aig[var] matches .and _ _ then
+    throw errIsAnd
+  else
+    return aig.convertAndToLatch var next reset
+
+set_option linter.unusedVariables false in
+/--
+  Update the arguments to an existing and gate.
+-/
+@[inline]
+def rewriteAnd (aig : Aig) (var : Var) (rhs0 rhs1 : Lit)
+    (valid : var.validIn aig := by grind)
+    (isAnd : aig[var] matches .and _ _ := by grind) : Aig :=
+  aig.setNode var (.and rhs0 rhs1)
+
+/--
+  Update the arguments to an existing and gate.
+
+  If `var` is not valid in `aig`, throws `errInvalid`.
+  Otherwise if `var` does not define an and gate, throws `errIsAnd`.
+-/
+@[always_inline]
+def rewriteAnd! (aig : Aig) (var : Var) (rhs0 rhs1 : Lit)
+    (errInvalid : Err := .invalidIdx "rewriteAnd!" "var")
+    (errIsAnd   : Err := .other      "rewriteAnd!" "expected existing node to be an and gate") : Except Aig :=
+  if _ : ¬var.validIn aig then
+    throw errInvalid
+  else if _ : ¬aig[var] matches .and _ _ then
+    throw errIsAnd
+  else
+    return aig.rewriteAnd var rhs0 rhs1
+
+-- TODO: Add convertToInput/convertToLatch/convertToAnd methods that do the right thing regardless
+-- of a variable's current type, deallocing if needed
+
+end Valaig.Aig
