@@ -9,8 +9,8 @@ public section
 namespace Valaig.Aig
 variable {aig : Aig}
 
-attribute [local grind]
-  nodes inputs latches
+attribute [local grind] nodes inputs latches
+attribute [local simp, local grind]
   size numInputs numLatches
   maxVar nextVar newInputIdx newLatchIdx
   numInputs numLatches numGates
@@ -219,12 +219,12 @@ theorem input_getVar_eq {idx : InputIdx} valid :
   grind
 
 @[simp, grind =]
-theorem input_getVar!_eq {idx : InputIdx} {err : Err} valid :
-    idx.getVar! aig err = .ok (idx.getVar aig valid) := by
+theorem input_getVar!_eq {idx : InputIdx} valid :
+    idx.getVar! aig = idx.getVar aig valid := by
   grind
 
 @[grind →]
-theorem input_getVar!_ok {idx : InputIdx} {err : Err} {var : Var} (ok : idx.getVar! aig err = .ok var) :
+theorem input_getVar!_some {idx : InputIdx} {var : Var} (ok : idx.getVar! aig = var) :
     var = idx.getVar aig := by
   grind
 
@@ -238,12 +238,12 @@ theorem input_getLit_eq {idx : InputIdx} valid :
   grind
 
 @[simp, grind =]
-theorem input_getLit!_eq {idx : InputIdx} {err : Err} valid :
-    idx.getLit! aig err = .ok (idx.getLit aig valid) := by
+theorem input_getLit!_eq {idx : InputIdx}  valid :
+    idx.getLit! aig = idx.getLit aig valid := by
   grind
 
 @[grind →]
-theorem input_getLit!_ok {idx : InputIdx} {err : Err} {lit : Lit} (ok : idx.getLit! aig err = .ok lit) :
+theorem input_getLit!_some {idx : InputIdx} {lit : Lit} (ok : idx.getLit! aig = lit) :
     lit = idx.getLit aig := by
   grind
 
@@ -257,12 +257,12 @@ theorem latch_getVar_eq {idx : LatchIdx} valid :
   grind
 
 @[simp, grind =]
-theorem latch_getVar!_eq {idx : LatchIdx} {err : Err} valid :
-    idx.getVar! aig err = .ok (idx.getVar aig valid) := by
+theorem latch_getVar!_eq {idx : LatchIdx} valid :
+    idx.getVar! aig = idx.getVar aig valid := by
   grind
 
 @[grind →]
-theorem latch_getVar!_ok {idx : LatchIdx} {err : Err} {var : Var} (ok : idx.getVar! aig err = .ok var) :
+theorem latch_getVar!_some {idx : LatchIdx} {var : Var} (ok : idx.getVar! aig = var) :
     var = idx.getVar aig := by
   grind
 
@@ -276,12 +276,12 @@ theorem latch_getLit_eq {idx : LatchIdx} valid :
   grind
 
 @[simp, grind =]
-theorem latch_getLit!_eq {idx : LatchIdx} {err : Err} valid :
-    idx.getLit! aig err = .ok (idx.getLit aig valid) := by
+theorem latch_getLit!_eq {idx : LatchIdx} valid :
+    idx.getLit! aig = idx.getLit aig valid := by
   grind
 
 @[grind →]
-theorem latch_getLit!_ok {idx : LatchIdx} {err : Err} {lit : Lit} (ok : idx.getLit! aig err = .ok lit) :
+theorem latch_getLit!_some {idx : LatchIdx} {lit : Lit} (ok : idx.getLit! aig = lit) :
     lit = idx.getLit aig := by
   grind
 
@@ -295,12 +295,12 @@ theorem getNext_eq {idx : LatchIdx} valid :
   grind
 
 @[simp, grind =]
-theorem getNext!_eq {idx : LatchIdx} {err : Err} valid :
-    idx.getNext! aig err = .ok (idx.getNext aig valid) := by
+theorem getNext!_eq {idx : LatchIdx} valid :
+    idx.getNext! aig = idx.getNext aig valid := by
   grind
 
 @[grind →]
-theorem getNext!_ok {idx : LatchIdx} {err : Err} {lit : Lit} (ok : idx.getNext! aig err = .ok lit) :
+theorem getNext!_some {idx : LatchIdx} {lit : Lit} (ok : idx.getNext! aig = lit) :
     lit = idx.getNext aig := by
   grind
 
@@ -314,12 +314,12 @@ theorem getReset_eq {idx : LatchIdx} valid :
   grind
 
 @[simp, grind =]
-theorem getReset!_eq {idx : LatchIdx} {err : Err} valid :
-    idx.getReset! aig err = .ok (idx.getReset aig valid) := by
+theorem getReset!_eq {idx : LatchIdx} valid :
+    idx.getReset! aig = some (idx.getReset aig valid) := by
   grind
 
 @[grind →]
-theorem getReset!_ok {idx : LatchIdx} {err : Err} {lit : Lit} (ok : idx.getReset! aig err = .ok lit) :
+theorem getReset!_some {idx : LatchIdx} {lit : Lit} (ok : idx.getReset! aig = lit) :
     lit = idx.getReset aig := by
   grind
 
@@ -328,12 +328,12 @@ theorem getReset!_ok {idx : LatchIdx} {err : Err} {lit : Lit} (ok : idx.getReset
 -/
 
 @[simp, grind =]
-theorem setNext!_eq {idx : LatchIdx} {next : Lit} {err : Err} valid :
-    idx.setNext! aig next err = .ok (idx.setNext aig next valid) := by
+theorem setNext!_eq {idx : LatchIdx} {next : Lit} valid :
+    idx.setNext! aig next = idx.setNext aig next valid := by
   grind
 
 @[grind →]
-theorem setNext!_ok {idx : LatchIdx} {next : Lit} {err : Err} {aig' : Aig} (ok : idx.setNext! aig next err = .ok aig') :
+theorem setNext!_some {idx : LatchIdx} {next : Lit} {aig' : Aig} (ok : idx.setNext! aig next = aig') :
     aig' = idx.setNext aig next := by
   grind
 
@@ -342,12 +342,12 @@ theorem setNext!_ok {idx : LatchIdx} {next : Lit} {err : Err} {aig' : Aig} (ok :
 -/
 
 @[simp, grind =]
-theorem setReset!_eq {idx : LatchIdx} {reset : Option Lit} {err : Err} valid :
-    idx.setReset! aig reset err = .ok (idx.setReset aig reset valid) := by
+theorem setReset!_eq {idx : LatchIdx} {reset : Option Lit} valid :
+    idx.setReset! aig reset = idx.setReset aig reset valid := by
   grind
 
 @[grind →]
-theorem setReset!_ok {idx : LatchIdx} {reset : Option Lit} {err : Err} {aig' : Aig} (ok : idx.setReset! aig reset err = .ok aig') :
+theorem setReset!_some {idx : LatchIdx} {reset : Option Lit} {aig' : Aig} (ok : idx.setReset! aig reset = aig') :
     aig' = idx.setReset aig reset := by
   grind
 
@@ -384,12 +384,12 @@ theorem getVar_eq {idx : LeafIdx} valid :
   grind
 
 @[simp, grind =]
-theorem getVar!_eq {idx : LeafIdx} {err : Err} valid :
-    idx.getVar! aig err = .ok (idx.getVar aig valid) := by
+theorem getVar!_eq {idx : LeafIdx} valid :
+    idx.getVar! aig = idx.getVar aig valid := by
   grind
 
 @[grind →]
-theorem getVar!_ok {idx : LeafIdx} {err : Err} {var : Var} (ok : idx.getVar! aig err = .ok var) :
+theorem getVar!_some {idx : LeafIdx} {var : Var} (ok : idx.getVar! aig = var) :
     var = idx.getVar aig := by
   grind
 
@@ -406,12 +406,12 @@ theorem getLit_eq {idx : LeafIdx} valid :
   grind
 
 @[simp, grind =]
-theorem getLit!_eq {idx : LeafIdx} {err : Err} valid :
-    idx.getLit! aig err = .ok (idx.getLit aig valid) := by
+theorem getLit!_eq {idx : LeafIdx} valid :
+    idx.getLit! aig = idx.getLit aig valid := by
   grind
 
 @[grind →]
-theorem getLit!_ok {idx : LeafIdx} {err : Err} {lit : Lit} (ok : idx.getLit! aig err = .ok lit) :
+theorem getLit!_some {idx : LeafIdx} {lit : Lit} (ok : idx.getLit! aig = lit) :
     lit = idx.getLit aig := by
   grind
 
@@ -422,17 +422,14 @@ end LeafIdx
 -/
 
 @[simp, grind =]
-theorem input_convertToLatch!_eq {idx : InputIdx} {next : Lit} {reset : Option Lit}
-    {errInvalid errVarInvalid : Err} valid varValid :
-    idx.convertToLatch! aig next reset errInvalid errVarInvalid =
-    .ok (idx.convertToLatch aig next reset valid varValid) := by
+theorem input_convertToLatch!_eq {idx : InputIdx} {next : Lit} {reset : Option Lit} valid varValid :
+    idx.convertToLatch! aig next reset = idx.convertToLatch aig next reset valid varValid := by
   grind
 
 @[grind →]
-theorem input_convertToLatch!_ok {idx : InputIdx} {next : Lit} {reset : Option Lit}
-    {errInvalid errVarInvalid : Err} {res : Aig × LatchIdx}
-    (ok : idx.convertToLatch! aig next reset errInvalid errVarInvalid = .ok res) :
-    res = idx.convertToLatch aig next reset := by
+theorem input_convertToLatch!_some {idx : InputIdx} {next : Lit} {reset : Option Lit} {res : Aig × LatchIdx}
+    (ok : idx.convertToLatch! aig next reset = res) :
+    res = idx.convertToLatch aig next reset (varValid := by simp at ok; grind) := by
   grind
 
 /-
@@ -440,17 +437,14 @@ theorem input_convertToLatch!_ok {idx : InputIdx} {next : Lit} {reset : Option L
 -/
 
 @[simp, grind =]
-theorem input_convertToAnd!_eq {idx : InputIdx} {rhs0 rhs1 : Lit}
-    {errInvalid errVarInvalid : Err} valid varValid :
-    idx.convertToAnd! aig rhs0 rhs1 errInvalid errVarInvalid =
-    .ok (idx.convertToAnd aig rhs0 rhs1 valid varValid) := by
+theorem input_convertToAnd!_eq {idx : InputIdx} {rhs0 rhs1 : Lit} valid varValid :
+    idx.convertToAnd! aig rhs0 rhs1 = idx.convertToAnd aig rhs0 rhs1 valid varValid := by
   grind
 
 @[grind →]
-theorem input_convertToAnd!_ok {idx : InputIdx} {rhs0 rhs1 : Lit}
-    {errInvalid errVarInvalid : Err} {aig' : Aig}
-    (ok : idx.convertToAnd! aig rhs0 rhs1 errInvalid errVarInvalid = .ok aig') :
-    aig' = idx.convertToAnd aig rhs0 rhs1 := by
+theorem input_convertToAnd!_some {idx : InputIdx} {rhs0 rhs1 : Lit} {aig' : Aig}
+    (ok : idx.convertToAnd! aig rhs0 rhs1 = aig') :
+    aig' = idx.convertToAnd aig rhs0 rhs1 (varValid := by simp at ok; grind) := by
   grind
 
 /-
@@ -458,15 +452,15 @@ theorem input_convertToAnd!_ok {idx : InputIdx} {rhs0 rhs1 : Lit}
 -/
 
 @[simp, grind =]
-theorem input_changeIdx!_eq {old new : InputIdx} {errInvalid errVarInvalid errUsed : Err} valid varValid unused :
-    old.changeIdx! new aig errInvalid errVarInvalid errUsed =
-    .ok (old.changeIdx new aig valid varValid unused) := by
+theorem input_changeIdx!_eq {old new : InputIdx} valid varValid unused :
+    old.changeIdx! new aig = old.changeIdx new aig valid varValid unused := by
   grind
 
 @[grind →]
-theorem input_changeIdx!_ok {old new : InputIdx} {errInvalid errVarInvalid errUsed : Err} {aig' : Aig}
-    (ok : old.changeIdx! new aig errInvalid errVarInvalid errUsed = .ok aig') :
-    aig' = old.changeIdx new aig := by
+theorem input_changeIdx!_some {old new : InputIdx} {aig' : Aig} (ok : old.changeIdx! new aig = aig') :
+    aig' = old.changeIdx new aig
+      (varValid := by simp at ok; grind)
+      (unused := by simp at ok; grind) := by
   grind
 
 /-
@@ -474,15 +468,14 @@ theorem input_changeIdx!_ok {old new : InputIdx} {errInvalid errVarInvalid errUs
 -/
 
 @[simp, grind =]
-theorem latch_convertToInput!_eq {idx : LatchIdx} {errInvalid errVarInvalid : Err} valid varValid :
-    idx.convertToInput! aig errInvalid errVarInvalid =
-    .ok (idx.convertToInput aig valid varValid) := by
+theorem latch_convertToInput!_eq {idx : LatchIdx} valid varValid :
+    idx.convertToInput! aig = idx.convertToInput aig valid varValid := by
   grind
 
 @[grind →]
-theorem latch_convertToInput!_ok {idx : LatchIdx} {errInvalid errVarInvalid : Err}
-    {res : Aig × InputIdx} (ok : idx.convertToInput! aig errInvalid errVarInvalid = .ok res) :
-    res = idx.convertToInput aig := by
+theorem latch_convertToInput!_some {idx : LatchIdx} {res : Aig × InputIdx}
+    (ok : idx.convertToInput! aig = res) :
+    res = idx.convertToInput aig (varValid := by simp at ok; grind) := by
   grind
 
 /-
@@ -490,17 +483,15 @@ theorem latch_convertToInput!_ok {idx : LatchIdx} {errInvalid errVarInvalid : Er
 -/
 
 @[simp, grind =]
-theorem latch_convertToAnd!_eq {idx : LatchIdx} {rhs0 rhs1 : Lit}
-    {errInvalid errVarInvalid : Err} valid varValid :
-    idx.convertToAnd! aig rhs0 rhs1 errInvalid errVarInvalid =
-    .ok (idx.convertToAnd aig rhs0 rhs1 valid varValid) := by
+theorem latch_convertToAnd!_eq {idx : LatchIdx} {rhs0 rhs1 : Lit} valid varValid :
+    idx.convertToAnd! aig rhs0 rhs1 =
+    idx.convertToAnd aig rhs0 rhs1 valid varValid := by
   grind
 
 @[grind →]
-theorem latch_convertToAnd!_ok {idx : LatchIdx} {rhs0 rhs1 : Lit}
-    {errInvalid errVarInvalid : Err} {aig' : Aig}
-    (ok : idx.convertToAnd! aig rhs0 rhs1 errInvalid errVarInvalid = .ok aig') :
-    aig' = idx.convertToAnd aig rhs0 rhs1 := by
+theorem latch_convertToAnd!_some {idx : LatchIdx} {rhs0 rhs1 : Lit} {aig' : Aig}
+    (ok : idx.convertToAnd! aig rhs0 rhs1 = aig') :
+    aig' = idx.convertToAnd aig rhs0 rhs1 (varValid := by simp at ok; grind) := by
   grind
 
 /-
@@ -508,14 +499,16 @@ theorem latch_convertToAnd!_ok {idx : LatchIdx} {rhs0 rhs1 : Lit}
 -/
 
 @[simp, grind =]
-theorem latch_changeIdx!_eq {old new : LatchIdx} {errInvalid errVarInvalid errUsed : Err} valid varValid unused :
-    old.changeIdx! new aig errInvalid errVarInvalid errUsed = .ok (old.changeIdx new aig valid varValid unused) := by
+theorem latch_changeIdx!_eq {old new : LatchIdx} valid varValid unused :
+    old.changeIdx! new aig = old.changeIdx new aig valid varValid unused := by
   grind
 
 @[grind →]
-theorem latch_changeIdx!_ok {old new : LatchIdx} {errInvalid errVarInvalid errUsed : Err} {aig' : Aig}
-    (ok : old.changeIdx! new aig errInvalid errVarInvalid errUsed = .ok aig') :
-    aig' = old.changeIdx new aig := by
+theorem latch_changeIdx!_some {old new : LatchIdx} {aig' : Aig}
+    (ok : old.changeIdx! new aig = aig') :
+    aig' = old.changeIdx new aig
+      (varValid := by simp at ok; grind)
+      (unused := by simp at ok; grind) := by
   grind
 
 /-
@@ -523,49 +516,44 @@ theorem latch_changeIdx!_ok {old new : LatchIdx} {errInvalid errVarInvalid errUs
 -/
 
 @[simp, grind =]
-theorem convertAndToInput!_eq {var : Var} {errInvalid errIsAnd : Err} valid isAnd :
-    aig.convertAndToInput! var errInvalid errIsAnd =
-    .ok (aig.convertAndToInput var valid isAnd) := by
-  grind
+theorem convertAndToInput!_eq {var : Var} valid isAnd :
+    aig.convertAndToInput! var = aig.convertAndToInput var valid isAnd := by
+  simp; grind
 
 @[simp, grind →]
-theorem convertAndToInput!_ok {var : Var} {errInvalid errIsAnd : Err} {res : Aig × InputIdx}
-    (ok : aig.convertAndToInput! var errInvalid errIsAnd = .ok res) :
-    res = aig.convertAndToInput var := by
-  grind
+theorem convertAndToInput!_some {var : Var} {res : Aig × InputIdx}
+    (ok : aig.convertAndToInput! var = res) :
+    res = aig.convertAndToInput var (isAnd := by simp at ok; grind) := by
+  simp at ok; grind
 
 /-
   `convertAndToLatch!`.
 -/
 
 @[simp, grind =]
-theorem convertAndToLatch!_eq {var : Var} {next : Lit} {reset : Option Lit}
-    {errInvalid errIsAnd : Err} valid isAnd :
-    aig.convertAndToLatch! var next reset errInvalid errIsAnd =
-    .ok (aig.convertAndToLatch var next reset valid isAnd) := by
-  grind
+theorem convertAndToLatch!_eq {var : Var} {next : Lit} {reset : Option Lit} valid isAnd :
+    aig.convertAndToLatch! var next reset = aig.convertAndToLatch var next reset valid isAnd := by
+  simp; grind
 
 @[simp, grind →]
-theorem convertAndToLatch!_ok {var : Var} {next : Lit} {reset : Option Lit}
-    {errInvalid errIsAnd : Err} {res : Aig × LatchIdx}
-    (ok : aig.convertAndToLatch! var next reset errInvalid errIsAnd = .ok res) :
-    res = aig.convertAndToLatch var next reset := by
-  grind
+theorem convertAndToLatch!_some {var : Var} {next : Lit} {reset : Option Lit} {res : Aig × LatchIdx}
+    (ok : aig.convertAndToLatch! var next reset = res) :
+    res = aig.convertAndToLatch var next reset (isAnd := by simp at ok; grind) := by
+  simp at ok; grind
 
 /-
   `rewriteAnd!`.
 -/
 
 @[simp, grind =]
-theorem rewriteAnd!_eq {var : Var} {rhs0 rhs1 : Lit} {errInvalid errIsAnd : Err} valid isAnd :
-    aig.rewriteAnd! var rhs0 rhs1 errInvalid errIsAnd =
-    .ok (aig.rewriteAnd var rhs0 rhs1 valid isAnd) := by
-  grind
+theorem rewriteAnd!_eq {var : Var} {rhs0 rhs1 : Lit} valid isAnd :
+    aig.rewriteAnd! var rhs0 rhs1 = aig.rewriteAnd var rhs0 rhs1 valid isAnd := by
+  simp; grind
 
 @[simp, grind →]
-theorem rewriteAnd!_ok {var : Var} {rhs0 rhs1 : Lit} {errInvalid errIsAnd : Err} {aig' : Aig}
-    (ok : aig.rewriteAnd! var rhs0 rhs1 errInvalid errIsAnd = .ok aig') :
-    aig' = aig.rewriteAnd var rhs0 rhs1 := by
-  grind
+theorem rewriteAnd!_some {var : Var} {rhs0 rhs1 : Lit} {aig' : Aig}
+    (ok : aig.rewriteAnd! var rhs0 rhs1 = aig') :
+    aig' = aig.rewriteAnd var rhs0 rhs1 (isAnd := by simp at ok; grind) := by
+  simp at ok; grind
 
 end Valaig.Aig

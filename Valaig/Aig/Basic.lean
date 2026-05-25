@@ -227,26 +227,6 @@ variable {aig : Aig}
 
 namespace Aig
 
-/--
-  A general error type for fallible Aig functions.
--/
-inductive Err
-/-- Returned by `function!` functions if argument `arg` is invalid in the Aig when it is expected to be valid. -/
-| invalidIdx (function : String) (arg : String)
-/-- Generic error messages with an associated function. `Err.str` can be used to avoid defining a function location. -/
-| other (function : String) (msg : String)
-
-namespace Err
-deriving instance Hashable, DecidableEq, Repr, Inhabited for Err
-
-@[always_inline]
-def str (msg : String) : Err :=
-  .other "" msg
-
-end Err
-
-abbrev Except (α : Type) := _root_.Except Err α
-
 @[always_inline]
 instance : Utils.Map.AsNat Var where
   toNat := Var.idx
@@ -540,6 +520,43 @@ instance instGetElemVar : GetElem Aig Var Node (fun aig var => var.validIn aig) 
   getElem aig var (h := by grind) :=
     instGetElemVar.impl aig var h
 
+@[simp, grind =]
+private theorem panic_eq {α : Type} [Inhabited α] {msg : String} :
+    panic (α := α) msg = Inhabited.default := by
+  grind [panic, panicCore]
+
+private def panicAt {α : Type} [Inhabited α] (loc msg : String) : α :=
+    panic s!"paniced at {loc}: {msg}"
+
+@[simp, grind =]
+private theorem panicAt_eq {α : Type} [Inhabited α] {loc msg : String} :
+    panicAt (α := α) loc msg = Inhabited.default := by
+  grind [panicAt]
+
+set_option linter.unusedVariables false in
+@[always_inline]
+private def checkOrPanic (p : Prop) [Decidable p] (loc msg : String) : Option { u : Unit // p } :=
+  if h : p then
+    some ⟨(), h⟩
+  else
+    panicAt loc msg
+
+@[simp, grind =]
+private theorem checkOrPanic_eq {p : Prop} [Decidable p] {loc msg : String} :
+    checkOrPanic p loc msg = if h : p then some ⟨(), h⟩ else none := by
+  grind [checkOrPanic]
+
+set_option linter.unusedVariables false in
+@[grind .]
+private theorem checkOrPanic_some {p : Prop} [Decidable p] {loc msg : String} u
+    (some : checkOrPanic p loc msg = some u) : p := by
+  grind [checkOrPanic]
+
+@[grind .]
+private theorem checkOrPanic_none {p : Prop} [Decidable p] {loc msg : String}
+    (none : checkOrPanic p loc msg = none) : ¬p := by
+  grind [checkOrPanic]
+
 /-
   Input accessors.
 -/
@@ -555,13 +572,14 @@ def getVar (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : 
 /--
   Lookup the variable (PI) defined by this input in the Aig.
 
-  If `idx` isn't valid in the Aig, throws `err`.
+  Panics and returns none if `idx` isn't valid in the Aig.
+  Otherwise returns `idx.getVar aig`.
 -/
 @[always_inline]
-def getVar! (idx : InputIdx) (aig : Aig) (err : Err := .invalidIdx "InputIdx.getVar!" "idx") : Except Var :=
+def getVar! (idx : InputIdx) (aig : Aig) : Option Var :=
   match aig._inputs[idx.idx]? with
-  | some input => return input.val.var
-  | none       => throw err
+  | none       => panicAt "Valaig.Aig.InputIdx.getVar!" "`idx` not valid in `aig`"
+  | some input => input.val.var
 
 /--
   Lookup the variable defined by this input in the Aig and cast it to an uninverted literal.
@@ -576,10 +594,10 @@ def getLit (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : 
   If `idx` isn't valid in the Aig, throws `err`.
 -/
 @[always_inline]
-def getLit! (idx : InputIdx) (aig : Aig) (err : Err := .invalidIdx "InputIdx.getLit!" "idx") : Except Lit :=
+def getLit! (idx : InputIdx) (aig : Aig) : Option Lit :=
   match aig._inputs[idx.idx]? with
-  | some input => return input.val.var.toLit
-  | none       => throw err
+  | none       => panicAt "Valaig.Aig.InputIdx.getLit!" "`idx` not valid in `aig`"
+  | some input => input.val.var.toLit
 
 end InputIdx
 
@@ -601,10 +619,10 @@ def getVar (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : 
   If `idx` isn't valid in the Aig, throws `err`.
 -/
 @[always_inline]
-def getVar! (idx : LatchIdx) (aig : Aig) (err : Err := .invalidIdx "LatchIdx.getVar!" "idx") : Except Var :=
+def getVar! (idx : LatchIdx) (aig : Aig) : Option Var :=
   match aig._latches[idx.idx]? with
-  | some latch => return latch.val.var
-  | none       => throw err
+  | none       => panicAt "Valaig.Aig.LatchIdx.getVar!" "`idx` not valid in `aig`"
+  | some latch => latch.val.var
 
 /--
   Lookup the variable defined by this latch in the Aig and cast it to an uninverted literal.
@@ -619,10 +637,10 @@ def getLit (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : 
   If `idx` isn't valid in the Aig, throws `err`.
 -/
 @[always_inline]
-def getLit! (idx : LatchIdx) (aig : Aig) (err : Err := .invalidIdx "LatchIdx.getLit!" "idx") : Except Lit :=
+def getLit! (idx : LatchIdx) (aig : Aig) : Option Lit :=
   match aig._latches[idx.idx]? with
-  | some latch => return latch.val.var.toLit
-  | none       => throw err
+  | none       => panicAt "Valaig.Aig.LatchIdx.getLit!" "`idx` not valid in `aig`"
+  | some latch => latch.val.var.toLit
 
 /--
   Lookup the next state function defined for this latch in the Aig.
@@ -637,10 +655,10 @@ def getNext (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) :
   If `idx` isn't valid in the Aig, throws `err`.
 -/
 @[always_inline]
-def getNext! (idx : LatchIdx) (aig : Aig) (err : Err := .invalidIdx "LatchIdx.getNext!" "idx") : Except Lit :=
+def getNext! (idx : LatchIdx) (aig : Aig) : Option Lit :=
   match aig._latches[idx.idx]? with
-  | some latch => return latch.val.next
-  | none       => throw err
+  | none       => panicAt "Valaig.Aig.LatchIdx.getNext!" "`idx` not valid in `aig`"
+  | some latch => latch.val.next
 
 /--
   Lookup the optional reset function defined for this latch in the Aig.
@@ -655,10 +673,10 @@ def getReset (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) 
   If `idx` isn't valid in the Aig, throws `err`.
 -/
 @[always_inline]
-def getReset! (idx : LatchIdx) (aig : Aig) (err : Err := .invalidIdx "LatchIdx.getReset!" "idx") : Except (Option Lit) :=
+def getReset! (idx : LatchIdx) (aig : Aig) : Option (Option Lit) :=
   match aig._latches[idx.idx]? with
+  | none       => panicAt "Valaig.Aig.LatchIdx.getReset!" "`idx` not valid in `aig`"
   | some latch => return latch.val.reset
-  | none       => throw err
 
 set_option linter.unusedVariables false in
 /--
@@ -674,11 +692,9 @@ def setNext (idx : LatchIdx) (aig : Aig) (next : Lit) (valid : idx.validIn aig :
   If `idx` isn't valid in the Aig, throws `err`.
 -/
 @[always_inline]
-def setNext! (idx : LatchIdx) (aig : Aig) (next : Lit) (err : Err := .invalidIdx "LatchIdx.setNext!" "idx") : Except Aig :=
-  if _ : idx.validIn aig then
-    return idx.setNext aig next
-  else
-    throw err
+def setNext! (idx : LatchIdx) (aig : Aig) (next : Lit) : Option Aig := do
+  let _ ← checkOrPanic (idx.validIn aig) "Valaig.Aig.LatchIdx.setNext!" "`idx` not valid in `aig`"
+  idx.setNext aig next
 
 set_option linter.unusedVariables false in
 /--
@@ -694,11 +710,9 @@ def setReset (idx : LatchIdx) (aig : Aig) (reset : Option Lit) (valid : idx.vali
   If `idx` isn't valid in the Aig, throws `err`.
 -/
 @[always_inline]
-def setReset! (idx : LatchIdx) (aig : Aig) (reset : Option Lit) (err : Err := .invalidIdx "LatchIdx.setReset!" "idx") : Except Aig :=
-  if _ : idx.validIn aig then
-    return idx.setReset aig reset
-  else
-    throw err
+def setReset! (idx : LatchIdx) (aig : Aig) (reset : Option Lit) : Option Aig := do
+  let _ ← checkOrPanic (idx.validIn aig) "Valaig.Aig.LatchIdx.setReset!" "`idx` not valid in `aig`"
+  idx.setReset aig reset
 
 end LatchIdx
 
@@ -762,10 +776,10 @@ def getVar (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : V
   If `idx` isn't valid in the Aig, throws `err`.
 -/
 @[always_inline]
-def getVar! (idx : LeafIdx) (aig : Aig) (err : Err := .invalidIdx "LeafIdx.getVar!" "idx") : Except Var :=
+def getVar! (idx : LeafIdx) (aig : Aig) : Option Var :=
   match idx with
   | .input idx
-  | .latch idx => idx.getVar! aig err
+  | .latch idx => idx.getVar! aig
 
 /--
   Lookup the variable (CI) defined by this leaf in the Aig and cast it to an uninverted literal.
@@ -780,10 +794,10 @@ def getLit (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : L
   If `idx` isn't valid in the Aig, throws `err`.
 -/
 @[always_inline]
-def getLit! (idx : LeafIdx) (aig : Aig) (err : Err := .invalidIdx "LeafIdx.getLit!" "idx") : Except Lit :=
+def getLit! (idx : LeafIdx) (aig : Aig) : Option Lit :=
   match idx with
   | .input idx
-  | .latch idx => idx.getLit! aig err
+  | .latch idx => idx.getLit! aig
 
 end LeafIdx
 
@@ -880,15 +894,10 @@ def InputIdx.convertToLatch (idx : InputIdx) (aig : Aig) (next : Lit) (reset : O
   Otherwise if `idx.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
 -/
 @[always_inline]
-def InputIdx.convertToLatch! (idx : InputIdx) (aig : Aig) (next : Lit) (reset : Option Lit := none)
-    (errInvalid    : Err := .invalidIdx "InputIdx.convertToLatch!" "idx")
-    (errVarInvalid : Err := .invalidIdx "InputIdx.convertToLatch!" "idx.getVar aig") : Except (Aig × LatchIdx) :=
-  if _ : ¬idx.validIn aig then
-    throw errInvalid
-  else if _ : ¬(idx.getVar aig).validIn aig then
-    throw errVarInvalid
-  else
-    return idx.convertToLatch aig next reset
+def InputIdx.convertToLatch! (idx : InputIdx) (aig : Aig) (next : Lit) (reset : Option Lit := none) : Option (Aig × LatchIdx) := do
+  let _ ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.InputIdx.convertToLatch!" "`idx` not valid in `aig`"
+  let _ ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.InputIdx.convertToLatch!" "`idx.getVar aig` not valid in `aig`"
+  idx.convertToLatch aig next reset
 
 /--
   Convert an input into a new and gate that defines the same variable, deleting the input.
@@ -909,15 +918,10 @@ def InputIdx.convertToAnd (idx : InputIdx) (aig : Aig) (rhs0 rhs1 : Lit)
   Otherwise if `idx.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
 -/
 @[always_inline]
-def InputIdx.convertToAnd! (idx : InputIdx) (aig : Aig) (rhs0 rhs1 : Lit)
-    (errInvalid    : Err := .invalidIdx "InputIdx.convertToAnd!" "idx")
-    (errVarInvalid : Err := .invalidIdx "InputIdx.convertToAnd!" "idx.getVar aig") : Except Aig :=
-  if _ : ¬idx.validIn aig then
-    throw errInvalid
-  else if _ : ¬(idx.getVar aig).validIn aig then
-    throw errVarInvalid
-  else
-    return idx.convertToAnd aig rhs0 rhs1
+def InputIdx.convertToAnd! (idx : InputIdx) (aig : Aig) (rhs0 rhs1 : Lit) : Option Aig := do
+  let _ ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.InputIdx.convertToAnd!" "`idx` not valid in `aig`"
+  let _ ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.InputIdx.convertToAnd!" "`idx.getVar aig` not valid in `aig`"
+  idx.convertToAnd aig rhs0 rhs1
 
 set_option linter.unusedVariables false in
 /--
@@ -945,18 +949,11 @@ def InputIdx.changeIdx (old new : InputIdx) (aig : Aig)
   Otherwise if `new` is already valid in `aig` and not equal to `old`, throws `errUsed`.
 -/
 @[inline]
-def InputIdx.changeIdx! (old new : InputIdx) (aig : Aig)
-    (errInvalid    : Err := .invalidIdx "InputIdx.changeIdx!" "old")
-    (errVarInvalid : Err := .invalidIdx "InputIdx.changeIdx!" "old.getVar aig")
-    (errUsed       : Err := .other      "InputIdx.changeIdx!" "index new is already used") : Except Aig :=
-  if _ : ¬old.validIn aig then
-    throw errInvalid
-  else if _ : ¬(old.getVar aig).validIn aig then
-    throw errVarInvalid
-  else if _ : new ≠ old ∧ new.validIn aig then
-    throw errUsed
-  else
-    return old.changeIdx new aig
+def InputIdx.changeIdx! (old new : InputIdx) (aig : Aig) : Option Aig := do
+  let _ ← checkOrPanic (old.validIn aig)              "Valaig.Aig.InputIdx.changeIdx!" "`old` not valid in `aig`"
+  let _ ← checkOrPanic ((old.getVar aig).validIn aig) "Valaig.Aig.InputIdx.changeIdx!" "`old.getVar aig` not valid in `aig`"
+  let _ ← checkOrPanic (¬new.validIn aig ∨ old = new) "Valaig.Aig.InputIdx.changeIdx!" "`new` already used in `aig`"
+  old.changeIdx new aig
 
 /--
   Convert a latch into a new input that defines the same variable, deleting the latch.
@@ -978,15 +975,10 @@ def LatchIdx.convertToInput (idx : LatchIdx) (aig : Aig)
   Otherwise if `idx.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
 -/
 @[always_inline]
-def LatchIdx.convertToInput! (idx : LatchIdx) (aig : Aig)
-    (errInvalid    : Err := .invalidIdx "LatchIdx.convertToInput!" "idx")
-    (errVarInvalid : Err := .invalidIdx "LatchIdx.convertToInput!" "idx.getVar aig") : Except (Aig × InputIdx) :=
-  if _ : ¬idx.validIn aig then
-    throw errInvalid
-  else if _ : ¬(idx.getVar aig).validIn aig then
-    throw errVarInvalid
-  else
-    return idx.convertToInput aig
+def LatchIdx.convertToInput! (idx : LatchIdx) (aig : Aig) : Option (Aig × InputIdx) := do
+  let _ ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.LatchIdx.convertToInput!" "`idx` not valid in `aig`"
+  let _ ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.LatchIdx.convertToInput!" "`idx.getVar aig` not valid in `aig`"
+  idx.convertToInput aig
 
 /--
   Convert a latch into a new and gate that defines the same variable, deleting the latch.
@@ -1007,15 +999,10 @@ def LatchIdx.convertToAnd (idx : LatchIdx) (aig : Aig) (rhs0 rhs1 : Lit)
   Otherwise if `idx.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
 -/
 @[always_inline]
-def LatchIdx.convertToAnd! (idx : LatchIdx) (aig : Aig) (rhs0 rhs1 : Lit)
-    (errInvalid    : Err := .invalidIdx "LatchIdx.convertToAnd!" "idx")
-    (errVarInvalid : Err := .invalidIdx "LatchIdx.convertToAnd!" "idx.getVar aig") : Except Aig :=
-  if _ : ¬idx.validIn aig then
-    throw errInvalid
-  else if _ : ¬(idx.getVar aig).validIn aig then
-    throw errVarInvalid
-  else
-    return idx.convertToAnd aig rhs0 rhs1
+def LatchIdx.convertToAnd! (idx : LatchIdx) (aig : Aig) (rhs0 rhs1 : Lit) : Option Aig := do
+  let _ ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.LatchIdx.convertToAnd!" "`idx` not valid in `aig`"
+  let _ ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.LatchIdx.convertToAnd!" "`idx.getVar aig` not valid in `aig`"
+  idx.convertToAnd aig rhs0 rhs1
 
 set_option linter.unusedVariables false in
 /--
@@ -1043,18 +1030,11 @@ def LatchIdx.changeIdx (old new : LatchIdx) (aig : Aig)
   Otherwise if `new` is already valid in `aig` and not equal to `old`, throws `errUsed`.
 -/
 @[always_inline]
-def LatchIdx.changeIdx! (old new : LatchIdx) (aig : Aig)
-    (errInvalid    : Err := .invalidIdx "LatchIdx.changeIdx!" "old")
-    (errVarInvalid : Err := .invalidIdx "LatchIdx.changeIdx!" "old.getVar aig")
-    (errUsed       : Err := .other      "LatchIdx.changeIdx!" "index new is already used") : Except Aig :=
-  if _ : ¬old.validIn aig then
-    throw errInvalid
-  else if _ : ¬(old.getVar aig).validIn aig then
-    throw errVarInvalid
-  else if _ : new ≠ old ∧ new.validIn aig then
-    throw errUsed
-  else
-    return old.changeIdx new aig
+def LatchIdx.changeIdx! (old new : LatchIdx) (aig : Aig) : Option Aig := do
+  let _ ← checkOrPanic (old.validIn aig)              "Valaig.Aig.LatchIdx.changeIdx!" "`old` not valid in `aig`"
+  let _ ← checkOrPanic ((old.getVar aig).validIn aig) "Valaig.Aig.LatchIdx.changeIdx!" "`old.getVar aig` not valid in `aig`"
+  let _ ← checkOrPanic (¬new.validIn aig ∨ old = new) "Valaig.Aig.LatchIdx.changeIdx!" "`new` already used in `aig`"
+  old.changeIdx new aig
 
 set_option linter.unusedVariables false in
 /--
@@ -1077,15 +1057,10 @@ def convertAndToInput (aig : Aig) (var : Var)
   Otherwise if `var` does not define an and gate, throws `errIsAnd`.
 -/
 @[always_inline]
-def convertAndToInput! (aig : Aig) (var : Var)
-    (errInvalid : Err := .invalidIdx "convertAndToInput!" "var")
-    (errIsAnd   : Err := .other      "convertAndToInput!" "expected existing node to be an and gate") : Except (Aig × InputIdx) :=
-  if _ : ¬var.validIn aig then
-    throw errInvalid
-  else if _ : ¬aig[var] matches .and _ _ then
-    throw errIsAnd
-  else
-    return aig.convertAndToInput var
+def convertAndToInput! (aig : Aig) (var : Var) : Option (Aig × InputIdx) := do
+  let _ ← checkOrPanic (var.validIn aig)           "Valaig.Aig.convertAndToInput!" "`var` not valid in `aig`"
+  let _ ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.convertAndToInput!" "`var` is not an and gate"
+  aig.convertAndToInput var
 
 set_option linter.unusedVariables false in
 /--
@@ -1107,15 +1082,10 @@ def convertAndToLatch (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit :
   Otherwise if `var` does not define an and gate, throws `errIsAnd`.
 -/
 @[always_inline]
-def convertAndToLatch! (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit := none)
-    (errInvalid : Err := .invalidIdx "convertAndToLatch!" "var")
-    (errIsAnd   : Err := .other      "convertAndToLatch!" "expected existing node to be an and gate") : Except (Aig × LatchIdx) :=
-  if _ : ¬var.validIn aig then
-    throw errInvalid
-  else if _ : ¬aig[var] matches .and _ _ then
-    throw errIsAnd
-  else
-    return aig.convertAndToLatch var next reset
+def convertAndToLatch! (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit := none) : Option (Aig × LatchIdx) := do
+  let _ ← checkOrPanic (var.validIn aig)           "Valaig.Aig.convertAndToLatch!" "`var` not valid in `aig`"
+  let _ ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.convertAndToLatch!" "`var` is not an and gate"
+  aig.convertAndToLatch var next reset
 
 set_option linter.unusedVariables false in
 /--
@@ -1134,15 +1104,10 @@ def rewriteAnd (aig : Aig) (var : Var) (rhs0 rhs1 : Lit)
   Otherwise if `var` does not define an and gate, throws `errIsAnd`.
 -/
 @[always_inline]
-def rewriteAnd! (aig : Aig) (var : Var) (rhs0 rhs1 : Lit)
-    (errInvalid : Err := .invalidIdx "rewriteAnd!" "var")
-    (errIsAnd   : Err := .other      "rewriteAnd!" "expected existing node to be an and gate") : Except Aig :=
-  if _ : ¬var.validIn aig then
-    throw errInvalid
-  else if _ : ¬aig[var] matches .and _ _ then
-    throw errIsAnd
-  else
-    return aig.rewriteAnd var rhs0 rhs1
+def rewriteAnd! (aig : Aig) (var : Var) (rhs0 rhs1 : Lit) : Option Aig := do
+  let _ ← checkOrPanic (var.validIn aig)           "Valaig.Aig.rewriteAnd!" "`var` not valid in `aig`"
+  let _ ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.rewriteAnd!" "`var` is not an and gate"
+  aig.rewriteAnd var rhs0 rhs1
 
 -- TODO: Add convertToInput/convertToLatch/convertToAnd methods that do the right thing regardless
 -- of a variable's current type, deallocing if needed
