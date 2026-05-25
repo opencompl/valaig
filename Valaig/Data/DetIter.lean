@@ -1,19 +1,19 @@
 module
 
 public import Init.Data.Iterators.Lemmas.Basic
-import Valaig.Utils.GrindIter
+import Valaig.ForLean.Iter
 
 public section
 namespace Valaig.Utils
 
 /--
-A deterministic wrapper for non-monadic iterators (`Std.Iter`). These are by definition
-deterministic, but may have an over approximate definition for `Std.Iterator.IsPlausibleStep`. This
-wrapper defines `IsPlausibleStep` true iff the step is actually produced by the wrapped iterator.
-This makes the plausibility definitions precise.
+  A deterministic wrapper for non-monadic iterators (`Std.Iter`). These are by definition
+  deterministic, but may have an over approximate definition for `Std.Iterator.IsPlausibleStep`. This
+  wrapper defines `IsPlausibleStep` true iff the step is actually produced by the wrapped iterator.
+  This makes the plausibility definitions precise.
 
-We provide a `forIn'` instance for any `Std.Iter` using this wrapper that provides a proof that
-each element is in `it.toList`.
+  We provide a `forIn'` instance for any `Std.Iter` using this wrapper that provides a proof that
+  each element is in `it.toList`.
 -/
 structure DetIter (α β : Type w) where
   inner : @Std.Iter α β

@@ -2,9 +2,11 @@ module
 
 public import Valaig.Aig.Basic
 import all Valaig.Aig.Basic
-import Valaig.ForStd
+import Valaig.ForLean.Iter
 
 public section
+
+open Valaig.Data (AbsMap)
 
 namespace Valaig.Aig
 variable {aig : Aig}
@@ -30,32 +32,32 @@ attribute [local simp, local grind]
 
 @[simp, grind =]
 theorem toNat_Var {var : Var} :
-    Utils.Map.AsNat.toNat var = var.idx := by
+    AbsMap.AsNat.toNat var = var.idx := by
   rfl
 
 @[simp, grind =]
 theorem ofNat_Var {nat : Nat} :
-    Utils.Map.AsNat.ofNat nat = Var.ofIdx nat := by
+    AbsMap.AsNat.ofNat nat = Var.ofIdx nat := by
   rfl
 
 @[simp, grind =]
 theorem toNat_InputIdx {idx : InputIdx} :
-    Utils.Map.AsNat.toNat idx = idx.idx := by
+    AbsMap.AsNat.toNat idx = idx.idx := by
   rfl
 
 @[simp, grind =]
 theorem ofNat_InputIdx {nat : Nat} :
-    Utils.Map.AsNat.ofNat nat = InputIdx.ofIdx nat := by
+    AbsMap.AsNat.ofNat nat = InputIdx.ofIdx nat := by
   rfl
 
 @[simp, grind =]
 theorem toNat_LatchIdx {idx : LatchIdx} :
-    Utils.Map.AsNat.toNat idx = idx.idx := by
+    AbsMap.AsNat.toNat idx = idx.idx := by
   rfl
 
 @[simp, grind =]
 theorem ofNat_LatchIdx {nat : Nat} :
-    Utils.Map.AsNat.ofNat nat = LatchIdx.ofIdx nat := by
+    AbsMap.AsNat.ofNat nat = LatchIdx.ofIdx nat := by
   rfl
 
 @[simp, grind norm]

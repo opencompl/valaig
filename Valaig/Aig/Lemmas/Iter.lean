@@ -4,7 +4,7 @@ import all Valaig.Aig.Basic
 public import Valaig.Aig.Basic
 import Valaig.Aig.Lemmas.Monotone
 import Valaig.Aig.Lemmas.Basic
-import Valaig.Utils.GrindIter
+import Valaig.ForLean.Iter
 import Init.Data.Iterators.Lemmas.Basic
 
 public section

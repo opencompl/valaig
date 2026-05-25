@@ -5,6 +5,7 @@ public import Valaig.Aig.Lemmas.Basic
 import Valaig.Aig.Lemmas.Monotone
 
 namespace Valaig.Aig
+open Data (AbsMap)
 variable {aig : Aig}
 
 attribute [local grind] nodes inputs latches
@@ -19,7 +20,7 @@ attribute [local simp, local grind] pushNode NodeData.toNode
 @[simp, grind =]
 theorem nodes_pushNode :
     (aig.pushNode node).nodes = aig.nodes.push aig.nextVar (node.toNode aig.nextVar) := by
-  apply Utils.Map.ext' <;> grind
+  apply AbsMap.ext' <;> grind
 
 @[simp, grind =]
 theorem inputs_pushNode :
@@ -48,7 +49,7 @@ attribute [local simp, local grind] setNode NodeData.toNode
 @[simp, grind =]
 theorem nodes_setNode :
     (aig.setNode var node valid).nodes = aig.nodes.set var (node.toNode var) := by
-  apply Utils.Map.ext' <;> grind
+  apply AbsMap.ext' <;> grind
 
 @[simp, grind =]
 theorem inputs_setNode :
@@ -228,7 +229,7 @@ theorem inputs_setNext :
 @[simp, grind =]
 theorem latches_setNext :
     (idx.setNext aig next valid).latches = aig.latches.modify idx ({ · with next }) := by
-  apply Utils.Map.ext' <;> grind
+  apply AbsMap.ext' <;> grind
 
 end latch_setNext
 
@@ -252,7 +253,7 @@ theorem inputs_setReset :
 @[simp, grind =]
 theorem latches_setReset :
     (idx.setReset aig reset valid).latches = aig.latches.modify idx ({· with reset }) := by
-  apply Utils.Map.ext' <;> grind
+  apply AbsMap.ext' <;> grind
 
 end latch_setReset
 

@@ -1,6 +1,5 @@
 module
 
-public import Valaig.Prelude
 -- TODO: This shouldn't be necessary but the module system seems broken:
 -- https://github.com/leanprover/lean4/issues/12337
 import all Valaig.Aig.Basic

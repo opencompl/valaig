@@ -20,9 +20,5 @@ scoped macro:50 "rlet" h:ident ":" pat:term "←" expr:term  rest:term : term =>
       | none => none
       | some $pat => $rest)
 
-namespace Aig
-
 scoped macro_rules
 | `(tactic| get_elem_tactic_extensible) => `(tactic| grind)
-
-end Aig

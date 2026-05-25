@@ -1,12 +1,18 @@
 module
 
-public import Valaig.Utils.Pool
+public import Valaig.Data.Pool
+public import Valaig.Prelude
 
 public section
-namespace Valaig.Utils
+namespace Valaig.Data
 
+/--
+  AbsMap is an abstraction of a mapping between keys and values (such as a hashmap or array).
+  It is useful for proofs by allowing to abstract away from concrete details of a datastructure
+  towards an idealised version.
+-/
 @[ext]
-structure Map (α : Type) (β : Type) [DecidableEq α] where
+structure AbsMap (α : Type) (β : Type) [DecidableEq α] where
   raw ::
     valid : α -> Prop
     _decide : α -> Bool
@@ -14,7 +20,7 @@ structure Map (α : Type) (β : Type) [DecidableEq α] where
     map (key : α) (h : valid key) : β
     size : Nat
 
-namespace Map
+namespace AbsMap
 variable {α : Type}
 
 class AsNat (α : Type) where
@@ -26,7 +32,7 @@ class AsNat (α : Type) where
 attribute [simp, grind =] AsNat.ofNat_toNat AsNat.toNat_ofNat
 attribute [simp] AsNat.toNat AsNat.ofNat
 
-variable [DecidableEq α] {β : Type} {map : Map α β} {key : α} {value : β}
+variable [DecidableEq α] {β : Type} {map : AbsMap α β} {key : α} {value : β}
 
 private theorem hfunext {α α' : Sort u} {β : α → Sort v} {β' : α' → Sort v} {f : ∀ a, β a} {f' : ∀ a, β' a}
     (hα : α = α') (h : ∀ a a', a ≍ a' → f a ≍ f' a') : f ≍ f' := by
@@ -36,12 +42,12 @@ private theorem hfunext {α α' : Sort u} {β : α → Sort v} {β' : α' → So
   subst this
   grind
 
-theorem ext' (a b : Map α β)
+theorem ext' (a b : AbsMap α β)
     (valid : ∀ key, a.valid key = b.valid key)
     (map : ∀ key h, a.map key h = b.map key (by grind))
     (size : a.size = b.size) :
     a = b := by
-  apply Map.ext
+  apply AbsMap.ext
   · grind
   · have := a._decideLegal
     have := b._decideLegal
@@ -55,7 +61,7 @@ theorem ext' (a b : Map α β)
   · grind
 
 @[always_inline]
-instance : Membership α (Map α β) where
+instance : Membership α (AbsMap α β) where
   mem map key := map.valid key
 
 @[always_inline]
@@ -74,36 +80,36 @@ theorem valid_iff :
   rfl
 
 @[always_inline]
-instance : GetElem (Map α β) α β (fun map key => key ∈ map) where
-  getElem := Map.map
+instance : GetElem (AbsMap α β) α β (fun map key => key ∈ map) where
+  getElem := AbsMap.map
 
 @[local grind =_]
 theorem map_eq (h : key ∈ map) :
     map.map key h = map[key]:= by
   rfl
 
-structure Monotone (old new : Map α β) : Prop where
+structure Monotone (old new : AbsMap α β) : Prop where
   valid (key : α) : old.valid key → new.valid key
   map (key : α) (h : old.valid key) : old.map key h = new.map key (valid key h)
   sized : old.size ≤ new.size
 
 @[always_inline]
-instance : LE (Map α β) where
+instance : LE (AbsMap α β) where
   le := Monotone
 
 @[simp, grind =]
-theorem mono_iff {old new : Map α β} :
+theorem mono_iff {old new : AbsMap α β} :
     old.Monotone new ↔ old ≤ new := by
   rfl
 
-instance : Std.IsPreorder (Map α β) := by
+instance : Std.IsPreorder (AbsMap α β) := by
   apply Std.IsPreorder.of_le
   <;> constructor
   · intros; constructor <;> simp
   · simp only [←mono_iff]; intros; constructor <;> grind only [Monotone]
 
 section Monotone
-variable {old new : Map α β}
+variable {old new : AbsMap α β}
 
 @[simp, grind .]
 theorem mem_mono (mono : old ≤ new) (h : key ∈ old) :
@@ -125,7 +131,7 @@ theorem size_mono (mono : old ≤ new) :
 end Monotone
 
 @[expose]
-def mk (valid : α -> Prop) (map : (key : α) -> valid key -> β) (size : Nat) [DecidablePred valid] : Map α β where
+def mk (valid : α -> Prop) (map : (key : α) -> valid key -> β) (size : Nat) [DecidablePred valid] : AbsMap α β where
   valid := valid
   _decide key := Decidable.decide (valid key)
   _decideLegal := by grind
@@ -162,7 +168,7 @@ theorem getElem_mk (mem : key ∈ mk valid map size) :
 
 end mk
 
-def empty : Map α β :=
+def empty : AbsMap α β :=
   .mk
     (valid := fun _ => False)
     (map := by grind)
@@ -173,23 +179,23 @@ attribute [local simp, local grind] empty
 
 @[simp, grind =]
 theorem size_empty :
-    (empty : Map α β).size = 0 := by
+    (empty : AbsMap α β).size = 0 := by
   grind
 
 @[simp, grind .]
 theorem mem_empty :
-    key ∉ (empty : Map α β) := by
+    key ∉ (empty : AbsMap α β) := by
   grind
 
 @[simp, grind .]
-theorem mono_empty (new : Map α β) :
+theorem mono_empty (new : AbsMap α β) :
     empty ≤ new := by
   constructor <;> grind
 
 end empty
 
 set_option linter.unusedVariables false in
-def push (map : Map α β) (key : α) (value : β) (new : key ∉ map := by grind) : Map α β :=
+def push (map : AbsMap α β) (key : α) (value : β) (new : key ∉ map := by grind) : AbsMap α β :=
   .mk
     (valid := fun key' => key' ∈ map ∨ key = key')
     (map := fun key _ => if h : key ∈ map then map[key] else value)
@@ -222,7 +228,7 @@ theorem mem_push {key' : α} :
 
 @[simp]
 theorem getElem_push_old {old : α} (mem : old ∈ map) :
-    (map.push key value new)[old]'(by grind) = map[old] := by
+    (map.push key value new)[old] = map[old] := by
   grind
 
 @[simp]
@@ -233,7 +239,7 @@ theorem getElem_push_self :
 @[simp, grind =]
 theorem getElem_push {key' : α} (mem : key' ∈ map.push key value new) :
     (map.push key value new)[key'] =
-    if _ : key' = key then value else map[key']'(by grind) := by
+    if _ : key' = key then value else map[key'] := by
   grind
 
 @[simp, grind! .]
@@ -243,10 +249,10 @@ theorem mono_push :
 
 end push
 
-def insert (map : Map α β) (key : α) (value : β) : Map α β :=
+def insert (map : AbsMap α β) (key : α) (value : β) : AbsMap α β :=
   .mk
     (valid := fun key' => key' ∈ map ∨ key' = key)
-    (map := fun key' _ => if _ : key' = key then value else map[key']'(by grind))
+    (map := fun key' _ => if _ : key' = key then value else map[key'])
     (size := if key ∈ map then map.size else map.size + 1)
 
 section insert
@@ -286,7 +292,7 @@ theorem mem_insert {key' : α} :
 
 @[simp]
 theorem getElem_insert_old_not_mem {old : α} (mem : old ∈ map) (notmem : key ∉ map) :
-    (map.insert key value)[old]'(by grind) = map[old] := by
+    (map.insert key value)[old] = map[old] := by
   grind
 
 @[simp]
@@ -297,7 +303,7 @@ theorem getElem_insert_self :
 @[simp, grind =]
 theorem getElem_insert {key' : α} (mem : key' ∈ map.insert key value) :
     (map.insert key value)[key'] =
-    if _ : key' = key then value else map[key']'(by grind) := by
+    if _ : key' = key then value else map[key'] := by
   grind
 
 @[simp, grind! .]
@@ -314,7 +320,7 @@ theorem insert_eq_push  (new : key ∉ map) :
 end insert
 
 set_option linter.unusedVariables false in
-def set (map : Map α β) (key : α) (value : β) (mem : key ∈ map := by grind) : Map α β :=
+def set (map : AbsMap α β) (key : α) (value : β) (mem : key ∈ map := by grind) : AbsMap α β :=
   { map with map key' _ := if key' = key then value else map[key'] }
 
 section set
@@ -346,7 +352,7 @@ theorem getElem_set {key' : α} (mem' : key' ∈ map.set key value mem) :
 
 end set
 
-def modify (map : Map α β) (key : α) (f : β -> β) : Map α β :=
+def modify (map : AbsMap α β) (key : α) (f : β -> β) : AbsMap α β :=
   { map with map key' _ := if key' = key then f map[key'] else map[key'] }
 
 section modify
@@ -378,10 +384,10 @@ theorem getElem_modify {key' : α} (mem' : key' ∈ map.modify key f) :
 
 end modify
 
-def erase (map : Map α β) (key : α) : Map α β :=
+def erase (map : AbsMap α β) (key : α) : AbsMap α β :=
   .mk
     (valid := fun key' => key ≠ key' ∧ map.valid key')
-    (map := fun key' _ => map[key']'(by grind))
+    (map := fun key' _ => map[key'])
     (size := if key ∈ map then map.size - 1 else map.size)
 
 section erase
@@ -407,7 +413,7 @@ theorem getElem_erase {key' : α} (mem' : key' ∈ map.erase key) :
 
 end erase
 
-def mapVal {γ : Type} (map : Map α β) (f : β -> γ) : Map α γ :=
+def mapVal {γ : Type} (map : AbsMap α β) (f : β -> γ) : AbsMap α γ :=
   .mk
     (valid := map.valid)
     (map := fun key valid => f map[key])
@@ -436,7 +442,7 @@ theorem getElem_mapVal (mem : key ∈ map.mapVal f) :
 
 @[simp, grind =]
 theorem mapVal_empty :
-    (empty : Map α β).mapVal f = (empty : Map α γ) := by
+    (empty : AbsMap α β).mapVal f = (empty : AbsMap α γ) := by
   unfold mapVal empty
   apply ext' <;> grind
 
@@ -467,10 +473,10 @@ theorem mapVal_erase :
 end mapVal
 
 @[always_inline, expose]
-def ofPool (pool : Pool β) (α : Type) [AsNat α] [DecidableEq α] : Map α β :=
+def ofPool (pool : Pool β) (α : Type) [AsNat α] [DecidableEq α] : AbsMap α β :=
   .mk
     (valid := (AsNat.toNat · ∈ pool))
-    (map := fun key valid => pool[AsNat.toNat key]'(by grind))
+    (map := fun key valid => pool[AsNat.toNat key])
     (size := pool.size)
 
 section ofPool
@@ -519,4 +525,4 @@ end ofPool
 
 attribute [simp, grind =] valid_iff map_eq
 
-end Map
+end AbsMap

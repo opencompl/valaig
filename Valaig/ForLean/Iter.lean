@@ -5,7 +5,7 @@ public import Std.Data.Iterators.Lemmas
 public section
 
 /-
-This module just marks some useful iterator based simp lemmas as grind, making them more useful.
+  This module just marks some useful iterator based simp lemmas as grind, making them more useful.
 -/
 
 -- Init.Data.Iterators.Lemmas.Combinators.Monadic.Append
@@ -378,7 +378,7 @@ attribute [simp, grind =]
 
 namespace Valaig.Utils.Iter
 
-variable {a β : Type w} {m : Type w -> Type w'}
+variable {α β : Type w} {m : Type w -> Type w'}
 
 @[simp, grind =]
 theorem mapIterator_eq {γ : Type w} {step : Std.IterStep α β} {f : α -> γ} :

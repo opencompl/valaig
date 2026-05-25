@@ -1,12 +1,13 @@
 module
 
-public meta import Valaig.Prelude
-public import Valaig.Utils.Pool
-public import Valaig.Utils.Map
-public import Valaig.Aig.Refs
-import Valaig.Utils.GrindIter
+public import Valaig.Data.Pool
+public import Valaig.Data.AbsMap
+public import Valaig.Refs
+import Valaig.ForLean.Iter
 
 public section
+open Valaig.Data (AbsMap Pool)
+
 namespace Valaig.Aig
 
 /--
@@ -213,10 +214,10 @@ structure Aig where
   private _nodes : Array Aig.NodeData
 
   /-- A mapping from input indices (`InputIdx`) to their definition. -/
-  private _inputs : Utils.Pool Aig.InputData
+  private _inputs : Pool Aig.InputData
 
   /-- A mapping from latch indices (`LatchIdx`) to their definition. -/
-  private _latches : Utils.Pool Aig.LatchData
+  private _latches : Pool Aig.LatchData
 
   /--
     We always store at least one element, which regardless of value represents the constant false.
@@ -228,7 +229,7 @@ variable {aig : Aig}
 namespace Aig
 
 @[always_inline]
-instance : Utils.Map.AsNat Var where
+instance : AbsMap.AsNat Var where
   toNat := Var.idx
   ofNat := Var.ofIdx
 
@@ -241,14 +242,14 @@ instance : Utils.Map.AsNat Var where
   and `aig.size`.
 -/
 @[always_inline]
-def nodes (aig : Aig) : Utils.Map Var Node :=
+def nodes (aig : Aig) : AbsMap Var Node :=
   .mk
     (valid := (·.idx < aig._nodes.size))
     (map := fun var valid => aig._nodes[var.idx].toNode var)
     (size := aig._nodes.size)
 
 @[always_inline]
-instance : Utils.Map.AsNat InputIdx where
+instance : AbsMap.AsNat InputIdx where
   toNat := InputIdx.idx
   ofNat := InputIdx.ofIdx
 
@@ -261,11 +262,11 @@ instance : Utils.Map.AsNat InputIdx where
   `idx.getVar aig` and `aig.numInputs`.
 -/
 @[always_inline]
-def inputs (aig : Aig) : Utils.Map InputIdx Input :=
-  Utils.Map.ofPool aig._inputs InputIdx |>.mapVal (·.val)
+def inputs (aig : Aig) : AbsMap InputIdx Input :=
+  AbsMap.ofPool aig._inputs InputIdx |>.mapVal (·.val)
 
 @[always_inline]
-instance : Utils.Map.AsNat LatchIdx where
+instance : AbsMap.AsNat LatchIdx where
   toNat := LatchIdx.idx
   ofNat := LatchIdx.ofIdx
 
@@ -278,8 +279,8 @@ instance : Utils.Map.AsNat LatchIdx where
   `idx.getVar aig`/`idx.getNext aig`/`idx.getReset aig` and `aig.numLatches`.
 -/
 @[always_inline]
-def latches (aig : Aig) : Utils.Map LatchIdx Latch :=
-  Utils.Map.ofPool aig._latches LatchIdx |>.mapVal (·.val)
+def latches (aig : Aig) : AbsMap LatchIdx Latch :=
+  AbsMap.ofPool aig._latches LatchIdx |>.mapVal (·.val)
 
 /--
   A pair of Aigs are monotone (represented with `old ≤ new`) if all references valid in the old Aig

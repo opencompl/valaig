@@ -150,18 +150,3 @@ theorem getElem_mapMem {i : Nat} (f : (i : Nat) → (h : i < xs.size) → (a : �
 end
 
 end Array
-
-namespace Except
-variable {α : Type} {β : Type}
-
-@[simp, grind norm]
-theorem pure_eq {val : β} :
-    (pure val : Except α β) = .ok val := by
-  cbv
-
-@[simp, grind norm]
-theorem throw_eq {err : α} :
-    (throw err : Except α β) = .error err := by
-  cbv
-
-end Except

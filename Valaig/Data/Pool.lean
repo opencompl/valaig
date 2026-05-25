@@ -2,17 +2,18 @@ module
 
 public import Std.Data.HashMap.Basic
 public import Std.Data.HashMap.Iterator
+public import Valaig.Prelude
 import Std.Data.HashMap.IteratorLemmas
 import Std.Data.HashMap.Lemmas
 
 public section
-namespace Valaig.Utils
+namespace Valaig.Data
 
 /--
-`Pool α` is a memory pool data structure that allows storing, modifying, retrieving and freeing
-values referenced by unique `Nat` indices.
+  `Pool α` is a memory pool data structure that allows storing, modifying, retrieving and freeing
+  values referenced by unique `Nat` indices.
 
-It is currently backed by `Std.HashMap`, but this may change in the future.
+  It is currently backed by `Std.HashMap`, but this may change in the future.
 -/
 structure Pool (α : Type) where
   idx : Nat
@@ -148,15 +149,15 @@ theorem not_mem_add :
 
 @[simp, grind =]
 theorem getElem_add_self :
-    (pool.add v).fst[(pool.add v).snd]'(by grind) = v := by
+    (pool.add v).fst[(pool.add v).snd] = v := by
   grind [add]
 
 @[simp]
 theorem getElem_add (h : idx ∈ pool) :
-    (pool.add v).fst[idx]'(by grind) = pool[idx] := by
+    (pool.add v).fst[idx] = pool[idx] := by
   grind [add]
 
-grind_pattern getElem_add => (pool.add v).fst[idx]'(by grind) where
+grind_pattern getElem_add => (pool.add v).fst[idx] where
   idx =/= (pool.add v).snd
 
 @[simp, grind =]
@@ -197,7 +198,7 @@ theorem mem_erase_iff :
 
 @[simp, grind =]
 theorem getElem_erase (h : idx ∈ pool.erase idx') :
-    (pool.erase idx')[idx] = pool[idx]'(by grind) := by
+    (pool.erase idx')[idx] = pool[idx] := by
   grind [erase]
 
 @[simp, grind =]
@@ -228,7 +229,7 @@ theorem mem_insert_iff :
 
 @[simp, grind =]
 theorem getElem_insert_self :
-    (pool.insert idx v)[idx]'(by grind) = v := by
+    (pool.insert idx v)[idx] = v := by
   grind [insert]
 
 @[simp]
@@ -237,7 +238,7 @@ theorem getElem_insert (h : idx ∈ pool.insert idx' v) :
     if h : idx = idx' then
       v
     else
-      pool[idx]'(by grind) := by
+      pool[idx] := by
   grind [insert]
 
 grind_pattern getElem_insert => (pool.insert idx' v)[idx] where
@@ -269,19 +270,19 @@ theorem mem_set_iff (h : idx' ∈ pool) :
 
 @[simp, grind =]
 theorem getElem_set_self (h : idx ∈ pool) :
-    (pool.set idx v h)[idx]'(by grind) = v := by
+    (pool.set idx v h)[idx] = v := by
   grind [set]
 
 @[simp]
 theorem getElem_set (h : idx ∈ pool) (h' : idx' ∈ pool) :
-    (pool.set idx' v h')[idx]'(by grind) =
+    (pool.set idx' v h')[idx] =
     if idx = idx' then
       v
     else
       pool[idx] := by
   grind [set]
 
-grind_pattern getElem_set => (pool.set idx' v h')[idx]'(by grind) where
+grind_pattern getElem_set => (pool.set idx' v h')[idx] where
   idx =/= idx'
 
 @[simp, grind =]
@@ -309,19 +310,19 @@ theorem mem_modify_iff {f : α -> α} :
 
 @[simp, grind =]
 theorem getElem_modify_self {f : α -> α} (h : idx ∈ pool) :
-    (pool.modify idx f)[idx]'(by grind) = f pool[idx] := by
+    (pool.modify idx f)[idx] = f pool[idx] := by
   grind [modify]
 
 @[simp]
 theorem getElem_modify {f : α -> α} (h : idx ∈ pool) :
-    (pool.modify idx' f)[idx]'(by grind) =
+    (pool.modify idx' f)[idx] =
     if idx = idx' then
       f pool[idx]
     else
       pool[idx] := by
   grind [modify]
 
-grind_pattern getElem_modify => (pool.modify idx' f)[idx]'(by grind) where
+grind_pattern getElem_modify => (pool.modify idx' f)[idx] where
   idx =/= idx'
 
 @[simp, grind =]
@@ -350,19 +351,19 @@ theorem mem_modifyMem_iff [Inhabited α] {f : { elem : α // pool[idx']? = some 
 
 @[simp, grind =]
 theorem getElem_modifyMem_self [Inhabited α] {f : { elem : α // pool[idx]? = some elem } -> α} (h : idx ∈ pool) :
-    (pool.modifyMem idx f h)[idx]'(by grind) = f ⟨pool[idx], by grind⟩ := by
+    (pool.modifyMem idx f h)[idx] = f ⟨pool[idx], by grind⟩ := by
   grind [modifyMem]
 
 @[simp]
 theorem getElem_modifyMem [Inhabited α] {f : { elem : α // pool[idx']? = some elem } -> α} (h : idx ∈ pool) (h' : idx' ∈ pool) :
-    (pool.modifyMem idx' f h')[idx]'(by grind) =
+    (pool.modifyMem idx' f h')[idx] =
     if h : idx = idx' then
       f ⟨pool[idx], by grind⟩
     else
       pool[idx] := by
   grind [modifyMem]
 
-grind_pattern getElem_modifyMem => (pool.modifyMem idx' f h')[idx]'(by grind) where
+grind_pattern getElem_modifyMem => (pool.modifyMem idx' f h')[idx] where
   idx =/= idx'
 
 @[simp, grind =]
@@ -385,19 +386,19 @@ theorem mem_set?_iff :
 
 @[simp, grind =]
 theorem getElem_set?_self (h : idx ∈ pool) :
-    (pool.set? idx v)[idx]'(by grind) = v := by
+    (pool.set? idx v)[idx] = v := by
   grind [set?]
 
 @[simp]
 theorem getElem_set? (h : idx ∈ pool) :
-    (pool.set? idx' v)[idx]'(by grind) =
+    (pool.set? idx' v)[idx] =
     if idx = idx' then
       v
     else
       pool[idx] := by
   grind [set?]
 
-grind_pattern getElem_set? => (pool.set? idx' v)[idx]'(by grind) where
+grind_pattern getElem_set? => (pool.set? idx' v)[idx] where
   idx =/= idx'
 
 @[simp, grind =]
@@ -447,7 +448,7 @@ theorem nodup_toList_iter :
 
 theorem distinct_toList_iter {idx idx' : Nat} (h : idx < pool.size) (h' : idx' < pool.size)
     (diff : idx ≠ idx') :
-      pool.iter.toList[idx]'(by grind) ≠ pool.iter.toList[idx']'(by grind) := by
+      pool.iter.toList[idx] ≠ pool.iter.toList[idx'] := by
   grind [@nodup_toList_iter _ pool, List.pairwise_iff_getElem]
 
 grind_pattern distinct_toList_iter => pool.iter.toList[idx]'_, pool.iter.toList[idx']'_ where
