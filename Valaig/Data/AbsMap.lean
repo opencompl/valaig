@@ -116,7 +116,6 @@ theorem mem_mono (mono : old ≤ new) (h : key ∈ old) :
     key ∈ new := by
   grind [mono.valid]
 
-@[simp]
 theorem getElem_mono (mono : old ≤ new) (h : key ∈ old) {h' : key ∈ new} :
     new[key]'h' = old[key] := by
   grind [mono.map]

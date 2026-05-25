@@ -376,7 +376,7 @@ attribute [simp, grind =]
   Vector.length_iterFromIdx
   Vector.length_iter
 
-namespace Valaig.Utils.Iter
+namespace Valaig.Iter
 
 variable {α β : Type w} {m : Type w -> Type w'}
 
@@ -398,4 +398,4 @@ theorem successor_eq {step : Std.IterStep α β} :
     | .done => none := by
   split <;> simp
 
-end Valaig.Utils.Iter
+end Valaig.Iter

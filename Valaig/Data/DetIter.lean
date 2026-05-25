@@ -4,7 +4,7 @@ public import Init.Data.Iterators.Lemmas.Basic
 import Valaig.ForLean.Iter
 
 public section
-namespace Valaig.Utils
+namespace Valaig.Data
 
 /--
   A deterministic wrapper for non-monadic iterators (`Std.Iter`). These are by definition
@@ -98,7 +98,7 @@ theorem IsPlausibleSuccessorOf_inner_of {it it' : @Std.IterM (DetIter α β) m �
 @[local grind =]
 theorem IsPlausibleOutput_iff_inner {it : @Std.IterM (DetIter α β) m β} {out : β} :
     it.IsPlausibleOutput out ↔ ∃ it', it.internalState.inner.step.val = (.yield it' out) := by
-  simp only [Std.IterM.IsPlausibleOutput, IsPlausibleStep_iff_inner, Utils.Iter.mapIterator_eq]
+  simp only [Std.IterM.IsPlausibleOutput, IsPlausibleStep_iff_inner, Iter.mapIterator_eq]
   split <;> simp <;> grind
 
 @[local grind =]
@@ -110,20 +110,20 @@ theorem IsPlausibleOutput_inner_of {it : @Std.IterM (DetIter α β) m β} {out :
     it.internalState.inner.IsPlausibleOutput out := by
   grind
 
-def myInstFinitenessRelation [Std.Iterators.Finite α Id] : Std.Iterators.FinitenessRelation (DetIter α β) m where
+def instFinitenessRelation [Std.Iterators.Finite α Id] : Std.Iterators.FinitenessRelation (DetIter α β) m where
   Rel := InvImage Std.Iter.IsPlausibleSuccessorOf (·.internalState.inner)
   wf := InvImage.wf _ Std.Iterators.Finite.wf_of_id
   subrelation {it it'} h := by simp_wf; grind
 
 instance [Std.Iterators.Finite α Id] : Std.Iterators.Finite (DetIter α β) m := by
-  exact .of_finitenessRelation myInstFinitenessRelation
+  exact .of_finitenessRelation instFinitenessRelation
 
 @[always_inline]
 instance instIteratorLoop [Monad m] [Monad n] :
     Std.IteratorLoop (DetIter α β) m n :=
   .defaultImplementation
 
-@[local grind =]
+@[simp, grind =]
 theorem IsPlausibleIndirectOutput_iff [Std.Iterators.Finite α Id] {it : @Std.Iter (DetIter α β) β} {out : β} :
     it.IsPlausibleIndirectOutput out ↔ out ∈ it.toList := by
   constructor
@@ -137,7 +137,7 @@ theorem toList_eq_toList_inner [Std.Iterators.Finite α Id] {it : @Std.Iter (Det
   induction it using Std.Iter.inductSteps
   grind [Std.Iter.toList_eq_match_step]
 
-@[local grind =]
+@[simp, grind =]
 theorem wrap_toList_eq_toList [Std.Iterators.Finite α Id] {it : @Std.Iter α β} :
     (wrap it).toList = it.toList := by
   simp [toList_eq_toList_inner]

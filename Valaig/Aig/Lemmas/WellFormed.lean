@@ -23,7 +23,7 @@ To try to prevent too much pollution of grind patterns, we try to set up the fol
 /--
   All input indices point to an input in the Aig.
 -/
-@[expose, local grind, local simp]
+@[expose, local grind]
 def InputsValid (aig : Aig) : Prop :=
   ∀ idx (_ : idx ∈ aig.inputs),
   ∃ (_ : aig.inputs[idx].var ∈ aig.nodes),
@@ -42,7 +42,7 @@ theorem WF.nodes_var_inputs_eq {inputsValid : aig.InputsValid} {idx : InputIdx} 
 /--
   All inputs in the Aig point to a corresponding input index.
 -/
-@[expose, local grind, local simp]
+@[expose, local grind]
 def InputIdxsValid (aig : Aig) : Prop :=
   ∀ var (_ : var ∈ aig.nodes) idx,
     aig[var] = .input idx → ∃ _, aig.inputs[idx].var = var
@@ -66,7 +66,7 @@ grind_pattern WF.var_inputs_of_node => idx ∈ aig.inputs, aig[var], Node.input 
 /--
   All latch indices point to a latch in the Aig.
 -/
-@[expose, local grind, local simp]
+@[expose, local grind]
 def LatchesValid (aig : Aig) : Prop :=
   ∀ idx (_ : idx ∈ aig.latches),
   ∃ (_ : aig.latches[idx].var ∈ aig.nodes),
@@ -85,7 +85,7 @@ theorem WF.nodes_var_latches_eq {latchesValid : aig.LatchesValid} {idx : LatchId
 /--
   All latches in the Aig point to a corresponding latch index.
 -/
-@[expose, local grind, local simp]
+@[expose, local grind]
 def LatchIdxsValid (aig : Aig) : Prop :=
   ∀ var (_ : var ∈ aig.nodes) idx,
     aig[var] = .latch idx → ∃ _, aig.latches[idx].var = var
@@ -121,7 +121,7 @@ grind_pattern WF.getVar_LeafIdxsValid => idx.getVar aig valid ∈ aig.nodes
   All latch reset literals are valid in the Aig.
   This follows from `LatchesValid` and `AcyclicResets`.
 -/
-@[expose, local grind, local simp]
+@[expose, local grind]
 def ResetsValid (aig : Aig) : Prop :=
   ∀ idx (_ : idx ∈ aig.latches),
     match aig.latches[idx].reset with
@@ -139,7 +139,7 @@ grind_pattern WF.mem_nodes_reset => aig.latches[idx].reset, some lit, lit.validI
 /--
   All latch next state literals are valid in the Aig.
 -/
-@[expose, local grind, local simp]
+@[expose, local grind]
 def NextsValid (aig : Aig) : Prop :=
   ∀ idx (_ : idx ∈ aig.latches),
     aig.latches[idx].next.validIn aig
@@ -154,7 +154,7 @@ theorem WF.mem_nodes_next {nextsValid : aig.NextsValid} {idx : LatchIdx} (mem : 
   This is enforced by requiring each gate's inputs to have lower variable
   indices than themselves.
 -/
-@[expose, local grind, local simp]
+@[expose, local grind]
 def AcyclicGates (aig : Aig) : Prop :=
   ∀ {var : Var} {rhs0 rhs1} (mem : var ∈ aig.nodes),
     aig.nodes[var] = .and rhs0 rhs1 → rhs0.var < var ∧ rhs1.var < var
@@ -209,7 +209,7 @@ end AcyclicGates
   This is enfoced by requiring each latch's reset to have a lower variable
   index than the latch's output.
 -/
-@[expose, local grind, local simp]
+@[expose, local grind]
 def AcyclicResets (aig : Aig) : Prop :=
   ∀ idx (_ : idx ∈ aig.latches),
     match aig.latches[idx].reset with

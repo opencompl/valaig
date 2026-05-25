@@ -522,7 +522,7 @@ theorem convertAndToInput!_eq {var : Var} valid isAnd :
     aig.convertAndToInput! var = aig.convertAndToInput var valid isAnd := by
   simp; grind
 
-@[simp, grind →]
+@[grind →]
 theorem convertAndToInput!_some {var : Var} {res : Aig × InputIdx}
     (ok : aig.convertAndToInput! var = res) :
     res = aig.convertAndToInput var (isAnd := by simp at ok; grind) := by
@@ -537,7 +537,7 @@ theorem convertAndToLatch!_eq {var : Var} {next : Lit} {reset : Option Lit} vali
     aig.convertAndToLatch! var next reset = aig.convertAndToLatch var next reset valid isAnd := by
   simp; grind
 
-@[simp, grind →]
+@[grind →]
 theorem convertAndToLatch!_some {var : Var} {next : Lit} {reset : Option Lit} {res : Aig × LatchIdx}
     (ok : aig.convertAndToLatch! var next reset = res) :
     res = aig.convertAndToLatch var next reset (isAnd := by simp at ok; grind) := by
@@ -552,7 +552,7 @@ theorem rewriteAnd!_eq {var : Var} {rhs0 rhs1 : Lit} valid isAnd :
     aig.rewriteAnd! var rhs0 rhs1 = aig.rewriteAnd var rhs0 rhs1 valid isAnd := by
   simp; grind
 
-@[simp, grind →]
+@[grind →]
 theorem rewriteAnd!_some {var : Var} {rhs0 rhs1 : Lit} {aig' : Aig}
     (ok : aig.rewriteAnd! var rhs0 rhs1 = aig') :
     aig' = aig.rewriteAnd var rhs0 rhs1 (isAnd := by simp at ok; grind) := by

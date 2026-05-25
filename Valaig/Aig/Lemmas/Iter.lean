@@ -84,7 +84,7 @@ theorem length_le_size :
     it.length ≤ aig.nodes.size := by
   grind
 
-@[simp, grind →]
+@[grind →]
 theorem done_eq (h : it.IsPlausibleStep .done) :
     it = aig.iterEnd := by
   grind
@@ -94,7 +94,7 @@ theorem iterVal_yield (h : it.IsPlausibleStep  (.yield it' out)) :
     aig.iterVal it' = aig.iterVal it + 1 := by
   grind
 
-@[simp, grind →]
+@[grind →]
 theorem out_yield (h : it.IsPlausibleStep (.yield it' out)) :
     out = aig.iterVal it := by
   grind
