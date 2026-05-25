@@ -2,7 +2,7 @@ module
 
 import all Valaig.Aig.Basic
 public import Valaig.Aig.Lemmas.Basic
-public import Valaig.Aig.Lemmas.Monotone
+import Valaig.Aig.Lemmas.Monotone
 
 namespace Valaig.Aig
 variable {aig : Aig}

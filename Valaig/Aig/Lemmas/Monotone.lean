@@ -1,23 +1,9 @@
 module
 
 public import Valaig.Aig.Lemmas.Basic
-import all Valaig.Aig.Basic
 
 public section
 namespace Valaig.Aig
-
-/--
-A pair of Aigs are monotone (represented with `old ≤ new`) if all references valid in the old Aig
-are also valid in the new Aig and all getters for these references return the same values
--/
-structure Monotone (old new : Aig) : Prop where
-  nodes : old.nodes ≤ new.nodes
-  inputs : old.inputs ≤ new.inputs
-  latches : old.latches ≤ new.latches
-
-@[inherit_doc Monotone]
-instance : LE Aig where
-  le := Monotone
 
 @[simp]
 theorem mono_eq {old new : Aig} :
@@ -49,6 +35,27 @@ theorem mono_inputs_mono :
 theorem mono_latches_mono :
     old.latches ≤ new.latches :=
   mono.latches
+
+@[simp, grind .]
+theorem size_nodes_mono :
+    old.nodes.size ≤ new.nodes.size :=
+  mono.nodes.sized
+
+grind_pattern size_nodes_mono => new.size, old ≤ new
+
+@[simp, grind .]
+theorem size_inputs_mono :
+    old.inputs.size ≤ new.inputs.size :=
+  mono.inputs.sized
+
+grind_pattern size_inputs_mono => new.size, old ≤ new
+
+@[simp, grind .]
+theorem size_latches_mono :
+    old.latches.size ≤ new.latches.size :=
+  mono.latches.sized
+
+grind_pattern size_latches_mono => new.size, old ≤ new
 
 @[simp, grind .]
 theorem mem_nodes_mono {var : Var} (mem : var ∈ old.nodes) :

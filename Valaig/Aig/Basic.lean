@@ -4,7 +4,7 @@ public meta import Valaig.Prelude
 public import Valaig.Utils.Pool
 public import Valaig.Utils.Map
 public import Valaig.Aig.Refs
-public import Valaig.ForStd
+import Valaig.Utils.GrindIter
 
 public section
 namespace Valaig.Aig
@@ -21,8 +21,10 @@ end Input
 
 /--
   We require the inputs we store in the array to only track non-constant indices.
+
+  NOTE: Users should not rely on this type, it may change!
 -/
-private abbrev InputData := { input : Input // input.var ≠ .constant }
+abbrev InputData := { input : Input // input.var ≠ .constant }
 
 /--
   The metadata of a latch in the Aig.
@@ -38,8 +40,10 @@ end Latch
 
 /--
   We require the inputs we store in the array to only track non-constant indices.
+
+  NOTE: Users should not rely on this type, it may change!
 -/
-private abbrev LatchData := { latch : Latch // latch.var ≠ .constant }
+abbrev LatchData := { latch : Latch // latch.var ≠ .constant }
 
 end Valaig.Aig
 
@@ -128,8 +132,10 @@ end Node
   The generic representation of nodes in the Aig, including inputs, latches and
   gates. These are interpreted relative to their position in the Aig to give
   semantics, see `NodeData.toNode`.
+
+  NOTE: Users should not rely on this type, it may change!
 -/
-private abbrev NodeData := Lit × Lit
+abbrev NodeData := Lit × Lit
 
 namespace NodeData
 
@@ -294,6 +300,19 @@ instance : Utils.Map.AsNat LatchIdx where
 @[always_inline]
 def latches (aig : Aig) : Utils.Map LatchIdx Latch :=
   Utils.Map.ofPool aig._latches LatchIdx |>.mapVal (·.val)
+
+/--
+  A pair of Aigs are monotone (represented with `old ≤ new`) if all references valid in the old Aig
+  are also valid in the new Aig and all getters for these references return the same values.
+-/
+structure Monotone (old new : Aig) : Prop where
+  nodes : old.nodes ≤ new.nodes
+  inputs : old.inputs ≤ new.inputs
+  latches : old.latches ≤ new.latches
+
+@[inherit_doc Monotone]
+instance : LE Aig where
+  le := Monotone
 
 /--
   The number of nodes currently allocated in the Aig.
@@ -1127,5 +1146,111 @@ def rewriteAnd! (aig : Aig) (var : Var) (rhs0 rhs1 : Lit)
 
 -- TODO: Add convertToInput/convertToLatch/convertToAnd methods that do the right thing regardless
 -- of a variable's current type, deallocing if needed
+
+/--
+A custom iterator type for the forward iteration of variables that is easy to reason about.
+-/
+@[ext]
+structure VarIter (aig : Aig) where
+  var : Var
+  -- We store the end variable in the iterator to prevent holding a reference to the Aig
+  endVar : Var
+  sized : endVar = aig.nextVar := by grind
+  range : var ≤ endVar := by grind
+
+namespace VarIter
+
+variable {m : Type -> Type _} [Pure m] {n : Type _ -> Type _}
+
+attribute [local grind ext] Std.IterM VarIter
+
+@[always_inline, local grind]
+def step (it : @Std.IterM aig.VarIter m Var) : Std.IterStep (@Std.IterM aig.VarIter m Var) Var :=
+  let var := it.internalState.var
+  if h : it.internalState.var < it.internalState.endVar then
+    .yield ⟨{ it.internalState with var := var + 1, range := by grind }⟩ var
+  else
+    .done
+
+@[always_inline]
+instance instIterator : Std.Iterator aig.VarIter m Var where
+  IsPlausibleStep it step :=
+    let var := it.internalState.var
+    match step with
+    | .done => var = it.internalState.endVar
+    | .yield it' out => it'.internalState.var = var + 1 ∧ out = var
+    | .skip _ => False
+
+  step it := pure <| .deflate <| ⟨step it, by grind⟩
+
+@[simp, local grind =]
+theorem IsPlausibleStep_iff {it : @Std.IterM aig.VarIter m Var} {step} :
+    it.IsPlausibleStep step ↔ VarIter.step it = step := by
+  simp only [Std.IterM.IsPlausibleStep, Std.Iterator.IsPlausibleStep, instIterator, VarIter.step]
+  grind
+
+@[simp, local grind =]
+theorem IsPlausibleSuccessorOf_iff {it it' : @Std.IterM aig.VarIter m Var} :
+    it'.IsPlausibleSuccessorOf it ↔ (step it).successor = some it' := by
+  grind [Std.IterM.IsPlausibleSuccessorOf]
+
+open Std.Iterators in
+private def instFinitenessRelation : FinitenessRelation aig.VarIter m where
+  Rel := InvImage WellFoundedRelation.rel (aig.size - ·.internalState.var.idx)
+  wf := InvImage.wf _ WellFoundedRelation.wf
+  subrelation h := by simp_wf; grind [nextVar]
+
+instance instFinite : Std.Iterators.Finite aig.VarIter m := by
+  exact .of_finitenessRelation instFinitenessRelation
+
+@[always_inline]
+instance instIteratorLoop [Monad m] [Monad n] : Std.IteratorLoop aig.VarIter m n :=
+  .defaultImplementation
+
+end VarIter
+
+/--
+  A forward iterator over variables in the Aig.
+  See also `iterVal`.
+-/
+@[inline]
+def iter (aig : Aig) : @Std.Iter aig.VarIter Var :=
+  ⟨VarIter.mk .constant aig.nextVar⟩
+
+/--
+  The next value to be returned by a variable iterator, or `iterEnd` if the
+  iterator is done.
+-/
+@[inline]
+def iterVal (aig : Aig) (it : @Std.Iter aig.VarIter Var) : Var :=
+  it.internalState.var
+
+/--
+  The final variable iterator value that returns done.
+-/
+@[inline]
+def iterEnd (aig : Aig) : @Std.Iter aig.VarIter Var :=
+  ⟨VarIter.mk aig.nextVar aig.nextVar⟩
+
+/--
+  An iterator over inputs in the Aig.
+-/
+@[inline]
+def inputsIter (aig : Aig) :=
+  aig._inputs.iter.map InputIdx.ofIdx
+
+/--
+  An iterator over latches in the Aig.
+-/
+@[inline]
+def latchesIter (aig : Aig) :=
+  aig._latches.iter.map LatchIdx.ofIdx
+
+/--
+  An iterator over leaves in the Aig.
+-/
+@[inline]
+def leaves (aig : Aig) :=
+  aig.inputsIter.map LeafIdx.input |>.append <| aig.latchesIter.map LeafIdx.latch
 
 end Valaig.Aig

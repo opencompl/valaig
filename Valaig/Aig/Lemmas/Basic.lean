@@ -2,6 +2,7 @@ module
 
 public import Valaig.Aig.Basic
 import all Valaig.Aig.Basic
+import Valaig.ForStd
 
 public section
 
@@ -99,6 +100,11 @@ theorem mem_nodes_nextVar :
     aig.nextVar ∉ aig.nodes := by
   grind
 
+@[simp, grind =]
+theorem le_nextVar {var : Var} :
+    var ≤ aig.nextVar ↔ var ∈ aig.nodes ∨ var = aig.nextVar := by
+  grind
+
 @[simp, grind .]
 theorem mem_inputs_newInputIdx :
     aig.newInputIdx ∉ aig.inputs := by
@@ -112,6 +118,10 @@ theorem mem_latches_newLatchIdx :
 @[simp, grind norm]
 theorem var_validIn {var : Var} :
     var.validIn aig ↔ var ∈ aig.nodes := by
+  grind [Var.validIn]
+
+theorem mem_nodes_iff {var : Var} :
+    var ∈ aig.nodes ↔ var < aig.nextVar := by
   grind [Var.validIn]
 
 @[simp, grind norm]

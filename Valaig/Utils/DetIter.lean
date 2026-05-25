@@ -1,6 +1,7 @@
 module
 
 public import Init.Data.Iterators.Lemmas.Basic
+import Valaig.Utils.GrindIter
 
 public section
 namespace Valaig.Utils
@@ -19,24 +20,6 @@ structure DetIter (α β : Type w) where
 
 namespace DetIter
 variable {a β : Type w} {m : Type w -> Type w'}
-
-@[local simp, local grind =]
-theorem IterStep.mapIterator_eq {γ : Type w} {step : Std.IterStep α β} {f : α -> γ} :
-    step.mapIterator f =
-    match step with
-    | .done => .done
-    | .yield it' out => .yield (f it') out
-    | .skip it' => .skip (f it') := by
-  split <;> simp
-
-@[local simp, local grind =]
-theorem IterStep.successor_eq {step : Std.IterStep α β} :
-    step.successor =
-    match step with
-    | .yield it' _
-    | .skip it' => some it'
-    | .done => none := by
-  split <;> simp
 
 @[always_inline]
 def wrap : @Std.Iter α β -> @Std.Iter (DetIter α β) β :=
@@ -115,7 +98,7 @@ theorem IsPlausibleSuccessorOf_inner_of {it it' : @Std.IterM (DetIter α β) m �
 @[local grind =]
 theorem IsPlausibleOutput_iff_inner {it : @Std.IterM (DetIter α β) m β} {out : β} :
     it.IsPlausibleOutput out ↔ ∃ it', it.internalState.inner.step.val = (.yield it' out) := by
-  simp only [Std.IterM.IsPlausibleOutput, IsPlausibleStep_iff_inner, IterStep.mapIterator_eq]
+  simp only [Std.IterM.IsPlausibleOutput, IsPlausibleStep_iff_inner, Utils.Iter.mapIterator_eq]
   split <;> simp <;> grind
 
 @[local grind =]

@@ -375,3 +375,27 @@ attribute [simp, grind =]
   Vector.toListRev_toIter
   Vector.length_iterFromIdx
   Vector.length_iter
+
+namespace Valaig.Utils.Iter
+
+variable {a β : Type w} {m : Type w -> Type w'}
+
+@[simp, grind =]
+theorem mapIterator_eq {γ : Type w} {step : Std.IterStep α β} {f : α -> γ} :
+    step.mapIterator f =
+    match step with
+    | .done => .done
+    | .yield it' out => .yield (f it') out
+    | .skip it' => .skip (f it') := by
+  split <;> simp
+
+@[simp, grind =]
+theorem successor_eq {step : Std.IterStep α β} :
+    step.successor =
+    match step with
+    | .yield it' _
+    | .skip it' => some it'
+    | .done => none := by
+  split <;> simp
+
+end Valaig.Utils.Iter
