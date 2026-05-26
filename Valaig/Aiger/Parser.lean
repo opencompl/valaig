@@ -213,7 +213,7 @@ def parseLatches : BodyM Unit := do
 
 @[inline]
 def parseOutputLiterals (n : Nat) : BodyM (Array NamedLit) :=
-  parseNLinesToArray n <| fun _ => do return NamedLit.mk (←parseLit) ""
+  parseNLinesToArray n <| fun _ => do return NamedLit.mk (←parseLit) none
 
 @[inline]
 def parseSymbolLine : BodyM (Char × Nat × String) := do

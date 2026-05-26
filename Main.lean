@@ -1,4 +1,4 @@
-import Valaig.Aiger.Parser
+import Valaig.Aiger
 
 def main (args : List String) : IO Unit := do
   match args with
@@ -13,5 +13,6 @@ def main (args : List String) : IO Unit := do
       IO.println s!"header: {repr header}"
       IO.println s!"comments: {repr aiger.comments}"
       IO.println s!"wf : {wf}"
+      aiger.writeAag (←IO.getStdout)
     return ()
   | _ => IO.eprintln "Error: Expected exactly one filename argument"

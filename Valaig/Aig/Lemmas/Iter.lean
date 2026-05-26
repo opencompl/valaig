@@ -183,6 +183,11 @@ theorem mem_iter {var : Var} :
   · intro h
     exists ⟨var.idx, by grind⟩
 
+@[grind =]
+theorem toArray_iter :
+    aig.iter.toArray = aig.iter.toList.toArray := by
+  grind
+
 @[simp, grind .]
 theorem nodup_toList_iter :
     aig.iter.toList.Nodup := by
@@ -235,6 +240,11 @@ theorem mem_inputsIter {idx : InputIdx} :
     idx ∈ aig.inputsIter.toList ↔ idx ∈ aig.inputs := by
   grind [inputs]
 
+@[grind =]
+theorem toArray_inputsIter :
+    aig.inputsIter.toArray = aig.inputsIter.toList.toArray := by
+  grind
+
 @[simp, grind .]
 theorem nodup_inputsIter :
     aig.inputsIter.toList.Nodup := by
@@ -286,6 +296,11 @@ theorem length_toList_latchesIter :
 theorem mem_latchesIter {idx : LatchIdx} :
     idx ∈ aig.latchesIter.toList ↔ idx ∈ aig.latches := by
   grind [latches]
+
+@[grind =]
+theorem toArray_latchesIter :
+    aig.latchesIter.toArray = aig.latchesIter.toList.toArray := by
+  grind
 
 @[simp, grind .]
 theorem nodup_latchesIter :
