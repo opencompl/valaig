@@ -204,7 +204,7 @@ Returns a literal referencing a variable which is optionally inverted.
 -/
 @[inline]
 def mk (var : Var) (invert : Bool := false) : Lit :=
-  .ofIdx <| var.idx <<< 1 ||| invert.toNat
+  .ofIdx <| var.idx * 2 ||| invert.toNat
 
 @[simp, grind =]
 theorem var_mk {var : Var} {invert : Bool} :
