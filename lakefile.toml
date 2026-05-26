@@ -1,7 +1,6 @@
 name = "valaig"
 version = "0.1.0"
-# defaultTargets = ["valaig"]
-defaultTargets = ["Valaig"]
+defaultTargets = ["valaig"]
 
 [[lean_lib]]
 name = "Valaig"

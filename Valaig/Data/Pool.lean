@@ -19,9 +19,13 @@ structure Pool (α : Type) where
   idx : Nat
   values : Std.HashMap Nat α
   ltIdx {idx' : Nat} : values.contains idx' → idx' < idx
+deriving Repr
 
 namespace Pool
 variable {α : Type} {pool : Pool α} {idx idx' : Nat} {v : α}
+
+instance : Inhabited (Pool α) where
+  default := { idx := 0, values := .emptyWithCapacity, ltIdx := by grind }
 
 @[inline]
 def contains (pool : Pool α) (idx : Nat) : Bool :=

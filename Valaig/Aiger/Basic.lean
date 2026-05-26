@@ -1,27 +1,28 @@
 module
 
-public import Valaig.Aig.Basic
-
--- TODO: This shouldn't be necessary but the module system seems broken:
--- https://github.com/leanprover/lean4/issues/12337
-import all Valaig.Aig.Basic
+public import Valaig.Aig
 
 public section
 namespace Valaig
 
+structure Aiger.NamedLit where
+  lit : Lit
+  name : Option String
+deriving Inhabited, Repr
+
 /--
-A thin wrapper over an Aig with additional outputs and invariants for reading/
-writing Aiger files.
+  An `Aig` supplemented with the extra information present in an aiger file.
 -/
 structure Aiger where
-  aig : Aig
-  bads : Aig.Outputs
+  aig         : Aig
+  leafSymbols : Std.HashMap Aig.LeafIdx String
+  outputs     : Array Aiger.NamedLit
+  bads        : Array Aiger.NamedLit
+  constraints : Array Aiger.NamedLit
+  comments    : Array String
+deriving Inhabited, Repr
 
 namespace Aiger
 
-structure WellFormed (aig : Aiger) where
-  badsValid : ∀ {bad}, bad ∈ aig.bads → bad.lit.validIn aig.aig
-
-@[inline, simp]
-abbrev numBads (aig : Aiger) : Nat :=
-  aig.bads.size
+end Aiger
+end Valaig

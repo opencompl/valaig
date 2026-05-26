@@ -191,19 +191,6 @@ private theorem toNode_and {rhs0 rhs1 : Lit} {var : Var} (notConst : var ≠ .co
 
 end NodeData
 
-/--
-  An output of interest in the circuit - this is also used to represent other
-  referenced nodes in the Aiger format like bad and constraint nodes.
--/
-structure Output where
-  lit : Lit
-
-namespace Output
-deriving instance Hashable, DecidableEq, Repr, Inhabited for Output
-end Output
-
-abbrev Outputs := Array Output
-
 end Aig
 
 /--
@@ -223,6 +210,7 @@ structure Aig where
     We always store at least one element, which regardless of value represents the constant false.
   -/
   private sized : _nodes.size > 0
+deriving Repr
 
 variable {aig : Aig}
 
@@ -370,6 +358,9 @@ def empty : Aig :=
     _latches := .empty,
     sized := by grind
   }
+
+instance : Inhabited Aig where
+  default := empty
 
 end Aig
 
