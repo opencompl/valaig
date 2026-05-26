@@ -1,6 +1,6 @@
 name = "valaig"
 version = "0.1.0"
-defaultTargets = ["valaig"]
+defaultTargets = ["valaig", "valaigmiloabcjf"]
 
 [[lean_lib]]
 name = "Valaig"
@@ -8,3 +8,7 @@ name = "Valaig"
 [[lean_exe]]
 name = "valaig"
 root = "Main"
+
+[[lean_exe]]
+name = "valaigmiloabcjf"
+root = "Valaig.Tools.ValaigMILOABCJF"
