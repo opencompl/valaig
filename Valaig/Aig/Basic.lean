@@ -1076,7 +1076,7 @@ def convertAndToLatch (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit :
   If `var` is not valid in `aig`, throws `errInvalid`.
   Otherwise if `var` does not define an and gate, throws `errIsAnd`.
 -/
-@[noinline]
+@[always_inline]
 def convertAndToLatch! (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit := none) : Option (Aig × LatchIdx) := do
   let _ ← checkOrPanic (var.validIn aig)           "Valaig.Aig.convertAndToLatch!" "`var` not valid in `aig`"
   let _ ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.convertAndToLatch!" "`var` is not an and gate"
