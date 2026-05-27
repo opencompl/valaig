@@ -20,7 +20,7 @@ structure Aiger where
   bads        : Array Aiger.NamedLit
   constraints : Array Aiger.NamedLit
   comments    : Array String
-deriving Inhabited, Repr
+deriving Inhabited
 
 namespace Aiger
 

@@ -1,5 +1,6 @@
 module
 
+public import Valaig.Aig.NodeArray
 public import Valaig.Data.Pool
 public import Valaig.Data.AbsMap
 public import Valaig.Refs
@@ -198,19 +199,13 @@ end Aig
 -/
 structure Aig where
   /-- The core array of nodes making up the Aig. -/
-  private _nodes : Array Aig.NodeData
+  private _nodes : Aig.NodeArray
 
   /-- A mapping from input indices (`InputIdx`) to their definition. -/
   private _inputs : Pool Aig.InputData
 
   /-- A mapping from latch indices (`LatchIdx`) to their definition. -/
   private _latches : Pool Aig.LatchData
-
-  /--
-    We always store at least one element, which regardless of value represents the constant false.
-  -/
-  private sized : _nodes.size > 0
-deriving Repr
 
 variable {aig : Aig}
 
@@ -232,8 +227,8 @@ instance : AbsMap.AsNat Var where
 @[always_inline]
 def nodes (aig : Aig) : AbsMap Var Node :=
   .mk
-    (valid := (·.idx < aig._nodes.size))
-    (map := fun var valid => aig._nodes[var.idx].toNode var)
+    (valid := (· ∈ aig._nodes))
+    (map := fun var valid => NodeData.toNode aig._nodes[var] var)
     (size := aig._nodes.size)
 
 @[always_inline]
@@ -330,7 +325,7 @@ def nextVar (aig : Aig) : Var :=
 @[simp, grind .]
 theorem not_constant_next_var :
     aig.nextVar ≠ .constant := by
-  grind [nextVar, size, aig.sized]
+  grind [nextVar, size]
 
 /--
   The (arbitrary) next input index not currently allocated in the Aig.
@@ -348,20 +343,6 @@ def newInputIdx (aig : Aig) : InputIdx :=
 def newLatchIdx (aig : Aig) : LatchIdx :=
   .ofIdx aig._latches.nextIdx
 
-/--
-  An Aig with just the constant node.
--/
-def empty : Aig :=
-  {
-    _nodes := #[.false],
-    _inputs := .empty,
-    _latches := .empty,
-    sized := by grind
-  }
-
-instance : Inhabited Aig where
-  default := empty
-
 end Aig
 
 /-
@@ -372,14 +353,18 @@ namespace Var
 /--
   A variable is `validIn` an Aig iff it has a node defined for it.
 -/
-@[expose]
 def validIn (var : Var) (aig : Aig) : Prop :=
-  var.idx < aig.size
+  var ∈ aig._nodes
+
+/-- NOTE: Do not rely on this function externally! -/
+@[always_inline]
+def instDecidableValidIn.impl (var : Var) (aig : Aig) : Bool :=
+  var ∈ aig._nodes
 
 @[always_inline]
-instance {var : Var} {aig : Aig} : Decidable (var.validIn aig) :=
-  have : var.validIn aig ↔ var.idx < aig.size := by
-    simp [Var.validIn]
+instance {var : Var} : Decidable (var.validIn aig) :=
+  have : var.validIn aig ↔ instDecidableValidIn.impl var aig := by
+    simp [instDecidableValidIn.impl, validIn]
   decidable_of_iff' _ this
 
 /--
@@ -505,12 +490,16 @@ end LatchIdx
 /-- NOTE: Do not rely on this function externally! -/
 @[always_inline]
 def instGetElemVar.impl (aig : Aig) (var : Var) (valid : var.validIn aig := by grind) : Node :=
-  aig._nodes[var.idx].toNode var
+  NodeData.toNode aig._nodes[var] var
 
 @[always_inline]
 instance instGetElemVar : GetElem Aig Var Node (fun aig var => var.validIn aig) where
-  getElem aig var (h := by grind) :=
+  getElem aig var h :=
     instGetElemVar.impl aig var h
+
+private theorem getElem_eq' {var : Var} {valid : var.validIn aig} :
+    aig[var]'valid = NodeData.toNode aig._nodes[var] var := by
+  simp [instGetElemVar, instGetElemVar.impl]
 
 @[simp, grind =]
 private theorem panic_eq {α : Type} [Inhabited α] {msg : String} :
@@ -548,6 +537,20 @@ private theorem checkOrPanic_some {p : Prop} [Decidable p] {loc msg : String} u
 private theorem checkOrPanic_none {p : Prop} [Decidable p] {loc msg : String}
     (none : checkOrPanic p loc msg = none) : ¬p := by
   grind [checkOrPanic]
+
+/--
+  An Aig with just the constant node.
+-/
+def empty : Aig :=
+  {
+    _nodes := .empty
+    _inputs := .empty,
+    _latches := .empty,
+  }
+
+@[inline]
+instance : Inhabited Aig where
+  default := empty
 
 /-
   Input accessors.
@@ -798,7 +801,7 @@ end LeafIdx
 -/
 @[always_inline]
 private def pushNode (aig : Aig) (node : NodeData) : Aig :=
-  { aig with _nodes := aig._nodes.push node, sized := by grind }
+  { aig with _nodes := aig._nodes.push node.fst node.snd }
 
 /--
   Overwrite a node at a given index in the `Aig`.
@@ -807,7 +810,7 @@ private def pushNode (aig : Aig) (node : NodeData) : Aig :=
 -/
 @[always_inline]
 private def setNode (aig : Aig) (var : Var) (node : NodeData) (valid : var.validIn aig := by grind) : Aig :=
-  { aig with _nodes := aig._nodes.set var.idx node, sized := by grind [aig.sized] }
+  { aig with _nodes := aig._nodes.set var node.fst node.snd }
 
 @[always_inline]
 private def insertInput (aig : Aig) (idx : InputIdx) (input : Input) (h : input.var ≠ .constant := by grind) : Aig :=
@@ -1073,7 +1076,7 @@ def convertAndToLatch (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit :
   If `var` is not valid in `aig`, throws `errInvalid`.
   Otherwise if `var` does not define an and gate, throws `errIsAnd`.
 -/
-@[always_inline]
+@[noinline]
 def convertAndToLatch! (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit := none) : Option (Aig × LatchIdx) := do
   let _ ← checkOrPanic (var.validIn aig)           "Valaig.Aig.convertAndToLatch!" "`var` not valid in `aig`"
   let _ ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.convertAndToLatch!" "`var` is not an and gate"

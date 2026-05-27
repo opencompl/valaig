@@ -67,8 +67,8 @@ theorem size_eq :
 
 @[simp]
 theorem size_ne_zero :
-    aig.nodes.size > 0 :=
-  aig.sized
+    aig.nodes.size > 0 := by
+  simp [nodes]
 
 grind_pattern size_ne_zero => aig.nodes.size
 
@@ -87,10 +87,14 @@ theorem idx_maxVar :
     aig.maxVar.idx = aig.size - 1 := by
   grind
 
+theorem validIn_iff {var : Var} :
+    var.validIn aig ↔ var.idx < aig.size := by
+  rfl
+
 @[simp, grind =]
 theorem validIn_maxVar {var : Var} :
     var ≤ aig.maxVar ↔ var.validIn aig := by
-  grind [Var.validIn]
+  grind [validIn_iff]
 
 @[simp, grind =]
 theorem idx_nextVar :
@@ -100,12 +104,12 @@ theorem idx_nextVar :
 @[simp, grind .]
 theorem mem_nodes_nextVar :
     aig.nextVar ∉ aig.nodes := by
-  grind
+  grind [validIn_iff]
 
 @[simp, grind =]
 theorem le_nextVar {var : Var} :
     var ≤ aig.nextVar ↔ var ∈ aig.nodes ∨ var = aig.nextVar := by
-  grind
+  grind [validIn_iff]
 
 @[simp, grind .]
 theorem mem_inputs_newInputIdx :
@@ -120,11 +124,13 @@ theorem mem_latches_newLatchIdx :
 @[simp, grind norm]
 theorem var_validIn {var : Var} :
     var.validIn aig ↔ var ∈ aig.nodes := by
-  grind [Var.validIn]
+  grind [validIn_iff]
+
+attribute [local grind =] validIn_iff
 
 theorem mem_nodes_iff {var : Var} :
     var ∈ aig.nodes ↔ var < aig.nextVar := by
-  grind [Var.validIn]
+  grind
 
 @[simp, grind norm]
 theorem input_validIn {idx : InputIdx} :
@@ -143,14 +149,14 @@ section validIn
 
 theorem validIn_mono {var var' : Var} (valid : var.validIn aig) (order : var' < var) :
     var'.validIn aig := by
-  grind [Var.validIn]
+  grind
 
 grind_pattern validIn_mono => var.validIn aig, var'.validIn aig, var' < var
 
 @[simp, grind .]
 theorem mem_nodes_constant:
     Var.constant ∈ aig.nodes := by
-  grind [aig.sized]
+  grind
 
 @[simp, grind .]
 theorem false_validIn :
@@ -165,7 +171,7 @@ theorem true_validIn :
 @[simp]
 theorem validIn_size {var : Var} :
     var.idx < aig.nodes.size ↔ var.validIn aig := by
-  grind [Var.validIn]
+  grind
 
 grind_pattern validIn_size => aig.nodes.size ≤ var.idx
 

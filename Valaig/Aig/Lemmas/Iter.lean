@@ -179,7 +179,7 @@ theorem mem_iter {var : Var} :
     var ∈ aig.iter.toList ↔ var ∈ aig.nodes := by
   simp only [toList_iter, List.mem_ofFn]
   constructor
-  · grind [Var.validIn]
+  · grind [validIn_iff]
   · intro h
     exists ⟨var.idx, by grind⟩
 
