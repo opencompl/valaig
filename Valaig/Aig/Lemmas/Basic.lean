@@ -432,7 +432,7 @@ end LeafIdx
 @[simp, grind =]
 theorem input_convertToLatch!_eq {idx : InputIdx} {next : Lit} {reset : Option Lit} valid varValid :
     idx.convertToLatch! aig next reset = idx.convertToLatch aig next reset valid varValid := by
-  grind
+  simp; grind
 
 @[grind →]
 theorem input_convertToLatch!_some {idx : InputIdx} {next : Lit} {reset : Option Lit} {res : Aig × LatchIdx}
@@ -447,7 +447,7 @@ theorem input_convertToLatch!_some {idx : InputIdx} {next : Lit} {reset : Option
 @[simp, grind =]
 theorem input_convertToAnd!_eq {idx : InputIdx} {rhs0 rhs1 : Lit} valid varValid :
     idx.convertToAnd! aig rhs0 rhs1 = idx.convertToAnd aig rhs0 rhs1 valid varValid := by
-  grind
+  simp; grind
 
 @[grind →]
 theorem input_convertToAnd!_some {idx : InputIdx} {rhs0 rhs1 : Lit} {aig' : Aig}
@@ -462,7 +462,7 @@ theorem input_convertToAnd!_some {idx : InputIdx} {rhs0 rhs1 : Lit} {aig' : Aig}
 @[simp, grind =]
 theorem input_changeIdx!_eq {old new : InputIdx} valid varValid unused :
     old.changeIdx! new aig = old.changeIdx new aig valid varValid unused := by
-  grind
+  simp; grind
 
 @[grind →]
 theorem input_changeIdx!_some {old new : InputIdx} {aig' : Aig} (ok : old.changeIdx! new aig = aig') :
@@ -478,7 +478,7 @@ theorem input_changeIdx!_some {old new : InputIdx} {aig' : Aig} (ok : old.change
 @[simp, grind =]
 theorem latch_convertToInput!_eq {idx : LatchIdx} valid varValid :
     idx.convertToInput! aig = idx.convertToInput aig valid varValid := by
-  grind
+  simp; grind
 
 @[grind →]
 theorem latch_convertToInput!_some {idx : LatchIdx} {res : Aig × InputIdx}
@@ -494,7 +494,7 @@ theorem latch_convertToInput!_some {idx : LatchIdx} {res : Aig × InputIdx}
 theorem latch_convertToAnd!_eq {idx : LatchIdx} {rhs0 rhs1 : Lit} valid varValid :
     idx.convertToAnd! aig rhs0 rhs1 =
     idx.convertToAnd aig rhs0 rhs1 valid varValid := by
-  grind
+  simp; grind
 
 @[grind →]
 theorem latch_convertToAnd!_some {idx : LatchIdx} {rhs0 rhs1 : Lit} {aig' : Aig}
@@ -509,7 +509,7 @@ theorem latch_convertToAnd!_some {idx : LatchIdx} {rhs0 rhs1 : Lit} {aig' : Aig}
 @[simp, grind =]
 theorem latch_changeIdx!_eq {old new : LatchIdx} valid varValid unused :
     old.changeIdx! new aig = old.changeIdx new aig valid varValid unused := by
-  grind
+  simp; grind
 
 @[grind →]
 theorem latch_changeIdx!_some {old new : LatchIdx} {aig' : Aig}
