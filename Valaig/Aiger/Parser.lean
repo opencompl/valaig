@@ -112,8 +112,8 @@ def addLatch (idx : LatchIdx) (var : Var) (next : Lit) (reset : Option Lit) : Bo
 
 @[inline]
 def addGate (var : Var) (rhs0 rhs1 : Lit) : BodyM Unit :=
-  modifyAig <| fun aig =>
-    aig.rewriteAnd! var rhs0 rhs1
+  modifyThe Aiger fun aiger =>
+    { aiger with aig := aiger.aig.rewriteAnd! var rhs0 rhs1 |>.get! }
 
 -- Lean can't automatically convert out of Parsec to our type so we use this
 @[inline]
@@ -182,7 +182,6 @@ def parseNLinesToArray {α : Type} (n : Nat) (parse : (idx : Nat) -> BodyM α) :
     arr := arr.push (← parse i <* skipNewline)
   return arr
 
-@[inline]
 def parseInputs : BodyM Unit := do
   let n := (←getHeader).numInputs
 
@@ -207,11 +206,9 @@ def parseLatch (idx : Nat) : BodyM Unit := do
 
   addLatch (.ofIdx idx) var next reset
 
-@[inline]
 def parseLatches : BodyM Unit := do
   parseNLines (←getHeader).numLatches parseLatch
 
-@[inline]
 def parseOutputLiterals (n : Nat) : BodyM (Array NamedLit) :=
   parseNLinesToArray n <| fun _ => do return NamedLit.mk (←parseLit) none
 
@@ -230,7 +227,6 @@ def parseSymbolLine : BodyM (Char × Nat × String) := do
   | some sym => return (type, idx, sym)
 
 
-@[inline]
 partial def parseSymbols : BodyM Unit := do
   repeat
     match ← tryParse parseSymbolLine with
@@ -257,7 +253,6 @@ def parseCommentHeader : Parser Unit := do
   skipByteChar 'c'
   skipNewline
 
-@[inline]
 partial def parseComments : Parser (Array String) :=
   attempt (parseCommentHeader *> many parseCommentLine) <|> pure #[]
 
@@ -270,7 +265,6 @@ def parseGate : BodyM Unit := do
   let rhs1 ← skipSpace *> parseLit
   addGate lhs rhs0 rhs1
 
-@[inline]
 def parseGates : BodyM Unit := do
   parseNLines (←getHeader).numAnds fun _ => parseGate
 
@@ -343,7 +337,6 @@ def parseGate (n : Nat) : BodyM Unit := do
 
   addGate lhs rhs0 rhs1
 
-@[inline]
 def parseGates : BodyM Unit := do
   for i in [0:(←getHeader).numAnds] do
     parseGate i
