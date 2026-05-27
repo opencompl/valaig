@@ -94,6 +94,7 @@ variable {BodyM : Type -> Type} [Monad BodyM] [MonadLiftT Parser BodyM] [MonadRe
 variable [MonadExcept String BodyM] [MonadStateOf Aiger BodyM]
 variable {α : Type}
 
+@[specialize f]
 def modifyAig (f : Aig -> Option Aig) : BodyM Unit := do
   modifyThe Aiger fun aiger =>
     { aiger with aig := (f aiger.aig).get! }
@@ -112,8 +113,8 @@ def addLatch (idx : LatchIdx) (var : Var) (next : Lit) (reset : Option Lit) : Bo
 
 @[inline]
 def addGate (var : Var) (rhs0 rhs1 : Lit) : BodyM Unit :=
-  modifyThe Aiger fun aiger =>
-    { aiger with aig := aiger.aig.rewriteAnd! var rhs0 rhs1 |>.get! }
+  modifyAig fun aig =>
+    aig.rewriteAnd! var rhs0 rhs1
 
 -- Lean can't automatically convert out of Parsec to our type so we use this
 @[inline]
@@ -258,7 +259,7 @@ partial def parseComments : Parser (Array String) :=
 
 namespace ASCII
 
-@[inline]
+@[noinline]
 def parseGate : BodyM Unit := do
   let lhs ← parseDefiningLit
   let rhs0 ← skipSpace *> parseLit
