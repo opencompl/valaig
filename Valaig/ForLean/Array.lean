@@ -114,24 +114,11 @@ private theorem mapMem.go.getElem {j : Nat} (h : j < xs'.size) :
     · simp only
       unfold go
       rw [@motive (xs' := step xs' i f (by grind only))]
-      · split
-        · rw [hgo (by omega) (by omega)]; lia
-        · simp only [step, modifyMem_def]
-          split
-          · have : i = j := by omega
-            subst this
-            rw [Array.getElem_set_self]
-            have := @hgo i (by omega) (by omega)
-            congr
-          · rw [Array.getElem_set_ne]
-            omega
-      · rwa [step.size_eq]
-      · intros
-        rw [←hgo (by omega)]
-        apply mapMem.step.eq_above
-        omega
-      · rwa [step.size_eq]
-      · omega
+      · grind [step]
+      · grind [step.size_eq]
+      · grind [mapMem.step.eq_above]
+      · grind [step.size_eq]
+      · grind
 
 @[simp, grind =]
 theorem size_mapMem : (xs.mapMem f).size = xs.size := by
@@ -148,5 +135,69 @@ theorem getElem_mapMem {i : Nat} (f : (i : Nat) → (h : i < xs.size) → (a : �
   · rwa [size_mapMem] at hi
 
 end
+
+@[inline]
+def resize (xs : Array α) (size : Nat) (elem : α) : Array α :=
+  if _ : xs.size = size then
+    xs
+  else if _ : xs.size < size then
+    extend xs
+  else
+    reduce xs
+where
+  extend (xs : Array α) (le : xs.size ≤ size := by grind) : Array α :=
+    if _ : xs.size = size then
+      xs
+    else
+      extend (xs.push elem)
+
+  reduce (xs : Array α) (le : size ≤ xs.size := by grind) : Array α :=
+    if _ : xs.size = size then
+      xs
+    else
+      reduce xs.pop
+
+section resize
+variable {size : Nat} {elem : α} {xs : Array α}
+
+@[simp, grind =]
+private theorem resize.size_extend le :
+    (resize.extend size elem xs le).size = size := by
+  fun_induction resize.extend <;> grind
+
+@[simp, grind =]
+private theorem resize.getElem_extend le {idx : Nat} (mem : idx < (resize.extend size elem xs le).size) :
+    (resize.extend size elem xs le)[idx]'mem =
+    if _ : idx < xs.size then
+      xs[idx]
+    else
+      elem := by
+  fun_induction resize.extend <;> grind
+
+@[simp, grind =]
+private theorem resize.size_reduce le :
+    (resize.reduce size xs le).size = size := by
+  fun_induction resize.reduce <;> grind
+
+@[simp, grind =]
+private theorem resize.getElem_reduce le {idx : Nat} (mem : idx < (resize.reduce size xs le).size) :
+    (resize.reduce size xs le)[idx]'mem = xs[idx]'(by grind) := by
+  fun_induction resize.reduce <;> (unfold reduce; grind)
+
+@[simp, grind =]
+theorem size_resize :
+    (xs.resize size elem).size = size := by
+  grind [resize]
+
+@[simp, grind =]
+private theorem getElem_resize {idx : Nat} (mem : idx < (xs.resize size elem).size) :
+    (xs.resize size elem)[idx]'mem =
+    if _ : idx < xs.size then
+      xs[idx]
+    else
+      elem := by
+  grind [resize]
+
+end resize
 
 end Array
