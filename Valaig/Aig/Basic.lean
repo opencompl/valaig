@@ -28,6 +28,14 @@ end Input
 -/
 abbrev InputData := { input : Input // input.var ≠ .constant }
 
+namespace InputData
+
+@[inline]
+instance : Inhabited InputData where
+  default := ⟨{ var := Var.constant + 1 }, by grind⟩
+
+end InputData
+
 /--
   The metadata of a latch in the Aig.
 -/
@@ -46,6 +54,14 @@ end Latch
   NOTE: Users should not rely on this type, it may change!
 -/
 abbrev LatchData := { latch : Latch // latch.var ≠ .constant }
+
+namespace LatchData
+
+@[inline]
+instance : Inhabited LatchData where
+  default := ⟨{ var := Var.constant + 1, next := .false, reset := none }, by grind⟩
+
+end LatchData
 
 end Valaig.Aig
 
@@ -202,10 +218,10 @@ structure Aig where
   private _nodes : Aig.NodeArray
 
   /-- A mapping from input indices (`InputIdx`) to their definition. -/
-  private _inputs : Pool Aig.InputData
+  _inputs : Pool Aig.InputData
 
   /-- A mapping from latch indices (`LatchIdx`) to their definition. -/
-  private _latches : Pool Aig.LatchData
+  _latches : Pool Aig.LatchData
 
 variable {aig : Aig}
 
@@ -679,7 +695,7 @@ set_option linter.unusedVariables false in
 -/
 @[inline]
 def setNext (idx : LatchIdx) (aig : Aig) (next : Lit) (valid : idx.validIn aig := by grind) : Aig :=
-  { aig with _latches := aig._latches.modify idx.idx (⟨{ ·.val with next }, by grind⟩) }
+  { aig with _latches := aig._latches.modify idx.idx (⟨{ ·.val with next }, by grind⟩) valid }
 
 /--
   Update the next state function for a latch in the Aig.
@@ -697,7 +713,7 @@ set_option linter.unusedVariables false in
 -/
 @[inline]
 def setReset (idx : LatchIdx) (aig : Aig) (reset : Option Lit) (valid : idx.validIn aig := by grind) : Aig :=
-  { aig with _latches := aig._latches.modify idx.idx (⟨{ ·.val with reset }, by grind⟩) }
+  { aig with _latches := aig._latches.modify idx.idx (⟨{ ·.val with reset }, by grind⟩) valid }
 
 /--
   Update the reset function for a latch in the Aig.
@@ -813,20 +829,28 @@ private def setNode (aig : Aig) (var : Var) (node : NodeData) (valid : var.valid
   { aig with _nodes := aig._nodes.set var node.fst node.snd }
 
 @[always_inline]
-private def insertInput (aig : Aig) (idx : InputIdx) (input : Input) (h : input.var ≠ .constant := by grind) : Aig :=
-  { aig with _inputs := aig._inputs.insert idx.idx ⟨input, h⟩ }
+private def pushInput (aig : Aig) (input : Input) (h : input.var ≠ .constant := by grind) : Aig :=
+  { aig with _inputs := aig._inputs.push ⟨input, h⟩ }
 
 @[always_inline]
-private def insertLatch (aig : Aig) (idx : LatchIdx) (latch : Latch) (h : latch.var ≠ .constant := by grind) : Aig :=
-  { aig with _latches := aig._latches.insert idx.idx ⟨latch, h⟩ }
+private def pushLatch (aig : Aig) (latch : Latch) (h : latch.var ≠ .constant := by grind) : Aig :=
+  { aig with _latches := aig._latches.push ⟨latch, h⟩ }
 
 @[always_inline]
-private def eraseInput (aig : Aig) (idx : InputIdx) : Aig :=
-  { aig with _inputs := aig._inputs.erase idx.idx }
+private def eraseInput (aig : Aig) (idx : InputIdx) (valid : idx.validIn aig := by grind) : Aig :=
+  { aig with _inputs := aig._inputs.erase idx.idx valid }
 
 @[always_inline]
-private def eraseLatch (aig : Aig) (idx : LatchIdx) : Aig :=
-  { aig with _latches := aig._latches.erase idx.idx }
+private def eraseLatch (aig : Aig) (idx : LatchIdx) (valid : idx.validIn aig := by grind) : Aig :=
+  { aig with _latches := aig._latches.erase idx.idx valid }
+
+@[always_inline]
+private def moveInput (aig : Aig) (old new : InputIdx) (valid : old.validIn aig := by grind) (notvalid : ¬new.validIn aig ∨ new = old := by grind) : Aig :=
+  { aig with _inputs := aig._inputs.move old.idx new.idx valid (by grind [InputIdx.validIn]) }
+
+@[always_inline]
+private def moveLatch (aig : Aig) (old new : LatchIdx) (valid : old.validIn aig := by grind) (notvalid : ¬new.validIn aig ∨ new = old := by grind) : Aig :=
+  { aig with _latches := aig._latches.move old.idx new.idx valid (by grind [LatchIdx.validIn]) }
 
 attribute [local grind] InputIdx.validIn LatchIdx.validIn newInputIdx newLatchIdx
 
@@ -838,8 +862,8 @@ set_option linter.unusedVariables false in
 def addInput (aig : Aig) : Aig × InputIdx :=
   let idx := aig.newInputIdx
   let var := aig.nextVar
-  let aig := aig.pushNode <| .input idx var
-  let aig := aig.insertInput idx { var }
+  let aig := aig.pushNode <| .input aig.newInputIdx var
+  let aig := aig.pushInput { var }
   (aig, idx)
 
 /--
@@ -853,7 +877,7 @@ def addLatch (aig : Aig) (next : Lit) (reset : Option Lit := none) : Aig × Latc
   let idx := aig.newLatchIdx
   let var := aig.nextVar
   let aig := aig.pushNode <| .latch idx var
-  let aig := aig.insertLatch idx { var, next, reset }
+  let aig := aig.pushLatch { var, next, reset }
   (aig, idx)
 
 /--
@@ -878,8 +902,8 @@ def InputIdx.convertToLatch (idx : InputIdx) (aig : Aig) (next : Lit) (reset : O
   let var := idx.getVar aig
   let latch := aig.newLatchIdx
   let aig := aig.setNode var <| .latch latch var
-  let aig := aig.eraseInput idx
-  let aig := aig.insertLatch latch { var, next, reset } (by grind [getVar])
+  let aig := aig.pushLatch { var, next, reset } (by grind [getVar])
+  let aig := aig.eraseInput idx (by grind [pushLatch, setNode])
   (aig, latch)
 
 /--
@@ -903,7 +927,7 @@ def InputIdx.convertToAnd (idx : InputIdx) (aig : Aig) (rhs0 rhs1 : Lit)
     (varValid : (idx.getVar aig).validIn aig := by grind) : Aig :=
   let var := idx.getVar aig
   let aig := aig.setNode var <| .and rhs0 rhs1
-  let aig := aig.eraseInput idx
+  let aig := aig.eraseInput idx (by grind [setNode])
   aig
 
 /--
@@ -929,10 +953,8 @@ def InputIdx.changeIdx (old new : InputIdx) (aig : Aig)
     (varValid : (old.getVar aig).validIn aig := by grind)
     (unused : ¬new.validIn aig ∨ old = new := by grind) : Aig :=
   let data := aig._inputs[old.idx]
-  let var := data.val.var
-  let aig := aig.setNode data.val.var (.input new data.val.var) (by grind [getVar])
-  let aig := aig.eraseInput old
-  let aig := aig.insertInput new data
+  let aig := aig.moveInput old new
+  let aig := aig.setNode data.val.var (.input new data.val.var) (by grind [getVar, Var.validIn, moveInput])
   aig
 
 /--
@@ -959,8 +981,8 @@ def LatchIdx.convertToInput (idx : LatchIdx) (aig : Aig)
   let var := idx.getVar aig
   let input := aig.newInputIdx
   let aig := aig.setNode var <| .input input var
-  let aig := aig.eraseLatch idx
-  let aig := aig.insertInput input { var } (by grind [getVar])
+  let aig := aig.pushInput { var } (by grind [getVar])
+  let aig := aig.eraseLatch idx (by grind [setNode, pushInput])
   (aig, input)
 
 /--
@@ -984,7 +1006,7 @@ def LatchIdx.convertToAnd (idx : LatchIdx) (aig : Aig) (rhs0 rhs1 : Lit)
     (varValid : (idx.getVar aig).validIn aig := by grind) : Aig :=
   let var := idx.getVar aig
   let aig := aig.setNode var <| .and rhs0 rhs1
-  let aig := aig.eraseLatch idx
+  let aig := aig.eraseLatch idx (by grind [setNode])
   aig
 
 /--
@@ -1010,10 +1032,8 @@ def LatchIdx.changeIdx (old new : LatchIdx) (aig : Aig)
     (varValid : (old.getVar aig).validIn aig := by grind)
     (unused : ¬new.validIn aig ∨ old = new := by grind) : Aig :=
   let data := aig._latches[old.idx]
-  let var := data.val.var
-  let aig := aig.setNode data.val.var (.latch new data.val.var) (by grind [getVar])
-  let aig := aig.eraseLatch old
-  let aig := aig.insertLatch new data
+  let aig := aig.moveLatch old new
+  let aig := aig.setNode data.val.var (.latch new data.val.var) (by grind [getVar, Var.validIn, moveLatch])
   aig
 
 /--
@@ -1041,8 +1061,7 @@ def convertAndToInput (aig : Aig) (var : Var)
     (isAnd : aig[var] matches .and _ _ := by grind) : Aig × InputIdx :=
   let idx := aig.newInputIdx
   let aig := aig.setNode var <| .input idx var
-  let aig := aig.insertInput idx { var }
-    (by simp only [instGetElemVar, instGetElemVar.impl, NodeData.toNode] at isAnd; grind)
+  let aig := aig.pushInput { var } (by simp only [instGetElemVar, instGetElemVar.impl] at isAnd; grind)
   (aig, idx)
 
 /--
@@ -1066,8 +1085,7 @@ def convertAndToLatch (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit :
     (isAnd : aig[var] matches .and _ _ := by grind) : Aig × LatchIdx :=
   let idx := aig.newLatchIdx
   let aig := aig.setNode var <| .latch idx var
-  let aig := aig.insertLatch idx { var, next, reset }
-    (by simp only [instGetElemVar, instGetElemVar.impl, NodeData.toNode] at isAnd; grind)
+  let aig := aig.pushLatch { var, next, reset } (by simp only [instGetElemVar, instGetElemVar.impl] at isAnd; grind)
   (aig, idx)
 
 /--

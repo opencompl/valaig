@@ -412,6 +412,40 @@ theorem getElem_erase {key' : α} (mem' : key' ∈ map.erase key) :
 
 end erase
 
+set_option linter.unusedVariables false in
+def move (map : AbsMap α β) (old new : α) (mem : old ∈ map := by grind) (notmem : new ∉ map ∨ new = old := by grind) : AbsMap α β :=
+  .mk
+    (valid := fun key => (map.valid key ∧ key ≠ old) ∨ key = new)
+    (map := fun key valid => if _ : key = new then map[old] else map[key])
+    (size := map.size)
+
+section move
+variable {old new : α} (mem : old ∈ map) (notmem : new ∉ map ∨ new = old)
+attribute [local simp, local grind] move
+
+@[simp, grind =]
+theorem size_move :
+    (map.move old new mem notmem).size = map.size := by
+  grind
+
+@[simp, grind =]
+theorem mem_move {key : α} :
+    key ∈ map.move old new mem notmem ↔
+    (key ∈ map ∧ key ≠ old) ∨ key = new := by
+  grind
+
+@[simp, grind =]
+theorem getElem_move {key : α} (mem' : key ∈ map.move old new mem notmem) :
+    (map.move old new mem notmem)[key]'mem' =
+    if _ : key = new then
+      map[old]'mem
+    else
+      have h : key ∈ map := by grind
+      map[key]'h := by
+  grind
+
+end move
+
 def mapVal {γ : Type} (map : AbsMap α β) (f : β -> γ) : AbsMap α γ :=
   .mk
     (valid := map.valid)
@@ -469,6 +503,12 @@ theorem mapVal_erase :
   unfold mapVal erase
   apply ext' <;> grind
 
+@[simp, grind =]
+theorem mapVal_move {old new : α} mem notmem:
+    (map.move old new mem notmem).mapVal f = (map.mapVal f).move old new := by
+  unfold mapVal move
+  apply ext' <;> grind
+
 end mapVal
 
 @[always_inline, expose]
@@ -503,21 +543,27 @@ theorem ofPool_empty :
   apply ext' <;> grind
 
 @[simp, grind =]
-theorem ofPool_modify {idx : Nat} (f : β -> β) :
-    ofPool (pool.modify idx f) α = (ofPool pool α).modify (AsNat.ofNat idx) f := by
+theorem ofPool_modify {idx : Nat} (f : β -> β) mem :
+    ofPool (pool.modify idx f mem) α = (ofPool pool α).modify (AsNat.ofNat idx) f := by
   unfold ofPool modify
   apply ext' <;> grind
 
 @[simp, grind =]
-theorem ofPool_insert {idx : Nat} {val : β} :
-    ofPool (pool.insert idx val) α = (ofPool pool α).insert (AsNat.ofNat idx) val := by
-  unfold ofPool insert
+theorem ofPool_push {val : β} :
+    ofPool (pool.push val) α = (ofPool pool α).push (AsNat.ofNat pool.nextIdx) val := by
+  unfold ofPool push
   apply ext' <;> grind
 
 @[simp, grind =]
-theorem ofPool_erase {idx : Nat} :
-    ofPool (pool.erase idx) α = (ofPool pool α).erase (AsNat.ofNat idx) := by
+theorem ofPool_erase [Inhabited β] {idx : Nat} mem :
+    ofPool (pool.erase idx mem) α = (ofPool pool α).erase (AsNat.ofNat idx) := by
   unfold ofPool erase
+  apply ext' <;> grind
+
+@[simp, grind =]
+theorem ofPool_move [Inhabited β] {old new : Nat} mem notmem :
+    ofPool (pool.move old new mem notmem) α = (ofPool pool α).move (AsNat.ofNat old) (AsNat.ofNat new) := by
+  unfold ofPool move
   apply ext' <;> grind
 
 end ofPool

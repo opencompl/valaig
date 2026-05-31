@@ -15,7 +15,7 @@ attribute [local grind] nodes inputs latches
 -/
 section pushNode
 variable {node : NodeData}
-attribute [local simp, local grind] pushNode NodeData.toNode
+attribute [local simp, local grind] pushNode NodeData.toNode newInputIdx newLatchIdx
 
 @[simp, grind =]
 theorem nodes_pushNode :
@@ -32,6 +32,16 @@ theorem latches_pushNode :
     (aig.pushNode node).latches = aig.latches := by
   grind
 
+@[simp, grind =]
+theorem newInputIdx_pushNode :
+    (aig.pushNode node).newInputIdx = aig.newInputIdx := by
+  grind
+
+@[simp, grind =]
+theorem newLatchIdx_pushNode :
+    (aig.pushNode node).newLatchIdx = aig.newLatchIdx := by
+  grind
+
 @[simp, grind! .]
 theorem mono_pushNode :
     aig ≤ aig.pushNode node := by
@@ -44,7 +54,7 @@ end pushNode
 -/
 section setNode
 variable {var : Var} {node : NodeData} (valid : var.validIn aig)
-attribute [local simp, local grind] setNode NodeData.toNode
+attribute [local simp, local grind] setNode NodeData.toNode newInputIdx newLatchIdx
 
 @[simp, grind =]
 theorem nodes_setNode :
@@ -61,86 +71,96 @@ theorem latches_setNode :
     (aig.setNode var node valid).latches = aig.latches := by
   grind
 
+@[simp, grind =]
+theorem newInputIdx_setNode :
+    (aig.setNode var node valid).newInputIdx = aig.newInputIdx := by
+  grind
+
+@[simp, grind =]
+theorem newLatchIdx_setNode :
+    (aig.setNode var node valid).newLatchIdx = aig.newLatchIdx := by
+  grind
+
 end setNode
 
 /-
-  `insertInput`.
+  `pushInput`.
 -/
-section insertInput
-variable {idx : InputIdx} {input : Input} (h : input.var ≠ .constant)
-attribute [local simp, local grind] insertInput
+section pushInput
+variable {input : Input} (h : input.var ≠ .constant)
+attribute [local simp, local grind] pushInput newInputIdx
 
 @[simp, grind =]
-theorem nodes_insertInput :
-    (aig.insertInput idx input h).nodes = aig.nodes := by
+theorem nodes_pushInput :
+    (aig.pushInput input h).nodes = aig.nodes := by
   grind
 
 @[simp, grind =]
-theorem inputs_insertInput :
-    (aig.insertInput idx input h).inputs = aig.inputs.insert idx input := by
+theorem inputs_pushInput :
+    (aig.pushInput input h).inputs = aig.inputs.push aig.newInputIdx input := by
   grind
 
 @[simp, grind =]
-theorem latches_insertInput :
-    (aig.insertInput idx input h).latches = aig.latches := by
+theorem latches_pushInput :
+    (aig.pushInput input h).latches = aig.latches := by
   grind
 
 @[simp, grind! .]
-theorem mono_insertInput (unused : idx ∉ aig.inputs) :
-    aig ≤ aig.insertInput idx input h := by
+theorem mono_pushInput :
+    aig ≤ aig.pushInput input h := by
   constructor <;> grind
 
-end insertInput
+end pushInput
 
 /-
-  `insertLatch`.
+  `pushLatch`.
 -/
-section insertLatch
-variable {idx : LatchIdx} {latch : Latch} (h : latch.var ≠ .constant)
-attribute [local simp, local grind] insertLatch
+section pushLatch
+variable {latch : Latch} (h : latch.var ≠ .constant)
+attribute [local simp, local grind] pushLatch newLatchIdx
 
 @[simp, grind =]
-theorem nodes_insertLatch :
-    (aig.insertLatch idx latch h).nodes = aig.nodes := by
+theorem nodes_pushLatch :
+    (aig.pushLatch latch h).nodes = aig.nodes := by
   grind
 
 @[simp, grind =]
-theorem latchs_insertLatch :
-    (aig.insertLatch idx latch h).inputs = aig.inputs := by
+theorem latchs_pushLatch :
+    (aig.pushLatch latch h).inputs = aig.inputs := by
   grind
 
 @[simp, grind =]
-theorem latches_insertLatch :
-    (aig.insertLatch idx latch h).latches = aig.latches.insert idx latch := by
+theorem latches_pushLatch :
+    (aig.pushLatch latch h).latches = aig.latches.push aig.newLatchIdx latch := by
   grind
 
 @[simp, grind! .]
-theorem mono_insertLatch (unused : idx ∉ aig.latches) :
-    aig ≤ aig.insertLatch idx latch h := by
+theorem mono_pushLatch :
+    aig ≤ aig.pushLatch latch h := by
   constructor <;> grind
 
-end insertLatch
+end pushLatch
 
 /-
   `eraseInput`.
 -/
 section eraseInput
-variable {idx : InputIdx}
+variable {idx : InputIdx} (valid : idx.validIn aig)
 attribute [local simp, local grind] eraseInput
 
 @[simp, grind =]
 theorem nodes_eraseInput :
-    (aig.eraseInput idx).nodes = aig.nodes := by
+    (aig.eraseInput idx valid).nodes = aig.nodes := by
   grind
 
 @[simp, grind =]
 theorem inputs_eraseInput :
-    (aig.eraseInput idx).inputs = aig.inputs.erase idx := by
+    (aig.eraseInput idx valid).inputs = aig.inputs.erase idx := by
   grind
 
 @[simp, grind =]
 theorem latches_eraseInput :
-    (aig.eraseInput idx).latches = aig.latches := by
+    (aig.eraseInput idx valid).latches = aig.latches := by
   grind
 
 end eraseInput
@@ -149,25 +169,72 @@ end eraseInput
   `eraseLatch`.
 -/
 section eraseLatch
-variable {idx : LatchIdx}
+variable {idx : LatchIdx} (valid : idx.validIn aig)
 attribute [local simp, local grind] eraseLatch
 
 @[simp, grind =]
 theorem nodes_eraseLatch :
-    (aig.eraseLatch idx).nodes = aig.nodes := by
+    (aig.eraseLatch idx valid).nodes = aig.nodes := by
   grind
 
 @[simp, grind =]
 theorem inputs_eraseLatch :
-    (aig.eraseLatch idx).inputs = aig.inputs := by
+    (aig.eraseLatch idx valid).inputs = aig.inputs := by
   grind
 
 @[simp, grind =]
 theorem latches_eraseLatch :
-    (aig.eraseLatch idx).latches = aig.latches.erase idx := by
+    (aig.eraseLatch idx valid).latches = aig.latches.erase idx := by
   grind
 
 end eraseLatch
+
+/-
+  `moveInput`.
+-/
+section moveInput
+variable {old new : InputIdx} (valid : old.validIn aig) (notvalid : ¬new.validIn aig ∨ new = old)
+attribute [local simp, local grind] moveInput
+
+@[simp, grind =]
+theorem nodes_moveInput :
+    (aig.moveInput old new valid notvalid).nodes = aig.nodes := by
+  grind
+
+@[simp, grind =]
+theorem inputs_moveInput :
+    (aig.moveInput old new valid notvalid).inputs = aig.inputs.move old new := by
+  grind
+
+@[simp, grind =]
+theorem latches_moveInput :
+    (aig.moveInput old new valid notvalid).latches = aig.latches := by
+  grind
+
+end moveInput
+
+/-
+  `moveLatch`.
+-/
+section moveLatch
+variable {old new : LatchIdx} (valid : old.validIn aig) (notvalid : ¬new.validIn aig ∨ new = old)
+attribute [local simp, local grind] moveLatch
+
+@[simp, grind =]
+theorem nodes_moveLatch :
+    (aig.moveLatch old new valid notvalid).nodes = aig.nodes := by
+  grind
+
+@[simp, grind =]
+theorem inputs_moveLatch :
+    (aig.moveLatch old new valid notvalid).inputs = aig.inputs := by
+  grind
+
+@[simp, grind =]
+theorem latches_moveLatch :
+    (aig.moveLatch old new valid notvalid).latches = aig.latches.move old new := by
+  grind
+end moveLatch
 
 public section
 
