@@ -49,19 +49,19 @@ def InputIdxsValid (aig : Aig) : Prop :=
 
 @[simp]
 theorem WF.mem_inputs_of_node {inputIdxsValid : aig.InputIdxsValid} {var : Var} {idx : InputIdx}
-    (mem : var ∈ aig.nodes) (eq : aig[var] = .input idx) :
+    (mem : var ∈ aig.nodes) (eq : aig[var]'mem = .input idx) :
     idx ∈ aig.inputs := by
   grind
 
-grind_pattern WF.mem_inputs_of_node => idx ∈ aig.inputs, aig[var], Node.input idx
+grind_pattern WF.mem_inputs_of_node => idx ∈ aig.inputs, aig[var]'mem, Node.input idx
 
 @[simp]
 theorem WF.var_inputs_of_node {inputIdxsValid : aig.InputIdxsValid} {var : Var} {idx : InputIdx}
-    (mem : var ∈ aig.nodes) (eq : aig[var] = .input idx) :
-    aig.inputs[idx].var = var := by
+    (mem : var ∈ aig.nodes) (eq : aig[var]'mem = .input idx) mem' :
+    (aig.inputs[idx]'mem').var = var := by
   grind
 
-grind_pattern WF.var_inputs_of_node => idx ∈ aig.inputs, aig[var], Node.input idx
+grind_pattern WF.var_inputs_of_node => (aig.inputs[idx]'mem').var, aig[var]'mem, Node.input idx
 
 /--
   All latch indices point to a latch in the Aig.
@@ -92,19 +92,19 @@ def LatchIdxsValid (aig : Aig) : Prop :=
 
 @[simp]
 theorem WF.mem_latches_of_node {latchIdxsValid : aig.LatchIdxsValid} {var : Var} {idx : LatchIdx}
-    (mem : var ∈ aig.nodes) (eq : aig[var] = .latch idx) :
+    (mem : var ∈ aig.nodes) (eq : aig[var]'mem = .latch idx) :
     idx ∈ aig.latches := by
   grind
 
-grind_pattern WF.mem_latches_of_node => idx ∈ aig.latches, aig[var], Node.latch idx
+grind_pattern WF.mem_latches_of_node => idx ∈ aig.latches, aig[var]'mem, Node.latch idx
 
 @[simp]
 theorem WF.var_latches_of_node {latchIdxsValid : aig.LatchIdxsValid} {var : Var} {idx : LatchIdx}
-    (mem : var ∈ aig.nodes) (eq : aig[var] = .latch idx) :
-    aig.latches[idx].var = var := by
+    (mem : var ∈ aig.nodes) (eq : aig[var]'mem = .latch idx) mem' :
+    (aig.latches[idx]'mem').var = var := by
   grind
 
-grind_pattern WF.var_latches_of_node => idx ∈ aig.latches, aig[var], Node.latch idx
+grind_pattern WF.var_latches_of_node => (aig.latches[idx]'mem').var, aig[var]'mem, Node.latch idx
 
 /-
   Equivalent of `getElem_nodes_LatchesValid` on leaves.
@@ -130,11 +130,11 @@ def ResetsValid (aig : Aig) : Prop :=
 
 @[simp]
 theorem WF.mem_nodes_reset {resetsValid : aig.ResetsValid} {idx : LatchIdx} (mem : idx ∈ aig.latches)
-    {lit : Lit} (isSome : aig.latches[idx].reset = some lit) :
+    {lit : Lit} (isSome : (aig.latches[idx]'mem).reset = some lit) :
     lit.validIn aig := by
   grind
 
-grind_pattern WF.mem_nodes_reset => aig.latches[idx].reset, some lit, lit.validIn aig
+grind_pattern WF.mem_nodes_reset => (aig.latches[idx]'mem).reset, some lit, lit.validIn aig
 
 /--
   All latch next state literals are valid in the Aig.
@@ -146,7 +146,7 @@ def NextsValid (aig : Aig) : Prop :=
 
 @[simp, grind .]
 theorem WF.mem_nodes_next {nextsValid : aig.NextsValid} {idx : LatchIdx} (mem : idx ∈ aig.latches) :
-    aig.latches[idx].next.validIn aig := by
+    (aig.latches[idx]'mem).next.validIn aig := by
   grind
 
 /--
@@ -161,8 +161,8 @@ def AcyclicGates (aig : Aig) : Prop :=
 
 section AcyclicGates
 variable {acyclicGates : aig.AcyclicGates} {var var' : Var} {rhs0 rhs1 : Lit}
-variable (valid : var.validIn aig) (eq : aig.nodes[var] = .and rhs0 rhs1)
-include acyclicGates valid eq
+variable (mem : var ∈ aig.nodes) (eq : aig.nodes[var]'mem = .and rhs0 rhs1)
+include acyclicGates mem eq
 
 @[simp]
 theorem WF.rhs0_lt_and :
@@ -178,29 +178,29 @@ theorem WF.rhs0_lt_and_of_le (lt : var ≤ var') :
     rhs0.var < var' := by
   grind
 
-grind_pattern WF.rhs0_lt_and_of_le => rhs0.var < var', Node.and rhs0 rhs1, aig.nodes[var]
-grind_pattern WF.rhs0_lt_and_of_le => rhs0.var ≤ var', Node.and rhs0 rhs1, aig.nodes[var]
+grind_pattern WF.rhs0_lt_and_of_le => rhs0.var < var', Node.and rhs0 rhs1, aig.nodes[var]'mem
+grind_pattern WF.rhs0_lt_and_of_le => rhs0.var ≤ var', Node.and rhs0 rhs1, aig.nodes[var]'mem
 
 theorem WF.rhs1_lt_and_of_le (lt : var ≤ var') :
     rhs1.var < var' := by
   grind
 
-grind_pattern WF.rhs1_lt_and_of_le => rhs1.var < var', Node.and rhs0 rhs1, aig.nodes[var]
-grind_pattern WF.rhs1_lt_and_of_le => rhs1.var ≤ var', Node.and rhs0 rhs1, aig.nodes[var]
+grind_pattern WF.rhs1_lt_and_of_le => rhs1.var < var', Node.and rhs0 rhs1, aig.nodes[var]'mem
+grind_pattern WF.rhs1_lt_and_of_le => rhs1.var ≤ var', Node.and rhs0 rhs1, aig.nodes[var]'mem
 
 @[simp]
 theorem WF.rhs0_mem_nodes_and :
     rhs0.var ∈ aig.nodes := by
   grind
 
-grind_pattern WF.rhs0_mem_nodes_and => rhs0.var.validIn aig, Node.and rhs0 rhs1, aig.nodes[var]
+grind_pattern WF.rhs0_mem_nodes_and => rhs0.var.validIn aig, Node.and rhs0 rhs1, aig.nodes[var]'mem
 
 @[simp]
 theorem WF.rhs1_mem_nodes_and :
     rhs1.var ∈ aig.nodes := by
   grind
 
-grind_pattern WF.rhs1_mem_nodes_and => rhs1.var.validIn aig, Node.and rhs0 rhs1, aig.nodes[var]
+grind_pattern WF.rhs1_mem_nodes_and => rhs1.var.validIn aig, Node.and rhs0 rhs1, aig.nodes[var]'mem
 
 end AcyclicGates
 
@@ -224,18 +224,18 @@ theorem WF.ResetsValid_of_LatchesValid_AcyclicReset {aig : Aig}
 
 @[simp]
 theorem WF.reset_lt_var (acyclicResets : aig.AcyclicResets) {idx : LatchIdx} (mem : idx ∈ aig.latches)
-    {lit : Lit} (isSome : aig.latches[idx].reset = some lit) :
-    lit.var < aig.latches[idx].var := by
+    {lit : Lit} (isSome : (aig.latches[idx]'mem).reset = some lit) :
+    lit.var < (aig.latches[idx]'mem).var := by
   grind
 
 theorem WF.reset_lt_var_of_le (acyclicResets : aig.AcyclicResets) {var : Var} {idx : LatchIdx}
-    (mem : idx ∈ aig.latches) (lt : aig.latches[idx].var ≤ var)
-    {lit : Lit} (isSome : aig.latches[idx].reset = some lit) :
+    (mem : idx ∈ aig.latches) (lt : (aig.latches[idx]'mem).var ≤ var)
+    {lit : Lit} (isSome : (aig.latches[idx]'mem).reset = some lit) :
     lit.var < var := by
   grind
 
-grind_pattern WF.reset_lt_var_of_le => aig.latches[idx], some lit, lit.var < var
-grind_pattern WF.reset_lt_var_of_le => aig.latches[idx], some lit, lit.var ≤ var
+grind_pattern WF.reset_lt_var_of_le => (aig.latches[idx]'mem).reset, some lit, lit.var < var
+grind_pattern WF.reset_lt_var_of_le => (aig.latches[idx]'mem).reset, some lit, lit.var ≤ var
 
 /--
   All indices within the Aig are valid and the gates and reset function are
