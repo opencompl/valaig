@@ -8,20 +8,20 @@ namespace Valaig.Data
   a generalization of `Option α` to equivalents that pack the none value into unused encoding
   space, which can be more memory efficient.
 
-  `default` specifies one null value to allow their construction, and `isNull` defines the space
-  of null values, which must include `default`.
+  `null` specifies one null value to allow their construction, and `isNull` defines the space
+  of null values, which must include `null`.
 -/
 class Nullable (α : Type u) where
-  default : α
+  null : α
   isNull : α -> Bool
-  legal : isNull default
+  legal : isNull null
 
 namespace Nullable
 variable {α : Type u} [inst : Nullable α]
 
 @[simp, grind =]
-theorem isNull_default :
-    inst.isNull inst.default :=
+theorem isNull_null :
+    inst.isNull inst.null :=
   inst.legal
 
 @[inline]
@@ -35,7 +35,7 @@ theorem isSome_eq {a : α} :
 
 @[inline]
 instance : Nullable (Option α) where
-  default := none
+  null := none
   isNull := Option.isNone
   legal := by grind
 
