@@ -5,6 +5,7 @@ public import Valaig.Data.Pool
 public import Valaig.Data.AbsMap
 public import Valaig.Refs
 import Valaig.ForLean.Iter
+public import Valaig.ForLean.Panic
 
 public section
 open Valaig.Data (AbsMap Pool)
@@ -369,8 +370,9 @@ namespace Var
 /--
   A variable is `validIn` an Aig iff it has a node defined for it.
 -/
+@[expose]
 def validIn (var : Var) (aig : Aig) : Prop :=
-  var ∈ aig._nodes
+  var ∈ aig.nodes
 
 /-- NOTE: Do not rely on this function externally! -/
 @[always_inline]
@@ -380,7 +382,7 @@ def instDecidableValidIn.impl (var : Var) (aig : Aig) : Bool :=
 @[always_inline]
 instance {var : Var} : Decidable (var.validIn aig) :=
   have : var.validIn aig ↔ instDecidableValidIn.impl var aig := by
-    simp [instDecidableValidIn.impl, validIn]
+    simp [instDecidableValidIn.impl, validIn, Aig.nodes]
   decidable_of_iff' _ this
 
 /--
@@ -516,43 +518,6 @@ instance instGetElemVar : GetElem Aig Var Node (fun aig var => var.validIn aig) 
 private theorem getElem_eq' {var : Var} {valid : var.validIn aig} :
     aig[var]'valid = NodeData.toNode aig._nodes[var] var := by
   simp [instGetElemVar, instGetElemVar.impl]
-
-@[simp, grind =]
-private theorem panic_eq {α : Type} [Inhabited α] {msg : String} :
-    panic (α := α) msg = Inhabited.default := by
-  grind [panic, panicCore]
-
-private def panicAt {α : Type} [Inhabited α] (loc msg : String) : α :=
-    panic s!"paniced at {loc}: {msg}"
-
-@[simp, grind =]
-private theorem panicAt_eq {α : Type} [Inhabited α] {loc msg : String} :
-    panicAt (α := α) loc msg = Inhabited.default := by
-  grind [panicAt]
-
-set_option linter.unusedVariables false in
-@[always_inline]
-private def checkOrPanic (p : Prop) [Decidable p] (loc msg : String) : Option { u : Unit // p } :=
-  if h : p then
-    some ⟨(), h⟩
-  else
-    panicAt loc msg
-
-@[simp, grind =]
-private theorem checkOrPanic_eq {p : Prop} [Decidable p] {loc msg : String} :
-    checkOrPanic p loc msg = if h : p then some ⟨(), h⟩ else none := by
-  grind [checkOrPanic]
-
-set_option linter.unusedVariables false in
-@[grind .]
-private theorem checkOrPanic_some {p : Prop} [Decidable p] {loc msg : String} u
-    (some : checkOrPanic p loc msg = some u) : p := by
-  grind [checkOrPanic]
-
-@[grind .]
-private theorem checkOrPanic_none {p : Prop} [Decidable p] {loc msg : String}
-    (none : checkOrPanic p loc msg = none) : ¬p := by
-  grind [checkOrPanic]
 
 /--
   An Aig with just the constant node.
@@ -964,7 +929,7 @@ def InputIdx.changeIdx (old new : InputIdx) (aig : Aig)
     (unused : ¬new.validIn aig ∨ old = new := by grind) : Aig :=
   let data := aig._inputs[old.idx]
   let aig := aig.moveInput old new
-  let aig := aig.setNode data.val.var (.input new data.val.var) (by grind [getVar, Var.validIn, moveInput])
+  let aig := aig.setNode data.val.var (.input new data.val.var) (by grind [getVar, Var.validIn, moveInput, nodes])
   aig
 
 /--
@@ -1043,7 +1008,7 @@ def LatchIdx.changeIdx (old new : LatchIdx) (aig : Aig)
     (unused : ¬new.validIn aig ∨ old = new := by grind) : Aig :=
   let data := aig._latches[old.idx]
   let aig := aig.moveLatch old new
-  let aig := aig.setNode data.val.var (.latch new data.val.var) (by grind [getVar, Var.validIn, moveLatch])
+  let aig := aig.setNode data.val.var (.latch new data.val.var) (by grind [getVar, Var.validIn, moveLatch, nodes])
   aig
 
 /--

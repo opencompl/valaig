@@ -52,14 +52,14 @@ end ForwardsWalker
 structure CachingForwardsWalker (aig : Aig) (σ α : Type) where
   stateMotive : σ -> (idx : Nat) -> idx ≤ aig.size -> Prop
   cacheMotive :
-    {state : σ} -> {idx : Nat} -> {le : idx ≤ aig.size} -> stateMotive state idx le ->
+    (state : σ) -> (idx : Nat) -> (le : idx ≤ aig.size) -> stateMotive state idx le ->
     (var : Var) -> var.idx < idx -> α -> Prop
 
   step :
     (var : Var) -> (state : σ) -> (cache : VarCache α) ->
     (valid : var.validIn aig) -> (size : cache.size = var.idx) ->
     (sm : stateMotive state var.idx (by grind)) ->
-    (cm : ∀ {var'} (h : var' < var), cacheMotive sm var' h cache[var']) ->
+    (cm : ∀ {var'} (h : var' < var), cacheMotive state var.idx (by grind) sm var' h cache[var']) ->
     σ × α
 
   stepState var state cache valid size sm cm :
@@ -67,12 +67,12 @@ structure CachingForwardsWalker (aig : Aig) (σ α : Type) where
 
   stepCache var state cache le valid size (sm : stateMotive state var.idx le) cm :
     ∀ {var'} (h : var' < var),
-      cacheMotive (stepState var state cache valid size sm cm) var' (by grind)
-        cache[var']
+      cacheMotive (step var state cache valid size sm cm).fst (var.idx + 1) (by grind) (by grind)
+        var' (by grind) cache[var']
 
   stepCacheNew var state cache valid size sm cm :
-    cacheMotive (stepState var state cache valid size sm cm) var (by grind)
-      (step var state cache valid size sm cm).snd
+    cacheMotive (step var state cache valid size sm cm).fst (var.idx + 1) (by grind) (by grind)
+      var (by grind) (step var state cache valid size sm cm).snd
 
 namespace CachingForwardsWalker
 variable {aig : Aig} {σ α : Type}
@@ -87,7 +87,7 @@ variable {aig : Aig} {σ α : Type}
 private def walk.go (walker : aig.CachingForwardsWalker σ α) step (it : aig.Iter) (state : σ) (cache : VarCache α)
     (size : cache.size = (aig.iterVal it).idx := by grind)
     (sm : walker.stateMotive state (aig.iterVal it).idx (by grind) := by grind)
-    (cm : ∀ {var'} (h : var' < (aig.iterVal it)), walker.cacheMotive sm var' (by grind) cache[var'] := by grind)
+    (cm : ∀ {var'} (h : var' < (aig.iterVal it)), walker.cacheMotive state (aig.iterVal it).idx (by grind) sm var' (by grind) cache[var'] := by grind)
     (eq : step = walker.step := by grind) : σ × VarCache α :=
   match it.step with
   | .done _ => (state, cache)

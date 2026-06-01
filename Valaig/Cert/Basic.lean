@@ -7,11 +7,52 @@ import Valaig.Data.VarCache
 public section
 namespace Valaig.Cert
 
+namespace appendCert
+
+@[inline]
 private def leafMapping (cert : Aiger) (leaf : Aig.LeafIdx) : Option Lit := do
   let symb ← cert.leafSymbols[leaf]?
   let lit ← symb.skipPrefix? "= "
   let n ← symb.slice lit symb.endPos (by simp) |>.toNat?
   return .ofIdx n
+
+@[always_inline]
+private def walker (old : Aig) (cert : Aiger) (certWf : cert.aig.WF := by grind) : cert.aig.CachingForwardsWalker Aig Lit where
+  stateMotive aig size le := aig.WF ∧ old ≤ aig
+  cacheMotive aig size le sm var lt val := val.validIn aig
+
+  step var aig cache valid size sm cm :=
+    let map (lit : Lit) (valid : lit.var < var := by grind) :=
+      lit.mapTo cache[lit.var]
+
+    match _ : cert.aig[var] with
+    | .false => (aig, .false)
+    | .and rhs0 rhs1 =>
+      let (aig, var) := aig.addAnd (map rhs0) (map rhs1)
+      (aig, var)
+
+    | .input idx =>
+      -- TODO: This should instead be validIn old but naively that breaks linearity
+      match _ : leafMapping cert idx |>.filter (·.validIn aig) with
+      | none =>
+        let (eq:=_) (aig, idx) := aig.addInput
+        (aig, idx.getVar aig)
+      | some lit => (aig, lit)
+
+    | .latch idx =>
+      match _ : leafMapping cert idx |>.filter (·.validIn aig) with
+      | none => (aig, panic "latches not supported yet")
+      | some lit => (aig, lit)
+
+  stepState := by intros; split <;> grind
+  stepCache := by intros; split <;> grind
+  stepCacheNew := by simp only [panic_eq]; intros; split <;> grind [Option.filter_eq_some_iff]
+
+@[inline]
+private def walk (aig : Aig) (cert : Aiger) (aigWf : aig.WF := by grind) (certWf : cert.aig.WF := by grind) : Aig × Data.VarCache Lit :=
+  (walker aig cert).walk aig (by grind [walker])
+
+end appendCert
 
 def appendCert (aig : Aiger) (cert : Aiger) : Except String Aiger := do
   -- TODO: Hoist these checks and store them in the types
@@ -29,38 +70,9 @@ def appendCert (aig : Aiger) (cert : Aiger) : Except String Aiger := do
   else
 
   let oldBad := aig.bads[0]!.lit
+  let (prod, cache) := appendCert.walk aig.aig cert
 
-  -- We want to go through every variable, creating a mapping. If the leaf has a definition, we
-  -- use that, otherwise we just copy across
-  let mut mapping : Data.VarCache Lit := .empty
-  let mut prod := aig.aig
-  for h : var in cert.aig.iter do
-    let map (lit : Lit) :=
-      lit.mapTo mapping[lit.var]!
-
-    match cert.aig[var] with
-    | .false         =>
-      mapping := mapping.push .false
-    | .and rhs0 rhs1 =>
-      let (aig, var) := prod.addAnd (map rhs0) (map rhs1)
-      mapping := mapping.push var
-      prod := aig
-    | .input idx =>
-      match leafMapping cert idx with
-      | none =>
-        let (aig, idx) := prod.addInput
-        mapping := mapping.push (idx.getVar! aig |>.get!)
-        prod := aig
-      | some lit =>
-        mapping := mapping.push lit
-    | .latch idx =>
-      match leafMapping cert idx with
-      | none =>
-        throw "latches not supported yet"
-      | some lit =>
-        mapping := mapping.push lit
-
-  let bad := cert.bads[0]!.lit.mapTo mapping[cert.bads[0]!.lit.var]!
+  let bad := cert.bads[0]!.lit.mapTo cache[cert.bads[0]!.lit.var]!
   let (prod', prodBad) := prod.addOr oldBad bad
   let aiger := { Aiger.ofAig prod' with bads := #[.mk prodBad ""] }
 

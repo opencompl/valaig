@@ -27,7 +27,7 @@ theorem ofIdx_idx :
     .ofIdx var.idx = var := by
   grind
 
-deriving instance DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq for Var
+deriving instance DecidableEq, Repr, BEq, ReflBEq, LawfulBEq for Var
 
 instance : EquivBEq Var := by constructor
 
@@ -104,6 +104,10 @@ theorem constant_iff_idx_zero :
     var = constant ↔ var.idx = 0 := by
   grind
 
+@[reducible]
+instance : Inhabited Var where
+  default := .constant
+
 /--
 Adding a `Nat` to a `Var` increments the `Var`'s index.
 -/
@@ -143,7 +147,7 @@ structure Lit where
 namespace Lit
 variable {lit : Lit}
 
-deriving instance DecidableEq, Repr, Inhabited, BEq, ReflBEq, LawfulBEq for Lit
+deriving instance DecidableEq, Repr, BEq, ReflBEq, LawfulBEq for Lit
 instance : EquivBEq Lit := by constructor
 
 -- Hash the inner value directly to avoid a mixHash use
@@ -276,6 +280,10 @@ theorem inverted_false :
 theorem idx_false :
     false.idx = 0 := by
   grind
+
+@[reducible]
+instance : Inhabited Lit where
+  default := .false
 
 /--
 The (single) true literal.
