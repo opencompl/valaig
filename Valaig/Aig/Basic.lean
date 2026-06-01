@@ -438,19 +438,22 @@ namespace InputIdx
 /--
   An input is `validIn` an Aig iff it is a member of `aig.inputs`.
 -/
-@[local simp]
+@[expose]
 def validIn (idx : InputIdx) (aig : Aig) : Prop :=
-  idx.idx ∈ aig._inputs
+  idx ∈ aig.inputs
 
 /-- NOTE: Do not rely on this function externally! -/
 @[always_inline]
 def instDecidableValidIn.impl (idx : InputIdx) (aig : Aig) : Bool :=
   idx.idx ∈ aig._inputs
 
+private theorem validIn_def {idx : InputIdx} :
+    idx.validIn aig ↔ idx.idx ∈ aig._inputs := by
+  simp [validIn, inputs]
+
 @[always_inline]
 instance {idx : InputIdx} : Decidable (idx.validIn aig) :=
-  have : idx.validIn aig ↔ instDecidableValidIn.impl idx aig := by
-    simp [instDecidableValidIn.impl]
+  have : idx.validIn aig ↔ instDecidableValidIn.impl idx aig := by simp [instDecidableValidIn.impl, validIn_def]
   decidable_of_iff' _ this
 
 /--
@@ -474,19 +477,22 @@ namespace LatchIdx
 /--
   A latch is `validIn` an Aig iff it is a member of `aig.latches`.
 -/
-@[local simp]
+@[expose]
 def validIn (idx : LatchIdx) (aig : Aig) : Prop :=
-  idx.idx ∈ aig._latches
+  idx ∈ aig.latches
 
 /-- NOTE: Do not rely on this function externally! -/
 @[always_inline]
 def instDecidableValidIn.impl (idx : LatchIdx) (aig : Aig) : Bool :=
   idx.idx ∈ aig._latches
 
+private theorem validIn_def {idx : LatchIdx} :
+    idx.validIn aig ↔ idx.idx ∈ aig._latches := by
+  simp [validIn, latches]
+
 @[always_inline]
 instance {idx : LatchIdx} : Decidable (idx.validIn aig) :=
-  have : idx.validIn aig ↔ instDecidableValidIn.impl idx aig := by
-    simp [instDecidableValidIn.impl]
+  have : idx.validIn aig ↔ instDecidableValidIn.impl idx aig := by simp [instDecidableValidIn.impl, validIn_def]
   decidable_of_iff' _ this
 
 /--
@@ -504,6 +510,8 @@ abbrev castIn (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind)
   ⟨idx, valid⟩
 
 end LatchIdx
+
+attribute [local simp, local grind =] InputIdx.validIn_def LatchIdx.validIn_def
 
 /-- NOTE: Do not rely on this function externally! -/
 @[always_inline]
@@ -658,7 +666,7 @@ set_option linter.unusedVariables false in
 -/
 @[inline]
 def setNext (idx : LatchIdx) (aig : Aig) (next : Lit) (valid : idx.validIn aig := by grind) : Aig :=
-  { aig with _latches := aig._latches.modify idx.idx (⟨{ ·.val with next }, by grind⟩) valid }
+  { aig with _latches := aig._latches.modify idx.idx (⟨{ ·.val with next }, by grind⟩) }
 
 /--
   Update the next state function for a latch in the Aig.
@@ -676,7 +684,7 @@ set_option linter.unusedVariables false in
 -/
 @[inline]
 def setReset (idx : LatchIdx) (aig : Aig) (reset : Option Lit) (valid : idx.validIn aig := by grind) : Aig :=
-  { aig with _latches := aig._latches.modify idx.idx (⟨{ ·.val with reset }, by grind⟩) valid }
+  { aig with _latches := aig._latches.modify idx.idx (⟨{ ·.val with reset }, by grind⟩) }
 
 /--
   Update the reset function for a latch in the Aig.
@@ -801,19 +809,19 @@ private def pushLatch (aig : Aig) (latch : Latch) (h : latch.var ≠ .constant :
 
 @[always_inline]
 private def eraseInput (aig : Aig) (idx : InputIdx) (valid : idx.validIn aig := by grind) : Aig :=
-  { aig with _inputs := aig._inputs.erase idx.idx valid }
+  { aig with _inputs := aig._inputs.erase idx.idx }
 
 @[always_inline]
 private def eraseLatch (aig : Aig) (idx : LatchIdx) (valid : idx.validIn aig := by grind) : Aig :=
-  { aig with _latches := aig._latches.erase idx.idx valid }
+  { aig with _latches := aig._latches.erase idx.idx }
 
 @[always_inline]
 private def moveInput (aig : Aig) (old new : InputIdx) (valid : old.validIn aig := by grind) (notvalid : ¬new.validIn aig ∨ new = old := by grind) : Aig :=
-  { aig with _inputs := aig._inputs.move old.idx new.idx valid (by grind [InputIdx.validIn]) }
+  { aig with _inputs := aig._inputs.move old.idx new.idx }
 
 @[always_inline]
 private def moveLatch (aig : Aig) (old new : LatchIdx) (valid : old.validIn aig := by grind) (notvalid : ¬new.validIn aig ∨ new = old := by grind) : Aig :=
-  { aig with _latches := aig._latches.move old.idx new.idx valid (by grind [LatchIdx.validIn]) }
+  { aig with _latches := aig._latches.move old.idx new.idx }
 
 attribute [local grind] InputIdx.validIn LatchIdx.validIn newInputIdx newLatchIdx
 
