@@ -91,10 +91,12 @@ theorem validIn_iff {var : Var} :
     var.validIn aig ↔ var.idx < aig.size := by
   rfl
 
+grind_pattern validIn_iff => var.idx, aig.size
+
 @[simp, grind =]
 theorem validIn_maxVar {var : Var} :
     var ≤ aig.maxVar ↔ var.validIn aig := by
-  grind [validIn_iff]
+  grind
 
 @[simp, grind =]
 theorem idx_nextVar :
@@ -104,12 +106,12 @@ theorem idx_nextVar :
 @[simp, grind .]
 theorem mem_nodes_nextVar :
     aig.nextVar ∉ aig.nodes := by
-  grind [validIn_iff]
+  grind
 
 @[simp, grind =]
 theorem le_nextVar {var : Var} :
     var ≤ aig.nextVar ↔ var ∈ aig.nodes ∨ var = aig.nextVar := by
-  grind [validIn_iff]
+  grind
 
 @[simp, grind .]
 theorem mem_inputs_newInputIdx :

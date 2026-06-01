@@ -557,12 +557,10 @@ private theorem checkOrPanic_none {p : Prop} [Decidable p] {loc msg : String}
 /--
   An Aig with just the constant node.
 -/
-def empty : Aig :=
-  {
-    _nodes := .empty
-    _inputs := .empty,
-    _latches := .empty,
-  }
+def empty : Aig where
+  _nodes := .empty
+  _inputs := .empty
+  _latches := .empty
 
 @[inline]
 instance : Inhabited Aig where
@@ -1199,12 +1197,14 @@ instance instIteratorLoop [Monad m] [Monad n] : Std.IteratorLoop aig.VarIter m n
 
 end VarIter
 
+abbrev Iter (aig : Aig) := @Std.Iter aig.VarIter Var
+
 /--
   A forward iterator over variables in the Aig.
   See also `iterVal`.
 -/
 @[inline]
-def iter (aig : Aig) : @Std.Iter aig.VarIter Var :=
+def iter (aig : Aig) : aig.Iter :=
   ⟨VarIter.mk .constant aig.nextVar⟩
 
 /--
@@ -1212,14 +1212,14 @@ def iter (aig : Aig) : @Std.Iter aig.VarIter Var :=
   iterator is done.
 -/
 @[inline]
-def iterVal (aig : Aig) (it : @Std.Iter aig.VarIter Var) : Var :=
+def iterVal (aig : Aig) (it : aig.Iter) : Var :=
   it.internalState.var
 
 /--
   The final variable iterator value that returns done.
 -/
 @[inline]
-def iterEnd (aig : Aig) : @Std.Iter aig.VarIter Var :=
+def iterEnd (aig : Aig) : aig.Iter :=
   ⟨VarIter.mk aig.nextVar aig.nextVar⟩
 
 /--
