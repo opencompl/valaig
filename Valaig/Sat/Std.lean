@@ -6,7 +6,8 @@ import Std.Sat.AIG.CachedLemmas
 import Std.Sat.AIG.Cached
 
 public section
-namespace Valaig.Aig
+namespace Valaig.Sat
+open Aig
 variable {aig : Aig}
 
 namespace toStd
@@ -54,4 +55,4 @@ def toStd (aig : Aig) (reset : Bool) (wf : aig.WF := by grind) : (aig' : Std.Sat
   let res := (toStd.walker aig reset).walk Std.Sat.AIG.empty (by grind [toStd.walker])
   ⟨res.fst, fun lit => (res.snd.mapLit lit.val).toRef res.fst sorry⟩
 
-end Valaig.Aig
+end Valaig.Sat
