@@ -247,7 +247,8 @@ theorem getElem_modify {var' : Var} (lt' : var'.idx < (cache.modify var lt f).si
 
 end modify
 
-def insertAbove [Nullable α] (cache : VarCache α) (var : Var) (value : α) (le : cache.size ≤ var.idx := by grind) : VarCache α :=
+def insertAbove [Nullable α] (cache : VarCache α) (var : Var) (value : α)
+  (le : cache.size ≤ var.idx := by grind) (some : Nullable.isSome value := by grind) : VarCache α :=
   if _ : cache.size = var.idx then
     cache.push value
   else
@@ -256,29 +257,29 @@ termination_by var.idx - cache.size
 decreasing_by grind
 
 section insertAbove
-variable [Nullable α] {value : α} (le : cache.size ≤ var.idx)
+variable [Nullable α] {value : α} (le : cache.size ≤ var.idx) (some : Nullable.isSome value)
 attribute [local grind] insertAbove
 
 @[simp, grind =]
 theorem size_insertAbove :
-    (cache.insertAbove var value le).size = var.idx + 1 := by
+    (cache.insertAbove var value le some).size = var.idx + 1 := by
   fun_induction insertAbove <;> grind
 
 @[simp, grind =]
 theorem fillSlow_insertAbove :
-    (cache.insertAbove var value le).fillSlow =
-    cache.fillSlow + if Nullable.isSome value then 1 else 0 := by
+    (cache.insertAbove var value le some).fillSlow =
+    cache.fillSlow + 1 := by
   fun_induction insertAbove <;> grind
 
 @[simp, grind =]
 theorem mem_insertAbove {var' : Var} :
-    var' ∈ cache.insertAbove var value le ↔
-    var' ∈ cache ∨ (var' = var ∧ Nullable.isSome value) := by
+    var' ∈ cache.insertAbove var value le some ↔
+    var' ∈ cache ∨ var' = var := by
   fun_induction insertAbove <;> grind
 
 @[simp, grind =]
 theorem getElem_insertAbove {var' : Var} (lt : var'.idx < (cache.insertAbove var value le).size) :
-    (cache.insertAbove var value le)[var']'lt =
+    (cache.insertAbove var value le some)[var']'lt =
     if var' = var then
       value
     else if h : var'.idx < cache.size then
@@ -290,36 +291,40 @@ theorem getElem_insertAbove {var' : Var} (lt : var'.idx < (cache.insertAbove var
 end insertAbove
 
 @[inline]
-def insert [Nullable α] (cache : VarCache α) (var : Var) (value : α) : VarCache α :=
+def insert [Nullable α] (cache : VarCache α) (var : Var) (value : α)
+  (some : Nullable.isSome value := by grind) : VarCache α :=
   if _ : var.idx < cache.size then
     cache.set var value
   else
     cache.insertAbove var value
 
 section insert
-variable [Nullable α] {value : α}
-attribute [local grind] insert
+variable [Nullable α] {value : α} (some : Nullable.isSome value)
+attribute [local simp, local grind] insert
 
 @[simp, grind =]
 theorem size_insert :
-    (cache.insert var value).size = max cache.size (var.idx + 1) := by
+    (cache.insert var value some).size = max cache.size (var.idx + 1) := by
   grind
 
 @[simp, grind =]
 theorem fillSlow_insert :
-    (cache.insert var value).fillSlow =
-    cache.fillSlow - (if var ∈ cache then 1 else 0) + (if Nullable.isSome value then 1 else 0) := by
-  grind
+    (cache.insert var value some).fillSlow =
+    cache.fillSlow + (if var ∈ cache then 0 else 1) := by
+  split
+  · have : cache.fillSlow > 0 := by simp only [fillSlow, Array.countP_pos_iff]; grind
+    grind
+  · grind
 
 @[simp, grind =]
 theorem mem_insert {var' : Var} :
-    var' ∈ cache.insert var value ↔
-    if _ : var' = var then Nullable.isSome value else var' ∈ cache := by
+    var' ∈ cache.insert var value some ↔
+    var' ∈ cache ∨ var' = var := by
   grind
 
 @[simp, grind =]
 theorem getElem_insert {var' : Var} (lt : var'.idx < (cache.insert var value).size) :
-    (cache.insert var value)[var']'lt =
+    (cache.insert var value some)[var']'lt =
     if var' = var then
       value
     else if h : var'.idx < cache.size then
@@ -329,6 +334,45 @@ theorem getElem_insert {var' : Var} (lt : var'.idx < (cache.insert var value).si
   grind
 
 end insert
+
+@[inline]
+def erase [Nullable α] (cache : VarCache α) (var : Var) : VarCache α :=
+  if _ : var.idx < cache.size then
+    cache.set var Nullable.null
+  else
+    cache
+
+section erase
+variable [Nullable α]
+attribute [local simp, local grind] erase
+
+@[simp, grind =]
+theorem size_erase :
+    (cache.erase var).size = cache.size := by
+  grind
+
+@[simp, grind =]
+theorem fillSlow_erase :
+    (cache.erase var).fillSlow =
+    cache.fillSlow - if var ∈ cache then 1 else 0 := by
+  grind
+
+@[simp, grind =]
+theorem mem_erase {var' : Var} :
+    var' ∈ cache.erase var ↔ var' ∈ cache ∧ var' ≠ var := by
+  grind
+
+@[simp, grind =]
+theorem getElem_erase {var' : Var} (lt : var'.idx < (cache.erase var).size) :
+    (cache.erase var)[var']'lt =
+    if var' = var then
+      Nullable.null
+    else
+      have h : var'.idx < cache.size := by grind
+      cache[var']'h := by
+  grind
+
+end erase
 
 end VarCache
 end Valaig.Data
