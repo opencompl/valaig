@@ -26,7 +26,7 @@ private def walker (aig : Aig) (reset : Bool) (wf : aig.WF := by grind) : aig.Ca
 
   step var std cache valid size sm cm :=
     let map (lit : Lit) (valid : lit.var < var := by grind) :=
-      lit.mapTo cache[lit.var] |>.toRef std
+      cache.mapLit lit |>.toRef std
 
     let res : Std.Sat.AIG.Entrypoint LeafIdx :=
       match _ : aig[var] with
