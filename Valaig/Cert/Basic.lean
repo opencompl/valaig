@@ -22,13 +22,10 @@ private def walker (old : Aig) (cert : Aiger) (certWf : cert.aig.WF := by grind)
   cacheMotive aig size le sm var lt val := val.validIn aig
 
   step var aig cache valid size sm cm :=
-    let map (lit : Lit) (valid : lit.var < var := by grind) :=
-      lit.mapTo cache[lit.var]
-
     match _ : cert.aig[var] with
     | .false => (aig, .false)
     | .and rhs0 rhs1 =>
-      let (aig, var) := aig.addAnd (map rhs0) (map rhs1)
+      let (aig, var) := aig.addAnd (cache.mapLit rhs0) (cache.mapLit rhs1)
       (aig, var)
 
     | .input idx =>
@@ -51,6 +48,11 @@ private def walker (old : Aig) (cert : Aiger) (certWf : cert.aig.WF := by grind)
 private def walk (aig : Aig) (cert : Aiger) (aigWf : aig.WF := by grind) (certWf : cert.aig.WF := by grind) : Aig × Data.VarCache Lit :=
   (walker aig cert).walk aig (by grind [walker])
 
+@[simp, grind =]
+private theorem size_walk {aig : Aig} {cert : Aiger} (aigWf : aig.WF) (certWf : cert.aig.WF) :
+    (walk aig cert aigWf certWf).snd.size = cert.aig.size := by
+  grind [walk]
+
 end appendCert
 
 def appendCert (aig : Aiger) (cert : Aiger) : Except String Aiger := do
@@ -64,14 +66,16 @@ def appendCert (aig : Aiger) (cert : Aiger) : Except String Aiger := do
     throw "Constraints not supported in certificate"
   else if _ : cert.bads.size ≠ 1 then
     throw "Expected single bad state property"
+  else if _ : ¬cert.bads[0].lit.validIn cert.aig then
+    throw "Expected cert bad state property to be valid in aig"
   else if _ : aig.bads.size ≠ 1 then
     throw "Expected single bad state property"
   else
 
   let oldBad := aig.bads[0].lit
-  let (prod, cache) := appendCert.walk aig.aig cert
+  let (eq:=_) (prod, cache) := appendCert.walk aig.aig cert
 
-  let bad := cert.bads[0].lit.mapTo cache[cert.bads[0].lit.var]!
+  let bad := cache.mapLit cert.bads[0].lit.var
   let (prod', prodBad) := prod.addOr oldBad bad
   let aiger := { Aiger.ofAig prod' with bads := #[.mk prodBad ""] }
 

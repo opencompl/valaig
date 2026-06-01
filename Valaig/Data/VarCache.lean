@@ -374,5 +374,25 @@ theorem getElem_erase {var' : Var} (lt : var'.idx < (cache.erase var).size) :
 
 end erase
 
+@[inline]
+def mapLit (cache : VarCache Lit) (lit : Lit) (lt : lit.var.idx < cache.size := by grind [Var.lt_idx]) : Lit :=
+  lit.mapTo cache[lit.var]
+
+section mapLit
+variable {cache : VarCache Lit} {lit : Lit} (lt : lit.var.idx < cache.size)
+attribute [local simp, local grind] mapLit
+
+@[simp, grind =]
+theorem var_mapLit :
+    (cache.mapLit lit lt).var = cache[lit.var].var := by
+  grind
+
+@[simp, grind =]
+theorem inverted_mapLit :
+    (cache.mapLit lit lt).inverted = (lit.inverted ≠ cache[lit.var].inverted) := by
+  grind
+
+end mapLit
+
 end VarCache
 end Valaig.Data
