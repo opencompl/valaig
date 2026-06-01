@@ -7,7 +7,7 @@ namespace Valaig
 
 structure Aiger.NamedLit where
   lit : Lit
-  name : Option String
+  name : Option String := none
 deriving Inhabited, Repr
 
 /--
@@ -23,6 +23,9 @@ structure Aiger where
 deriving Inhabited
 
 namespace Aiger
+
+def ofAig (aig : Aig) : Aiger :=
+  { (Inhabited.default : Aiger) with aig }
 
 end Aiger
 end Valaig
