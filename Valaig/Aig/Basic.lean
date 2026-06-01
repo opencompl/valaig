@@ -667,7 +667,7 @@ def setNext (idx : LatchIdx) (aig : Aig) (next : Lit) (valid : idx.validIn aig :
 -/
 @[always_inline]
 def setNext! (idx : LatchIdx) (aig : Aig) (next : Lit) : Option Aig := do
-  let _ ← checkOrPanic (idx.validIn aig) "Valaig.Aig.LatchIdx.setNext!" "`idx` not valid in `aig`"
+  let h ← checkOrPanic (idx.validIn aig) "Valaig.Aig.LatchIdx.setNext!" "`idx` not valid in `aig`"
   idx.setNext aig next
 
 set_option linter.unusedVariables false in
@@ -685,7 +685,7 @@ def setReset (idx : LatchIdx) (aig : Aig) (reset : Option Lit) (valid : idx.vali
 -/
 @[always_inline]
 def setReset! (idx : LatchIdx) (aig : Aig) (reset : Option Lit) : Option Aig := do
-  let _ ← checkOrPanic (idx.validIn aig) "Valaig.Aig.LatchIdx.setReset!" "`idx` not valid in `aig`"
+  let h ← checkOrPanic (idx.validIn aig) "Valaig.Aig.LatchIdx.setReset!" "`idx` not valid in `aig`"
   idx.setReset aig reset
 
 end LatchIdx
@@ -889,8 +889,8 @@ def InputIdx.convertToLatch (idx : InputIdx) (aig : Aig) (next : Lit) (reset : O
 -/
 @[always_inline]
 def InputIdx.convertToLatch! (idx : InputIdx) (aig : Aig) (next : Lit) (reset : Option Lit := none) : Option (Aig × LatchIdx) := do
-  let _ ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.InputIdx.convertToLatch!" "`idx` not valid in `aig`"
-  let _ ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.InputIdx.convertToLatch!" "`idx.getVar aig` not valid in `aig`"
+  let h ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.InputIdx.convertToLatch!" "`idx` not valid in `aig`"
+  let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.InputIdx.convertToLatch!" "`idx.getVar aig` not valid in `aig`"
   idx.convertToLatch aig next reset
 
 /--
@@ -913,8 +913,8 @@ def InputIdx.convertToAnd (idx : InputIdx) (aig : Aig) (rhs0 rhs1 : Lit)
 -/
 @[always_inline]
 def InputIdx.convertToAnd! (idx : InputIdx) (aig : Aig) (rhs0 rhs1 : Lit) : Option Aig := do
-  let _ ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.InputIdx.convertToAnd!" "`idx` not valid in `aig`"
-  let _ ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.InputIdx.convertToAnd!" "`idx.getVar aig` not valid in `aig`"
+  let h ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.InputIdx.convertToAnd!" "`idx` not valid in `aig`"
+  let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.InputIdx.convertToAnd!" "`idx.getVar aig` not valid in `aig`"
   idx.convertToAnd aig rhs0 rhs1
 
 set_option linter.unusedVariables false in
@@ -942,9 +942,9 @@ def InputIdx.changeIdx (old new : InputIdx) (aig : Aig)
 -/
 @[inline]
 def InputIdx.changeIdx! (old new : InputIdx) (aig : Aig) : Option Aig := do
-  let _ ← checkOrPanic (old.validIn aig)              "Valaig.Aig.InputIdx.changeIdx!" "`old` not valid in `aig`"
-  let _ ← checkOrPanic ((old.getVar aig).validIn aig) "Valaig.Aig.InputIdx.changeIdx!" "`old.getVar aig` not valid in `aig`"
-  let _ ← checkOrPanic (¬new.validIn aig ∨ old = new) "Valaig.Aig.InputIdx.changeIdx!" "`new` already used in `aig`"
+  let h ← checkOrPanic (old.validIn aig)              "Valaig.Aig.InputIdx.changeIdx!" "`old` not valid in `aig`"
+  let h ← checkOrPanic ((old.getVar aig).validIn aig) "Valaig.Aig.InputIdx.changeIdx!" "`old.getVar aig` not valid in `aig`"
+  let h ← checkOrPanic (¬new.validIn aig ∨ old = new) "Valaig.Aig.InputIdx.changeIdx!" "`new` already used in `aig`"
   old.changeIdx new aig
 
 /--
@@ -968,8 +968,8 @@ def LatchIdx.convertToInput (idx : LatchIdx) (aig : Aig)
 -/
 @[always_inline]
 def LatchIdx.convertToInput! (idx : LatchIdx) (aig : Aig) : Option (Aig × InputIdx) := do
-  let _ ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.LatchIdx.convertToInput!" "`idx` not valid in `aig`"
-  let _ ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.LatchIdx.convertToInput!" "`idx.getVar aig` not valid in `aig`"
+  let h ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.LatchIdx.convertToInput!" "`idx` not valid in `aig`"
+  let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.LatchIdx.convertToInput!" "`idx.getVar aig` not valid in `aig`"
   idx.convertToInput aig
 
 /--
@@ -992,8 +992,8 @@ def LatchIdx.convertToAnd (idx : LatchIdx) (aig : Aig) (rhs0 rhs1 : Lit)
 -/
 @[always_inline]
 def LatchIdx.convertToAnd! (idx : LatchIdx) (aig : Aig) (rhs0 rhs1 : Lit) : Option Aig := do
-  let _ ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.LatchIdx.convertToAnd!" "`idx` not valid in `aig`"
-  let _ ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.LatchIdx.convertToAnd!" "`idx.getVar aig` not valid in `aig`"
+  let h ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.LatchIdx.convertToAnd!" "`idx` not valid in `aig`"
+  let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.LatchIdx.convertToAnd!" "`idx.getVar aig` not valid in `aig`"
   idx.convertToAnd aig rhs0 rhs1
 
 set_option linter.unusedVariables false in
@@ -1021,9 +1021,9 @@ def LatchIdx.changeIdx (old new : LatchIdx) (aig : Aig)
 -/
 @[always_inline]
 def LatchIdx.changeIdx! (old new : LatchIdx) (aig : Aig) : Option Aig := do
-  let _ ← checkOrPanic (old.validIn aig)              "Valaig.Aig.LatchIdx.changeIdx!" "`old` not valid in `aig`"
-  let _ ← checkOrPanic ((old.getVar aig).validIn aig) "Valaig.Aig.LatchIdx.changeIdx!" "`old.getVar aig` not valid in `aig`"
-  let _ ← checkOrPanic (¬new.validIn aig ∨ old = new) "Valaig.Aig.LatchIdx.changeIdx!" "`new` already used in `aig`"
+  let h ← checkOrPanic (old.validIn aig)              "Valaig.Aig.LatchIdx.changeIdx!" "`old` not valid in `aig`"
+  let h ← checkOrPanic ((old.getVar aig).validIn aig) "Valaig.Aig.LatchIdx.changeIdx!" "`old.getVar aig` not valid in `aig`"
+  let h ← checkOrPanic (¬new.validIn aig ∨ old = new) "Valaig.Aig.LatchIdx.changeIdx!" "`new` already used in `aig`"
   old.changeIdx new aig
 
 set_option linter.unusedVariables false in
@@ -1047,8 +1047,8 @@ def convertAndToInput (aig : Aig) (var : Var)
 -/
 @[always_inline]
 def convertAndToInput! (aig : Aig) (var : Var) : Option (Aig × InputIdx) := do
-  let _ ← checkOrPanic (var.validIn aig)           "Valaig.Aig.convertAndToInput!" "`var` not valid in `aig`"
-  let _ ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.convertAndToInput!" "`var` is not an and gate"
+  let h ← checkOrPanic (var.validIn aig)           "Valaig.Aig.convertAndToInput!" "`var` not valid in `aig`"
+  let h ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.convertAndToInput!" "`var` is not an and gate"
   aig.convertAndToInput var
 
 set_option linter.unusedVariables false in
@@ -1071,8 +1071,8 @@ def convertAndToLatch (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit :
 -/
 @[always_inline]
 def convertAndToLatch! (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit := none) : Option (Aig × LatchIdx) := do
-  let _ ← checkOrPanic (var.validIn aig)           "Valaig.Aig.convertAndToLatch!" "`var` not valid in `aig`"
-  let _ ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.convertAndToLatch!" "`var` is not an and gate"
+  let h ← checkOrPanic (var.validIn aig)           "Valaig.Aig.convertAndToLatch!" "`var` not valid in `aig`"
+  let h ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.convertAndToLatch!" "`var` is not an and gate"
   aig.convertAndToLatch var next reset
 
 set_option linter.unusedVariables false in
@@ -1093,8 +1093,8 @@ def rewriteAnd (aig : Aig) (var : Var) (rhs0 rhs1 : Lit)
 -/
 @[always_inline]
 def rewriteAnd! (aig : Aig) (var : Var) (rhs0 rhs1 : Lit) : Option Aig := do
-  let _ ← checkOrPanic (var.validIn aig)           "Valaig.Aig.rewriteAnd!" "`var` not valid in `aig`"
-  let _ ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.rewriteAnd!" "`var` is not an and gate"
+  let h ← checkOrPanic (var.validIn aig)           "Valaig.Aig.rewriteAnd!" "`var` not valid in `aig`"
+  let h ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.rewriteAnd!" "`var` is not an and gate"
   aig.rewriteAnd var rhs0 rhs1
 
 -- TODO: Add convertToInput/convertToLatch/convertToAnd methods that do the right thing regardless
