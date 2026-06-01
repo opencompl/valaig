@@ -13,7 +13,7 @@ performance
 
 @[inline]
 private unsafe def modifyMemUnsafe (xs : Array α) (i : Nat) (h : i < xs.size)
-    (f : { a : α // xs[i] = a } → α) : Array α :=
+    (f : { a : α // xs[i] = a } -> α) : Array α :=
   let v := xs[i]
   -- Replace a[i] by `box(0)`.  This ensures that `v` remains unshared if possible.
   -- Note: we assume that arrays have a uniform representation irrespective
@@ -23,18 +23,30 @@ private unsafe def modifyMemUnsafe (xs : Array α) (i : Nat) (h : i < xs.size)
   xs'.set i v (by rwa [size_set h])
 
 @[implemented_by modifyMemUnsafe]
-def modifyMem (xs : Array α) (i : Nat) (h : i < xs.size) (f : { a : α // xs[i] = a } → α) : Array α :=
+def modifyMem (xs : Array α) (i : Nat) (h : i < xs.size) (f : { a : α // xs[i] = a } -> α) : Array α :=
   xs.set i (f ⟨xs[i], by trivial⟩) h
 
-@[simp, grind =]
-theorem modifyMem_def {xs : Array α} {i : Nat} (h : i < xs.size) (f : { a : α // xs[i] = a } → α) :
-    xs.modifyMem i h f = xs.set i (f ⟨xs[i], by trivial⟩) h := by
-  rw [modifyMem]
+section modifyMem
+variable {xs : Array α} {i : Nat} (h : i < xs.size) (f : { a : α // xs[i] = a } -> α)
+attribute [local simp, local grind] modifyMem
 
 @[simp, grind =]
-theorem size_modifyMem {xs : Array α} {i : Nat} (h : i < xs.size) (f : { a : α // xs[i] = a } → α) :
+theorem modifyMem_def :
+    xs.modifyMem i h f = xs.set i (f ⟨xs[i], by trivial⟩) h := by
+  grind
+
+@[simp, grind =]
+theorem size_modifyMem :
     (xs.modifyMem i h f).size = xs.size := by
-  rw [modifyMem_def, size_set]
+  grind
+
+@[simp, grind =]
+theorem countP_modifyMem {p : α -> Bool} :
+    (xs.modifyMem i h f).countP p =
+    xs.countP p - (if p xs[i] then 1 else 0) + (if p (f ⟨xs[i], by grind⟩) then 1 else 0) := by
+  simp [countP_set]
+
+end modifyMem
 
 section
 variable {xs xs' : Array α} {i : Nat} {f : (i : Nat) → (h : i < xs.size) → (a : α) → xs[i] = a → α}
