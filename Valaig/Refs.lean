@@ -559,27 +559,27 @@ theorem ofRef_eq (ref : aig.Ref) :
   grind [var_ofRef, inverted_ofRef]
 
 @[inline]
-def toRef (lit : Lit) (h : lit.var.idx < aig.decls.size) : aig.Ref :=
+def toRef (lit : Lit) (aig : Std.Sat.AIG α) (h : lit.var.idx < aig.decls.size := by grind) : aig.Ref :=
   .mk lit.var.idx lit.inverted h
 
 @[simp, grind =]
 theorem gate_toRef (h : lit.var.idx < aig.decls.size) :
-    (toRef lit h).gate = lit.var.idx := by
+    (toRef lit aig h).gate = lit.var.idx := by
   rw [toRef]
 
 @[simp]
 theorem invert_toRef_eq_true (h : lit.var.idx < aig.decls.size) :
-    (toRef lit h).invert = lit.inverted := by
+    (toRef lit aig h).invert = lit.inverted := by
   simp [toRef]
 
 @[simp, grind =]
 theorem invert_toRef (h : lit.var.idx < aig.decls.size) :
-    (toRef lit h).invert = decide lit.inverted := by
+    (toRef lit aig h).invert = decide lit.inverted := by
   simp [toRef]
 
 @[simp, grind =]
 theorem toRef_ofRef (ref : aig.Ref) :
-    toRef (ofRef ref) (by grind [ref.hgate]) = ref := by
+    toRef (ofRef ref) aig (by grind [ref.hgate]) = ref := by
   simp [toRef]
 
 end
