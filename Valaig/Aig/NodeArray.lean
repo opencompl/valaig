@@ -11,15 +11,14 @@ namespace Valaig.Aig
 -/
 structure NodeArray where
   _nodes : Array Lit
-  _size : Nat
-  nonempty : _size > 0 := by grind
-  pairs : _nodes.size = 2 * _size := by grind
+  nonempty : _nodes.size > 0 := by grind
+  pairs : 2 ∣ _nodes.size := by grind
 deriving Repr, DecidableEq
 
 namespace NodeArray
 variable {var : Var} {arr : NodeArray}
 
-attribute [local grind =] NodeArray.pairs
+attribute [local grind .] NodeArray.pairs
 attribute [local grind! .] NodeArray.nonempty
 
 @[grind .]
@@ -29,7 +28,7 @@ theorem two_dvd_nodes_size :
 
 @[always_inline, local simp, local grind]
 def size (arr : NodeArray) : Nat :=
-  arr._size
+  arr._nodes.size / 2
 
 @[simp, grind! .]
 theorem zero_lt_size :
@@ -111,7 +110,7 @@ private theorem snd_toPair_getElem (mem : var ∈ arr) :
 
 @[always_inline]
 def empty : NodeArray :=
-  .mk #[.false, .false] 1
+  .mk #[.false, .false]
 
 @[simp, grind =]
 theorem size_empty :
@@ -129,7 +128,7 @@ instance : Inhabited NodeArray where
 
 @[always_inline]
 def push (arr : NodeArray) (fst snd : Lit) : NodeArray :=
-  .mk (arr._nodes.push fst |>.push snd) (arr.size + 1)
+  .mk (arr._nodes.push fst |>.push snd)
 
 @[simp, grind =]
 theorem size_push {fst snd : Lit} :
@@ -145,7 +144,7 @@ theorem getElem_push {fst snd : Lit} (mem : var ∈ (arr.push fst snd)) :
 @[always_inline]
 def set (arr : NodeArray) (var : Var) (fst snd : Lit) (mem : var ∈ arr := by get_elem_tactic) : NodeArray :=
   let baseIdx := 2 * var.idx
-  .mk (arr._nodes.set baseIdx fst |>.set (baseIdx + 1) snd) arr.size
+  .mk (arr._nodes.set baseIdx fst |>.set (baseIdx + 1) snd)
 
 @[simp, grind =]
 theorem size_set (mem : var ∈ arr) {fst snd : Lit} :
