@@ -47,6 +47,18 @@ termination_by it.finitelyManySteps
 def walk (walker : aig.ForwardsWalker σ) (init : σ) (motive : walker.motive init 0 (by grind) := by grind) : σ :=
   walk.go walker walker.step aig.iter init
 
+variable {walker : aig.ForwardsWalker σ} (init : σ) (motive : walker.motive init 0 (by grind))
+
+@[simp, grind .]
+private theorem walk.motive_go {step it state} valid eq :
+    walker.motive (walk.go walker step it state valid eq) aig.size (by grind) := by
+  fun_induction go <;> grind
+
+@[simp, grind! .]
+theorem motive_walk :
+    walker.motive (walker.walk init motive) aig.size (by grind) := by
+  grind [walk]
+
 end ForwardsWalker
 
 structure CachingForwardsWalker (aig : Aig) (σ α : Type) where
@@ -104,6 +116,42 @@ termination_by it.finitelyManySteps
 @[inline, specialize walker]
 def walk (walker : aig.CachingForwardsWalker σ α) (init : σ) (motive : walker.stateMotive init 0 (by grind) := by grind) : σ × VarCache α :=
   walk.go walker walker.step aig.iter init (.emptyWithCapacity aig.maxVar)
+
+variable {walker : aig.CachingForwardsWalker σ α} (init : σ) (motive : walker.stateMotive init 0 (by grind))
+
+@[simp, grind .]
+private theorem walk.stateMotive_go {step it state cache} size sm cm eq :
+    walker.stateMotive (walk.go walker step it state cache size sm cm eq).fst aig.size (by grind) := by
+  fun_induction go <;> grind
+
+@[simp, grind =]
+private theorem walk.size_cache_go {step it state cache} size sm cm eq :
+    (walk.go walker step it state cache size sm cm eq).snd.size = aig.size := by
+  fun_induction go <;> grind
+
+@[simp, grind .]
+private theorem walk.cacheMotive_go {step it state cache} size sm cm eq var lt :
+    walker.cacheMotive
+      (walk.go walker step it state cache size sm cm eq).fst aig.size (by grind) (by grind)
+      var lt (walk.go walker step it state cache size sm cm eq).snd[var] := by
+  fun_induction go <;> (unfold go; grind)
+
+@[simp, grind! .]
+theorem stateMotive_walk :
+    walker.stateMotive (walker.walk init motive).fst aig.size (by grind) := by
+  grind [walk]
+
+@[simp, grind =]
+theorem size_cache_walk :
+    (walker.walk init motive).snd.size = aig.size := by
+  grind [walk]
+
+@[simp, grind! .]
+theorem cacheMotive_walk var lt :
+    walker.cacheMotive
+      (walker.walk init motive).fst aig.size (by grind) (by grind)
+      var lt (walker.walk init motive).snd[var] := by
+  grind [walk]
 
 end CachingForwardsWalker
 
