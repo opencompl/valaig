@@ -894,6 +894,18 @@ def addAnd (aig : Aig) (rhs0 rhs1 : Lit) : Aig × Var :=
   (aig, var)
 
 /--
+  Append an or gate to the Aig, returning the literal defined by the new gate.
+  This does not perform any optimizations and is implemented as an and gate with inversions.
+
+  Note that neither input shuld be set to `nextVar` (equivalent to `Var.ofIdx aig.size`)
+  or internal invariants are broken.
+-/
+@[always_inline, simp, grind]
+def addOr (aig : Aig) (rhs0 rhs1 : Lit) : Aig × Lit :=
+  let (aig, var) := aig.addAnd rhs0.invert rhs1.invert
+  (aig, var.toLit true)
+
+/--
   Convert an input into a new latch that defines the same variable, deleting the input.
 -/
 def InputIdx.convertToLatch (idx : InputIdx) (aig : Aig) (next : Lit) (reset : Option Lit := none)
