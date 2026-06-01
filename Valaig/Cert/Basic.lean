@@ -48,7 +48,6 @@ private def walker (old : Aig) (cert : Aiger) (certWf : cert.aig.WF := by grind)
   stepCache := by intros; split <;> grind
   stepCacheNew := by simp only [panic_eq]; intros; split <;> grind [Option.filter_eq_some_iff]
 
-@[inline]
 private def walk (aig : Aig) (cert : Aiger) (aigWf : aig.WF := by grind) (certWf : cert.aig.WF := by grind) : Aig × Data.VarCache Lit :=
   (walker aig cert).walk aig (by grind [walker])
 
@@ -69,10 +68,10 @@ def appendCert (aig : Aiger) (cert : Aiger) : Except String Aiger := do
     throw "Expected single bad state property"
   else
 
-  let oldBad := aig.bads[0]!.lit
+  let oldBad := aig.bads[0].lit
   let (prod, cache) := appendCert.walk aig.aig cert
 
-  let bad := cert.bads[0]!.lit.mapTo cache[cert.bads[0]!.lit.var]!
+  let bad := cert.bads[0].lit.mapTo cache[cert.bads[0].lit.var]!
   let (prod', prodBad) := prod.addOr oldBad bad
   let aiger := { Aiger.ofAig prod' with bads := #[.mk prodBad ""] }
 
