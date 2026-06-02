@@ -55,7 +55,7 @@ private theorem size_walk {aig : Aig} {cert : Aiger} (aigWf : aig.WF) (certWf : 
 
 end appendCert
 
-def appendCert (aig : Aiger) (cert : Aiger) : Except String Aiger := do
+def appendCert (aig : Aiger) (cert : Aiger) : Except String (Aig × Lit) := do
   -- TODO: Hoist these checks and store them in the types
   if _ : ¬aig.aig.WF then
     throw "Original aig not well formed"
@@ -72,14 +72,10 @@ def appendCert (aig : Aiger) (cert : Aiger) : Except String Aiger := do
     throw "Expected single bad state property"
   else
 
-  let oldBad := aig.bads[0].lit
   let (eq:=_) (prod, cache) := appendCert.walk aig.aig cert
 
-  let bad := cache.mapLit cert.bads[0].lit.var
-  let (prod', prodBad) := prod.addOr oldBad bad
-  let aiger := { Aiger.ofAig prod' with bads := #[.mk prodBad ""] }
-
-  return aiger
+  let bad := cache.mapLit cert.bads[0].lit
+  return (prod, bad)
 
 end Valaig.Cert
 
