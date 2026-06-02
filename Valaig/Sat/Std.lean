@@ -12,7 +12,7 @@ variable {aig : Aig}
 
 namespace toStd
 
-attribute [local grind! .] Std.Sat.AIG.mkAtomCached_le_size Std.Sat.AIG.mkGateCached_le_size
+attribute [local grind! .] Std.Sat.AIG.mkAtom_le_size Std.Sat.AIG.mkGate_le_size
 
 @[simp, grind! .]
 private theorem gate_le_decls_size (entrypoint : Std.Sat.AIG.Entrypoint LeafIdx) :
@@ -32,15 +32,15 @@ private def walker (aig : Aig) (reset : Bool) (wf : aig.WF := by grind) : aig.Ca
     let res : Std.Sat.AIG.Entrypoint LeafIdx :=
       match _ : aig[var] with
       | .false => .mk std (std.mkConstCached .false)
-      | .and rhs0 rhs1 => std.mkGateCached <| .mk (map rhs0) (map rhs1)
-      | .input idx => std.mkAtomCached idx
+      | .and rhs0 rhs1 => std.mkGate <| .mk (map rhs0) (map rhs1)
+      | .input idx => std.mkAtom idx
       | .latch idx =>
         if reset then
           match _ : idx.getReset aig with
-          | none => std.mkAtomCached idx
+          | none => std.mkAtom idx
           | some lit => .mk std (map lit)
         else
-          std.mkAtomCached idx
+          std.mkAtom idx
 
     (res.aig, .ofRef res.ref)
 
