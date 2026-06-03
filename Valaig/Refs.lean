@@ -36,7 +36,7 @@ instance : Ord Var where compare := (compare ·.idx ·.idx)
 
 instance : LE Var where le := (·.idx ≤ ·.idx)
 instance : DecidableLE Var := fun a b =>
-  decidable_of_bool (a.idx ≤ b.idx) (by simp +instances [Var.instLE])
+  decidable_of_bool (a.idx ≤ b.idx) (by simp +instances [instLE])
 
 theorem le_idx (var var' : Var) :
     var ≤ var' ↔ var.idx ≤ var'.idx := by
@@ -49,7 +49,7 @@ instance : Std.IsLinearOrder Var := by
 
 instance : LT Var where lt := (·.idx < ·.idx)
 instance : DecidableLT Var := fun a b =>
-  decidable_of_bool (a.idx < b.idx) (by simp +instances [Var.instLT])
+  decidable_of_bool (a.idx < b.idx) (by simp +instances [instLT])
 
 theorem lt_idx (var var' : Var) :
     var < var' ↔ var.idx < var'.idx := by
@@ -153,6 +153,66 @@ variable {lit : Lit}
 
 deriving instance DecidableEq, Repr, BEq, ReflBEq, LawfulBEq for Lit
 instance : EquivBEq Lit := by constructor
+
+-- Instantiate these directly for inlining
+instance : Ord Lit where compare := (compare ·.idx ·.idx)
+
+instance : LE Lit where le := (·.idx ≤ ·.idx)
+instance : DecidableLE Lit := fun a b =>
+  decidable_of_bool (a.idx ≤ b.idx) (by simp +instances [instLE])
+
+theorem le_idx (var var' : Lit) :
+    var ≤ var' ↔ var.idx ≤ var'.idx := by
+  simp +instances [instLE]
+
+instance : Std.IsLinearOrder Lit := by
+  apply Std.IsLinearOrder.of_le
+  <;> constructor
+  <;> grind [le_idx]
+
+instance : LT Lit where lt := (·.idx < ·.idx)
+instance : DecidableLT Lit := fun a b =>
+  decidable_of_bool (a.idx < b.idx) (by simp +instances [instLT])
+
+theorem lt_idx (var var' : Lit) :
+    var < var' ↔ var.idx < var'.idx := by
+  simp +instances [instLT]
+
+grind_pattern le_idx => var.idx, var'.idx, var ≤ var'
+grind_pattern le_idx => var.idx, var'.idx, var > var'
+grind_pattern le_idx => var.idx, var'.idx, var.idx ≤ var'.idx
+grind_pattern le_idx => var.idx, var'.idx, var.idx > var'.idx
+grind_pattern lt_idx => var.idx, var'.idx, var < var'
+grind_pattern lt_idx => var.idx, var'.idx, var ≥ var'
+grind_pattern lt_idx => var.idx, var'.idx, var.idx < var'.idx
+grind_pattern lt_idx => var.idx, var'.idx, var.idx ≥ var'.idx
+
+instance : Std.LawfulOrderLT Lit := by
+  apply Std.LawfulOrderLT.of_le
+  grind [lt_idx]
+
+instance : WellFoundedRelation Lit where
+  rel := (· < ·)
+  wf := by
+    constructor
+    have {var : Lit} : Acc (· < ·) var := by
+      induction h : var.idx generalizing var
+      <;> grind [Acc, lt_idx]
+    apply this
+
+instance : Min Lit := minOfLe
+
+instance : Std.LawfulOrderMin Lit := by
+  apply Std.LawfulOrderMin.of_le_min_iff
+  <;> rw [instMin, minOfLe]
+  <;> grind
+
+instance : Max Lit := maxOfLe
+
+instance : Std.LawfulOrderMax Lit := by
+  apply Std.LawfulOrderMax.of_max_le_iff
+  <;> rw [instMax, maxOfLe]
+  <;> grind
 
 -- Hash the inner value directly to avoid a mixHash use
 instance : Hashable Lit where hash := (hash ·.idx)
