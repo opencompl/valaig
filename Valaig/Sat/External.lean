@@ -3,8 +3,8 @@ module
 public import Lean.CoreM
 import Std.Tactic.BVDecide.Syntax
 public import Std.Sat.CNF.Basic
-public import Lean.Elab.Tactic.BVDecide.Frontend.LRAT
-import all Lean.Elab.Tactic.BVDecide.Frontend.LRAT
+public import Lean.Elab.Tactic.BVDecide
+import all Lean.Meta.Tactic.BVDecide.TacticContext
 import Std.Tactic.BVDecide.Reflect
 public import Valaig.Aig.Basic
 
@@ -17,6 +17,7 @@ structure Config where
   binaryProofs : Bool := true
 
 open Lean.Elab.Tactic.BVDecide.Frontend Std.Tactic.BVDecide
+open Lean.Meta.Tactic.BVDecide
 
 /--
   Run an external SAT solver on the cnf to obtain an LRAT proof.
