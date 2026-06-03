@@ -737,6 +737,77 @@ theorem addAndRaw
 end addAndRaw
 
 /-
+  `addAnd`
+-/
+section addAnd
+variable {lhs rhs : Lit}
+attribute [local grind! .] getElem_nodes_addAnd
+
+@[simp, grind .]
+theorem InputsValid_addAnd
+    (inputsValid : aig.InputsValid) :
+    (aig.addAnd lhs rhs).fst.InputsValid := by
+  grind
+
+@[simp, grind .]
+theorem InputIdxsValid_addAnd
+    (inputIdxsValid : aig.InputIdxsValid)
+    (h0 : lhs.validIn aig)
+    (h1 : rhs.validIn aig) :
+    (aig.addAnd lhs rhs).fst.InputIdxsValid := by
+  grind
+
+@[simp, grind .]
+theorem LatchesValid_addAnd
+    (latchesValid : aig.LatchesValid) :
+    (aig.addAnd lhs rhs).fst.LatchesValid := by
+  grind
+
+@[simp, grind .]
+theorem LatchIdxsValid_addAnd
+    (latchIdxsValid : aig.LatchIdxsValid)
+    (h0 : lhs.validIn aig)
+    (h1 : rhs.validIn aig) :
+    (aig.addAnd lhs rhs).fst.LatchIdxsValid := by
+  grind
+
+@[simp, grind .]
+theorem ResetsValid_addAnd
+    (resetsValid : aig.ResetsValid) :
+    (aig.addAnd lhs rhs).fst.ResetsValid := by
+  grind
+
+@[simp, grind .]
+theorem NextsValid_addAnd
+    (nextsValid : aig.NextsValid) :
+    (aig.addAnd lhs rhs).fst.NextsValid := by
+  grind
+
+@[simp, grind .]
+theorem AcyclicGates_addAnd
+    (acyclicGates : aig.AcyclicGates)
+    (h0 : lhs.validIn aig)
+    (h1 : rhs.validIn aig) :
+    (aig.addAnd lhs rhs).fst.AcyclicGates := by
+  grind [addAnd]
+
+@[simp, grind .]
+theorem AcyclicResets_addAnd
+    (acyclicResets : aig.AcyclicResets) :
+    (aig.addAnd lhs rhs).fst.AcyclicResets := by
+  grind
+
+@[simp, grind .]
+theorem addAnd
+    (wellFormed : aig.WF)
+    (h0 : lhs.validIn aig)
+    (h1 : rhs.validIn aig) :
+    (aig.addAnd lhs rhs).fst.WF := by
+  grind
+
+end addAnd
+
+/-
   `InputIdx.convertToLatch`
 -/
 section input_convertToLatch

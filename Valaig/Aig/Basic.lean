@@ -865,6 +865,43 @@ def addAndRaw (aig : Aig) (lhs rhs : Lit) : Aig × Var :=
   (aig, var)
 
 /--
+  Append an and gate to the Aig, returning the variable defined by the new gate.
+  This performs the 2-level optimizations from `https://fmv.jku.at/papers/BrummayerBiere-MEMICS06.pdf`,
+  but without structural hashing.
+
+  Note that neither input shuld be set to `nextVar` (equivalent to `Var.ofIdx aig.size`)
+  or internal invariants are broken.
+-/
+@[inline]
+def addAnd (aig : Aig) (lhs rhs : Lit) : Aig × Lit := Id.run do
+  -- 1-level rewrites
+
+  -- Left boundedness/neutrality
+  if lhs.isConstant then
+    if lhs = .false then
+      return (aig, .false)
+    else
+      return (aig, rhs)
+
+  -- Right boundedness/neutrality
+  if rhs.isConstant then
+    if rhs = .false then
+      return (aig, .false) -- Boundedness
+    else
+      return (aig, rhs) -- Neutrality
+
+  -- Idempotence
+  if lhs = rhs then
+    return (aig, lhs)
+
+  -- Contradiction
+  if lhs = rhs.invert then
+    return (aig, .false)
+
+  let (aig, var) := aig.addAndRaw lhs rhs
+  return (aig, var)
+
+/--
   Convert an input into a new latch that defines the same variable, deleting the input.
 -/
 def InputIdx.convertToLatch (idx : InputIdx) (aig : Aig) (next : Lit) (reset : Option Lit := none)
