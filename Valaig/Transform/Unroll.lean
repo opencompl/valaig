@@ -16,7 +16,7 @@ private def walker (old : Aig) : old.CachingForwardsWalker Aig Lit where
   step var aig cache valid size sm cm :=
     match _ : aig[var] with
     | .false         => (aig, .false)
-    | .and rhs0 rhs1 => let (eq:=_) (aig, var) := aig.addAnd (cache.mapLit rhs0) (cache.mapLit rhs1)
+    | .and rhs0 rhs1 => let (eq:=_) (aig, var) := aig.addAndRaw (cache.mapLit rhs0) (cache.mapLit rhs1)
                         (aig, var)
     | .input _       => let (eq:=_) (aig, idx) := aig.addInput; (aig, idx.getVar aig)
     | .latch idx     => (aig, idx.getNext aig)

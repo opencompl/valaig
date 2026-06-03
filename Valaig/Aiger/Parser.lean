@@ -33,7 +33,7 @@ def Header.defaultAiger (header : Header) : Aiger :=
   let aig := Aig.empty
   let lit := header.maxVar + 1 |>.toLit
   let aig := header.maxVar.idx.fold (init := aig) fun _ _ aig =>
-    aig.addAnd lit lit |>.fst
+    aig.addAndRaw lit lit |>.fst
   let default : Aiger := Inhabited.default
   { default with aig }
 

@@ -653,88 +653,88 @@ theorem addLatch
 end addLatch
 
 /-
-  `addAnd`
+  `addAndRaw`
 -/
-section addAnd
+section addAndRaw
 variable {rhs0 rhs1 : Lit}
 
 @[simp, grind .]
-theorem InputsValid_addAnd
+theorem InputsValid_addAndRaw
     (inputsValid : aig.InputsValid) :
-    (aig.addAnd rhs0 rhs1).fst.InputsValid := by
+    (aig.addAndRaw rhs0 rhs1).fst.InputsValid := by
   grind
 
 @[simp, grind .]
-theorem InputIdxsValid_addAnd
+theorem InputIdxsValid_addAndRaw
     (inputIdxsValid : aig.InputIdxsValid)
     (h0 : rhs0.validIn aig)
     (h1 : rhs1.validIn aig) :
-    (aig.addAnd rhs0 rhs1).fst.InputIdxsValid := by
+    (aig.addAndRaw rhs0 rhs1).fst.InputIdxsValid := by
   grind
 
-theorem InputIdxsValid_addAnd'
+theorem InputIdxsValid_addAndRaw'
     (inputIdxsValid : aig.InputIdxsValid)
     (h0 : rhs0.var ≠ aig.nextVar)
     (h1 : rhs1.var ≠ aig.nextVar) :
-    (aig.addAnd rhs0 rhs1).fst.InputIdxsValid := by
-    grind [nodes_addAnd']
+    (aig.addAndRaw rhs0 rhs1).fst.InputIdxsValid := by
+    grind [nodes_addAndRaw']
 
 @[simp, grind .]
-theorem LatchesValid_addAnd
+theorem LatchesValid_addAndRaw
     (latchesValid : aig.LatchesValid) :
-    (aig.addAnd rhs0 rhs1).fst.LatchesValid := by
+    (aig.addAndRaw rhs0 rhs1).fst.LatchesValid := by
   grind
 
 @[simp, grind .]
-theorem LatchIdxsValid_addAnd
+theorem LatchIdxsValid_addAndRaw
     (latchIdxsValid : aig.LatchIdxsValid)
     (h0 : rhs0.validIn aig)
     (h1 : rhs1.validIn aig) :
-    (aig.addAnd rhs0 rhs1).fst.LatchIdxsValid := by
+    (aig.addAndRaw rhs0 rhs1).fst.LatchIdxsValid := by
   grind
 
-theorem LatchIdxsValid_addAnd'
+theorem LatchIdxsValid_addAndRaw'
     (inputIdxsValid : aig.LatchIdxsValid)
     (h0 : rhs0.var ≠ aig.nextVar)
     (h1 : rhs1.var ≠ aig.nextVar) :
-    (aig.addAnd rhs0 rhs1).fst.LatchIdxsValid := by
-    grind [nodes_addAnd']
+    (aig.addAndRaw rhs0 rhs1).fst.LatchIdxsValid := by
+    grind [nodes_addAndRaw']
 
 @[simp, grind .]
-theorem ResetsValid_addAnd
+theorem ResetsValid_addAndRaw
     (resetsValid : aig.ResetsValid) :
-    (aig.addAnd rhs0 rhs1).fst.ResetsValid := by
+    (aig.addAndRaw rhs0 rhs1).fst.ResetsValid := by
   grind
 
 @[simp, grind .]
-theorem NextsValid_addAnd
+theorem NextsValid_addAndRaw
     (nextsValid : aig.NextsValid) :
-    (aig.addAnd rhs0 rhs1).fst.NextsValid := by
+    (aig.addAndRaw rhs0 rhs1).fst.NextsValid := by
   grind
 
 @[simp, grind .]
-theorem AcyclicGates_addAnd
+theorem AcyclicGates_addAndRaw
     (acyclicGates : aig.AcyclicGates)
     (h0 : rhs0.validIn aig)
     (h1 : rhs1.validIn aig) :
-    (aig.addAnd rhs0 rhs1).fst.AcyclicGates := by
+    (aig.addAndRaw rhs0 rhs1).fst.AcyclicGates := by
   grind
 
 @[simp, grind .]
-theorem AcyclicResets_addAnd
+theorem AcyclicResets_addAndRaw
     (acyclicResets : aig.AcyclicResets) :
-    (aig.addAnd rhs0 rhs1).fst.AcyclicResets := by
+    (aig.addAndRaw rhs0 rhs1).fst.AcyclicResets := by
   grind
 
 @[simp, grind .]
-theorem addAnd
+theorem addAndRaw
     (wellFormed : aig.WF)
     (h0 : rhs0.validIn aig)
     (h1 : rhs1.validIn aig) :
-    (aig.addAnd rhs0 rhs1).fst.WF := by
+    (aig.addAndRaw rhs0 rhs1).fst.WF := by
   grind
 
-end addAnd
+end addAndRaw
 
 /-
   `InputIdx.convertToLatch`

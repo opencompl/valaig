@@ -49,14 +49,14 @@ def run (model cert : String) : IO Unit := do
   IO.println "ok"
 
   -- Check that whenever the invariant holds, the original property does too
-  let (product, imp) := product.addAnd invbad.invert bad
+  let (product, imp) := product.addAndRaw invbad.invert bad
   IO.print "Implication: "
   IO.ofExcept <| ← checkUnsat product imp false sorry sorry
   IO.println "ok"
 
   -- Check that the invariant is inductive
   let (product, map) := Transform.unroll product sorry
-  let (product, imp) := product.addAnd invbad.invert (map.mapLit invbad sorry)
+  let (product, imp) := product.addAndRaw invbad.invert (map.mapLit invbad sorry)
   IO.print "Consecution: "
   IO.ofExcept <| ← checkUnsat product imp false sorry sorry
   IO.println "ok"

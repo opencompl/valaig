@@ -63,7 +63,7 @@ private def addGate (s : State aig) (rhs0 rhs1 : Fanin)
     (h0 : rhs0.gate < s.map.size) (h1 : rhs1.gate < s.map.size) : s.Pushed :=
   let rhs0 := s.map[rhs0.gate]'h0 |>.invert rhs0.invert
   let rhs1 := s.map[rhs1.gate]'h1 |>.invert rhs1.invert
-  rlet (aig, lhs) := s.aig.addAnd rhs0 rhs1
+  rlet (aig, lhs) := s.aig.addAndRaw rhs0 rhs1
   let map := s.map.push lhs
 
   have hmap := by

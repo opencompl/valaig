@@ -394,45 +394,45 @@ theorem mono_addLatch :
 end addLatch
 
 /-
- `addAnd`.
+ `addAndRaw`.
 -/
-section addAnd
+section addAndRaw
 variable {rhs0 rhs1 : Lit}
-attribute [local simp, local grind] addAnd
+attribute [local simp, local grind] addAndRaw
 
 @[simp, grind =]
-theorem snd_addAnd :
-    (aig.addAnd rhs0 rhs1).snd = aig.nextVar := by
+theorem snd_addAndRaw :
+    (aig.addAndRaw rhs0 rhs1).snd = aig.nextVar := by
   grind
 
 @[simp, grind =]
-theorem nodes_addAnd (h0 : rhs0.validIn aig) (h1 : rhs1.validIn aig) :
-    (aig.addAnd rhs0 rhs1).fst.nodes =
+theorem nodes_addAndRaw (h0 : rhs0.validIn aig) (h1 : rhs1.validIn aig) :
+    (aig.addAndRaw rhs0 rhs1).fst.nodes =
     aig.nodes.push aig.nextVar (.and rhs0 rhs1) := by
   have : rhs0.var ≠ aig.nextVar ∧ rhs1.var ≠ aig.nextVar := by grind
   grind
 
-theorem nodes_addAnd' (h0 : rhs0.var ≠ aig.nextVar) (h1 : rhs1.var ≠ aig.nextVar) :
-    (aig.addAnd rhs0 rhs1).fst.nodes =
+theorem nodes_addAndRaw' (h0 : rhs0.var ≠ aig.nextVar) (h1 : rhs1.var ≠ aig.nextVar) :
+    (aig.addAndRaw rhs0 rhs1).fst.nodes =
     aig.nodes.push aig.nextVar (.and rhs0 rhs1) := by
   grind
 
 @[simp, grind =]
-theorem inputs_addAnd :
-    (aig.addAnd rhs0 rhs1).fst.inputs = aig.inputs := by
+theorem inputs_addAndRaw :
+    (aig.addAndRaw rhs0 rhs1).fst.inputs = aig.inputs := by
   grind
 
 @[simp, grind =]
-theorem latches_addAnd :
-    (aig.addAnd rhs0 rhs1).fst.latches = aig.latches := by
+theorem latches_addAndRaw :
+    (aig.addAndRaw rhs0 rhs1).fst.latches = aig.latches := by
   grind
 
 @[simp, grind! .]
-theorem mono_addAnd :
-    aig ≤ (aig.addAnd rhs0 rhs1).fst := by
+theorem mono_addAndRaw :
+    aig ≤ (aig.addAndRaw rhs0 rhs1).fst := by
   grind
 
-end addAnd
+end addAndRaw
 
 /-
  `InputIdx.convertToLatch`.
