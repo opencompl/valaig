@@ -332,9 +332,9 @@ def parseGate (n : Nat) : BodyM Unit := do
     failM "rhs0 delta must be less than lhs"
   let rhs0 := .ofIdx (lhsLit.idx - delta0)
 
-  if delta1 > lhs.idx then
-    failM "rhs1 delta must be less than lhs"
-  let rhs1 := .ofIdx (lhs.idx - delta1)
+  if delta1 > rhs0.idx then
+    failM "rhs1 delta must be less than rhs0"
+  let rhs1 := .ofIdx (rhs0.idx - delta1)
 
   addGate lhs rhs0 rhs1
 
