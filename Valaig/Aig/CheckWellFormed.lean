@@ -93,9 +93,9 @@ def checkNodes (aig : Aig) : Bool :=
       | .latch idx =>
         -- InputsIdxsValid/LatchIdxsValid
         ∃ h, idx.getVar aig h = var
-      | .and rhs0 rhs1 =>
+      | .and lhs rhs =>
         -- AcyclicGates
-        rhs0.var < var.val && rhs1.var < var.val
+        lhs.var < var.val && rhs.var < var.val
 
 @[local grind →]
 theorem InputIdxsValid_checkNodes :

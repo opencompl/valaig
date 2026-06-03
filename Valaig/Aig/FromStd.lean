@@ -59,11 +59,11 @@ private def addFalse (s : State aig) : s.Pushed :=
   ⟨{ s with map := s.map.push .false, hmap := by grind}, by grind only [Array.size_push]⟩
 
 @[always_inline]
-private def addGate (s : State aig) (rhs0 rhs1 : Fanin)
-    (h0 : rhs0.gate < s.map.size) (h1 : rhs1.gate < s.map.size) : s.Pushed :=
-  let rhs0 := s.map[rhs0.gate]'h0 |>.invert rhs0.invert
-  let rhs1 := s.map[rhs1.gate]'h1 |>.invert rhs1.invert
-  rlet (aig, lhs) := s.aig.addAndRaw rhs0 rhs1
+private def addGate (s : State aig) (lhs rhs : Fanin)
+    (h0 : lhs.gate < s.map.size) (h1 : rhs.gate < s.map.size) : s.Pushed :=
+  let lhs := s.map[lhs.gate]'h0 |>.invert lhs.invert
+  let rhs := s.map[rhs.gate]'h1 |>.invert rhs.invert
+  rlet (aig, lhs) := s.aig.addAndRaw lhs rhs
   let map := s.map.push lhs
 
   have hmap := by
@@ -151,9 +151,9 @@ where
       let ⟨s', h⟩ :=
         match heq : stdAig.decls[idx] with
         | .false => s.addFalse
-        | .gate rhs0 rhs1 =>
-          have hdag := @stdAig.hdag idx rhs0 rhs1 (by omega) heq
-          s.addGate rhs0 rhs1 hdag.left hdag.right
+        | .gate lhs rhs =>
+          have hdag := @stdAig.hdag idx lhs rhs (by omega) heq
+          s.addGate lhs rhs hdag.left hdag.right
         | .atom atom =>
           match h : s.tryAddCachedAtom atom with
           | some s => s

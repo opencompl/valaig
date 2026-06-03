@@ -447,14 +447,14 @@ theorem input_convertToLatch!_some {idx : InputIdx} {next : Lit} {reset : Option
 -/
 
 @[simp, grind =]
-theorem input_convertToAnd!_eq {idx : InputIdx} {rhs0 rhs1 : Lit} valid varValid :
-    idx.convertToAnd! aig rhs0 rhs1 = idx.convertToAnd aig rhs0 rhs1 valid varValid := by
+theorem input_convertToAnd!_eq {idx : InputIdx} {lhs rhs : Lit} valid varValid :
+    idx.convertToAnd! aig lhs rhs = idx.convertToAnd aig lhs rhs valid varValid := by
   simp; grind
 
 @[grind →]
-theorem input_convertToAnd!_some {idx : InputIdx} {rhs0 rhs1 : Lit} {aig' : Aig}
-    (ok : idx.convertToAnd! aig rhs0 rhs1 = aig') :
-    aig' = idx.convertToAnd aig rhs0 rhs1 (varValid := by simp at ok; grind) := by
+theorem input_convertToAnd!_some {idx : InputIdx} {lhs rhs : Lit} {aig' : Aig}
+    (ok : idx.convertToAnd! aig lhs rhs = aig') :
+    aig' = idx.convertToAnd aig lhs rhs (varValid := by simp at ok; grind) := by
   grind
 
 /-
@@ -493,15 +493,15 @@ theorem latch_convertToInput!_some {idx : LatchIdx} {res : Aig × InputIdx}
 -/
 
 @[simp, grind =]
-theorem latch_convertToAnd!_eq {idx : LatchIdx} {rhs0 rhs1 : Lit} valid varValid :
-    idx.convertToAnd! aig rhs0 rhs1 =
-    idx.convertToAnd aig rhs0 rhs1 valid varValid := by
+theorem latch_convertToAnd!_eq {idx : LatchIdx} {lhs rhs : Lit} valid varValid :
+    idx.convertToAnd! aig lhs rhs =
+    idx.convertToAnd aig lhs rhs valid varValid := by
   simp; grind
 
 @[grind →]
-theorem latch_convertToAnd!_some {idx : LatchIdx} {rhs0 rhs1 : Lit} {aig' : Aig}
-    (ok : idx.convertToAnd! aig rhs0 rhs1 = aig') :
-    aig' = idx.convertToAnd aig rhs0 rhs1 (varValid := by simp at ok; grind) := by
+theorem latch_convertToAnd!_some {idx : LatchIdx} {lhs rhs : Lit} {aig' : Aig}
+    (ok : idx.convertToAnd! aig lhs rhs = aig') :
+    aig' = idx.convertToAnd aig lhs rhs (varValid := by simp at ok; grind) := by
   grind
 
 /-
@@ -556,14 +556,14 @@ theorem convertAndToLatch!_some {var : Var} {next : Lit} {reset : Option Lit} {r
 -/
 
 @[simp, grind =]
-theorem rewriteAnd!_eq {var : Var} {rhs0 rhs1 : Lit} valid isAnd :
-    aig.rewriteAnd! var rhs0 rhs1 = aig.rewriteAnd var rhs0 rhs1 valid isAnd := by
+theorem rewriteAnd!_eq {var : Var} {lhs rhs : Lit} valid isAnd :
+    aig.rewriteAnd! var lhs rhs = aig.rewriteAnd var lhs rhs valid isAnd := by
   simp; grind
 
 @[grind →]
-theorem rewriteAnd!_some {var : Var} {rhs0 rhs1 : Lit} {aig' : Aig}
-    (ok : aig.rewriteAnd! var rhs0 rhs1 = aig') :
-    aig' = aig.rewriteAnd var rhs0 rhs1 (isAnd := by simp at ok; grind) := by
+theorem rewriteAnd!_some {var : Var} {lhs rhs : Lit} {aig' : Aig}
+    (ok : aig.rewriteAnd! var lhs rhs = aig') :
+    aig' = aig.rewriteAnd var lhs rhs (isAnd := by simp at ok; grind) := by
   simp at ok; grind
 
 end Valaig.Aig

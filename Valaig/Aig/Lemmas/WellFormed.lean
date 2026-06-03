@@ -156,51 +156,51 @@ theorem WF.mem_nodes_next {nextsValid : aig.NextsValid} {idx : LatchIdx} (mem : 
 -/
 @[expose, local grind]
 def AcyclicGates (aig : Aig) : Prop :=
-  ∀ {var : Var} {rhs0 rhs1} (mem : var ∈ aig.nodes),
-    aig.nodes[var] = .and rhs0 rhs1 → rhs0.var < var ∧ rhs1.var < var
+  ∀ {var : Var} {lhs rhs} (mem : var ∈ aig.nodes),
+    aig.nodes[var] = .and lhs rhs → lhs.var < var ∧ rhs.var < var
 
 section AcyclicGates
-variable {acyclicGates : aig.AcyclicGates} {var var' : Var} {rhs0 rhs1 : Lit}
-variable (mem : var ∈ aig.nodes) (eq : aig.nodes[var]'mem = .and rhs0 rhs1)
+variable {acyclicGates : aig.AcyclicGates} {var var' : Var} {lhs rhs : Lit}
+variable (mem : var ∈ aig.nodes) (eq : aig.nodes[var]'mem = .and lhs rhs)
 include acyclicGates mem eq
 
 @[simp]
-theorem WF.rhs0_lt_and :
-    rhs0.var < var := by
+theorem WF.lhs_lt_and :
+    lhs.var < var := by
   grind
 
 @[simp]
-theorem WF.rhs1_lt_and :
-    rhs1.var < var := by
+theorem WF.rhs_lt_and :
+    rhs.var < var := by
   grind
 
-theorem WF.rhs0_lt_and_of_le (lt : var ≤ var') :
-    rhs0.var < var' := by
+theorem WF.lhs_lt_and_of_le (lt : var ≤ var') :
+    lhs.var < var' := by
   grind
 
-grind_pattern WF.rhs0_lt_and_of_le => rhs0.var < var', Node.and rhs0 rhs1, aig.nodes[var]'mem
-grind_pattern WF.rhs0_lt_and_of_le => rhs0.var ≤ var', Node.and rhs0 rhs1, aig.nodes[var]'mem
+grind_pattern WF.lhs_lt_and_of_le => lhs.var < var', Node.and lhs rhs, aig.nodes[var]'mem
+grind_pattern WF.lhs_lt_and_of_le => lhs.var ≤ var', Node.and lhs rhs, aig.nodes[var]'mem
 
-theorem WF.rhs1_lt_and_of_le (lt : var ≤ var') :
-    rhs1.var < var' := by
+theorem WF.rhs_lt_and_of_le (lt : var ≤ var') :
+    rhs.var < var' := by
   grind
 
-grind_pattern WF.rhs1_lt_and_of_le => rhs1.var < var', Node.and rhs0 rhs1, aig.nodes[var]'mem
-grind_pattern WF.rhs1_lt_and_of_le => rhs1.var ≤ var', Node.and rhs0 rhs1, aig.nodes[var]'mem
+grind_pattern WF.rhs_lt_and_of_le => rhs.var < var', Node.and lhs rhs, aig.nodes[var]'mem
+grind_pattern WF.rhs_lt_and_of_le => rhs.var ≤ var', Node.and lhs rhs, aig.nodes[var]'mem
 
 @[simp]
-theorem WF.rhs0_mem_nodes_and :
-    rhs0.var ∈ aig.nodes := by
+theorem WF.lhs_mem_nodes_and :
+    lhs.var ∈ aig.nodes := by
   grind
 
-grind_pattern WF.rhs0_mem_nodes_and => rhs0.var.validIn aig, Node.and rhs0 rhs1, aig.nodes[var]'mem
+grind_pattern WF.lhs_mem_nodes_and => lhs.var.validIn aig, Node.and lhs rhs, aig.nodes[var]'mem
 
 @[simp]
-theorem WF.rhs1_mem_nodes_and :
-    rhs1.var ∈ aig.nodes := by
+theorem WF.rhs_mem_nodes_and :
+    rhs.var ∈ aig.nodes := by
   grind
 
-grind_pattern WF.rhs1_mem_nodes_and => rhs1.var.validIn aig, Node.and rhs0 rhs1, aig.nodes[var]'mem
+grind_pattern WF.rhs_mem_nodes_and => rhs.var.validIn aig, Node.and lhs rhs, aig.nodes[var]'mem
 
 end AcyclicGates
 
@@ -656,82 +656,82 @@ end addLatch
   `addAndRaw`
 -/
 section addAndRaw
-variable {rhs0 rhs1 : Lit}
+variable {lhs rhs : Lit}
 
 @[simp, grind .]
 theorem InputsValid_addAndRaw
     (inputsValid : aig.InputsValid) :
-    (aig.addAndRaw rhs0 rhs1).fst.InputsValid := by
+    (aig.addAndRaw lhs rhs).fst.InputsValid := by
   grind
 
 @[simp, grind .]
 theorem InputIdxsValid_addAndRaw
     (inputIdxsValid : aig.InputIdxsValid)
-    (h0 : rhs0.validIn aig)
-    (h1 : rhs1.validIn aig) :
-    (aig.addAndRaw rhs0 rhs1).fst.InputIdxsValid := by
+    (h0 : lhs.validIn aig)
+    (h1 : rhs.validIn aig) :
+    (aig.addAndRaw lhs rhs).fst.InputIdxsValid := by
   grind
 
 theorem InputIdxsValid_addAndRaw'
     (inputIdxsValid : aig.InputIdxsValid)
-    (h0 : rhs0.var ≠ aig.nextVar)
-    (h1 : rhs1.var ≠ aig.nextVar) :
-    (aig.addAndRaw rhs0 rhs1).fst.InputIdxsValid := by
+    (h0 : lhs.var ≠ aig.nextVar)
+    (h1 : rhs.var ≠ aig.nextVar) :
+    (aig.addAndRaw lhs rhs).fst.InputIdxsValid := by
     grind [nodes_addAndRaw']
 
 @[simp, grind .]
 theorem LatchesValid_addAndRaw
     (latchesValid : aig.LatchesValid) :
-    (aig.addAndRaw rhs0 rhs1).fst.LatchesValid := by
+    (aig.addAndRaw lhs rhs).fst.LatchesValid := by
   grind
 
 @[simp, grind .]
 theorem LatchIdxsValid_addAndRaw
     (latchIdxsValid : aig.LatchIdxsValid)
-    (h0 : rhs0.validIn aig)
-    (h1 : rhs1.validIn aig) :
-    (aig.addAndRaw rhs0 rhs1).fst.LatchIdxsValid := by
+    (h0 : lhs.validIn aig)
+    (h1 : rhs.validIn aig) :
+    (aig.addAndRaw lhs rhs).fst.LatchIdxsValid := by
   grind
 
 theorem LatchIdxsValid_addAndRaw'
     (inputIdxsValid : aig.LatchIdxsValid)
-    (h0 : rhs0.var ≠ aig.nextVar)
-    (h1 : rhs1.var ≠ aig.nextVar) :
-    (aig.addAndRaw rhs0 rhs1).fst.LatchIdxsValid := by
+    (h0 : lhs.var ≠ aig.nextVar)
+    (h1 : rhs.var ≠ aig.nextVar) :
+    (aig.addAndRaw lhs rhs).fst.LatchIdxsValid := by
     grind [nodes_addAndRaw']
 
 @[simp, grind .]
 theorem ResetsValid_addAndRaw
     (resetsValid : aig.ResetsValid) :
-    (aig.addAndRaw rhs0 rhs1).fst.ResetsValid := by
+    (aig.addAndRaw lhs rhs).fst.ResetsValid := by
   grind
 
 @[simp, grind .]
 theorem NextsValid_addAndRaw
     (nextsValid : aig.NextsValid) :
-    (aig.addAndRaw rhs0 rhs1).fst.NextsValid := by
+    (aig.addAndRaw lhs rhs).fst.NextsValid := by
   grind
 
 @[simp, grind .]
 theorem AcyclicGates_addAndRaw
     (acyclicGates : aig.AcyclicGates)
-    (h0 : rhs0.validIn aig)
-    (h1 : rhs1.validIn aig) :
-    (aig.addAndRaw rhs0 rhs1).fst.AcyclicGates := by
+    (h0 : lhs.validIn aig)
+    (h1 : rhs.validIn aig) :
+    (aig.addAndRaw lhs rhs).fst.AcyclicGates := by
   grind
 
 @[simp, grind .]
 theorem AcyclicResets_addAndRaw
     (acyclicResets : aig.AcyclicResets) :
-    (aig.addAndRaw rhs0 rhs1).fst.AcyclicResets := by
+    (aig.addAndRaw lhs rhs).fst.AcyclicResets := by
   grind
 
 @[simp, grind .]
 theorem addAndRaw
     (wellFormed : aig.WF)
-    (h0 : rhs0.validIn aig)
-    (h1 : rhs1.validIn aig) :
-    (aig.addAndRaw rhs0 rhs1).fst.WF := by
+    (h0 : lhs.validIn aig)
+    (h1 : rhs.validIn aig) :
+    (aig.addAndRaw lhs rhs).fst.WF := by
   grind
 
 end addAndRaw
@@ -859,80 +859,80 @@ end input_convertToLatch
   `InputIdx.convertToAnd`
 -/
 section input_convertToAnd
-variable {idx : InputIdx} {rhs0 rhs1 : Lit}
+variable {idx : InputIdx} {lhs rhs : Lit}
 variable (valid : idx.validIn aig) (varValid : (idx.getVar aig valid).validIn aig)
 
 @[simp, grind .]
 theorem InputsValid_input_convertToAnd
     (inputsValid : aig.InputsValid)
-    (h0 : rhs0.var ≠ idx.getVar aig)
-    (h0 : rhs1.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).InputsValid := by
+    (h0 : lhs.var ≠ idx.getVar aig)
+    (h0 : rhs.var ≠ idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).InputsValid := by
   grind
 
 @[simp, grind .]
 theorem InputIdxsValid_input_convertToAnd
     (inputIdxsValid : aig.InputIdxsValid)
-    (h0 : rhs0.var ≠ idx.getVar aig)
-    (h0 : rhs1.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).InputIdxsValid := by
+    (h0 : lhs.var ≠ idx.getVar aig)
+    (h0 : rhs.var ≠ idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).InputIdxsValid := by
   grind
 
 @[simp, grind .]
 theorem LatchesValid_input_convertToAnd
     (latchesValid : aig.LatchesValid)
     (inputsValid  : aig.InputsValid)
-    (h0 : rhs0.var ≠ idx.getVar aig)
-    (h0 : rhs1.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).LatchesValid := by
+    (h0 : lhs.var ≠ idx.getVar aig)
+    (h0 : rhs.var ≠ idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).LatchesValid := by
   grind
 
 @[simp, grind .]
 theorem LatchIdxsValid_input_convertToAnd
     (latchIdxsValid : aig.LatchIdxsValid)
-    (h0 : rhs0.var ≠ idx.getVar aig)
-    (h0 : rhs1.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).LatchIdxsValid := by
+    (h0 : lhs.var ≠ idx.getVar aig)
+    (h0 : rhs.var ≠ idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).LatchIdxsValid := by
   grind
 
 @[simp, grind .]
 theorem ResetsValid_input_convertToAnd
     (resetsValid : aig.ResetsValid)
-    (h0 : rhs0.var ≠ idx.getVar aig)
-    (h0 : rhs1.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).ResetsValid := by
+    (h0 : lhs.var ≠ idx.getVar aig)
+    (h0 : rhs.var ≠ idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).ResetsValid := by
   grind
 
 @[simp, grind .]
 theorem NextsValid_input_convertToAnd
     (nextsValid : aig.NextsValid)
-    (h0 : rhs0.var ≠ idx.getVar aig)
-    (h0 : rhs1.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).NextsValid := by
+    (h0 : lhs.var ≠ idx.getVar aig)
+    (h0 : rhs.var ≠ idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).NextsValid := by
   grind
 
 @[simp, grind .]
 theorem AcyclicGates_input_convertToAnd
     (acyclicGates : aig.AcyclicGates)
-    (h0 : rhs0.var < idx.getVar aig)
-    (h0 : rhs1.var < idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).AcyclicGates := by
-  have : rhs0.var ≠ idx.getVar aig ∧ rhs1.var ≠ idx.getVar aig := by grind
+    (h0 : lhs.var < idx.getVar aig)
+    (h0 : rhs.var < idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).AcyclicGates := by
+  have : lhs.var ≠ idx.getVar aig ∧ rhs.var ≠ idx.getVar aig := by grind
   grind
 
 @[simp, grind .]
 theorem AcyclicResets_input_convertToAnd
     (acyclicResets : aig.AcyclicResets) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).AcyclicResets := by
+    (idx.convertToAnd aig lhs rhs valid varValid).AcyclicResets := by
   grind
 
 @[simp, grind .]
 theorem input_convertToAnd
     (wellFormed : aig.WF)
-    (h0 : rhs0.var < idx.getVar aig)
-    (h0 : rhs1.var < idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).WF := by
-  have : rhs0.var ≠ idx.getVar aig ∧ rhs1.var ≠ idx.getVar aig := by grind
+    (h0 : lhs.var < idx.getVar aig)
+    (h0 : rhs.var < idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).WF := by
+  have : lhs.var ≠ idx.getVar aig ∧ rhs.var ≠ idx.getVar aig := by grind
   grind
 
 end input_convertToAnd
@@ -1069,80 +1069,80 @@ end latch_convertToInput
   `LatchIdx.convertToAnd`
 -/
 section latch_convertToAnd
-variable {idx : LatchIdx} {rhs0 rhs1 : Lit}
+variable {idx : LatchIdx} {lhs rhs : Lit}
 variable (valid : idx.validIn aig) (varValid : (idx.getVar aig valid).validIn aig)
 
 @[simp, grind .]
 theorem InputsValid_latch_convertToAnd
     (inputsValid : aig.InputsValid)
     (latchesValid : aig.LatchesValid)
-    (h0 : rhs0.var ≠ idx.getVar aig)
-    (h0 : rhs1.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).InputsValid := by
+    (h0 : lhs.var ≠ idx.getVar aig)
+    (h0 : rhs.var ≠ idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).InputsValid := by
   grind
 
 @[simp, grind .]
 theorem InputIdxsValid_latch_convertToAnd
     (inputIdxsValid : aig.InputIdxsValid)
-    (h0 : rhs0.var ≠ idx.getVar aig)
-    (h0 : rhs1.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).InputIdxsValid := by
+    (h0 : lhs.var ≠ idx.getVar aig)
+    (h0 : rhs.var ≠ idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).InputIdxsValid := by
   grind
 
 @[simp, grind .]
 theorem LatchesValid_latch_convertToAnd
     (latchesValid : aig.LatchesValid)
-    (h0 : rhs0.var ≠ idx.getVar aig)
-    (h0 : rhs1.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).LatchesValid := by
+    (h0 : lhs.var ≠ idx.getVar aig)
+    (h0 : rhs.var ≠ idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).LatchesValid := by
   grind
 
 @[simp, grind .]
 theorem LatchIdxsValid_latch_convertToAnd
     (latchIdxsValid : aig.LatchIdxsValid)
-    (h0 : rhs0.var ≠ idx.getVar aig)
-    (h0 : rhs1.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).LatchIdxsValid := by
+    (h0 : lhs.var ≠ idx.getVar aig)
+    (h0 : rhs.var ≠ idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).LatchIdxsValid := by
   grind
 
 @[simp, grind .]
 theorem ResetsValid_latch_convertToAnd
     (resetsValid : aig.ResetsValid)
-    (h0 : rhs0.var ≠ idx.getVar aig)
-    (h0 : rhs1.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).ResetsValid := by
+    (h0 : lhs.var ≠ idx.getVar aig)
+    (h0 : rhs.var ≠ idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).ResetsValid := by
   grind
 
 @[simp, grind .]
 theorem NextsValid_latch_convertToAnd
     (nextsValid : aig.NextsValid)
-    (h0 : rhs0.var ≠ idx.getVar aig)
-    (h0 : rhs1.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).NextsValid := by
+    (h0 : lhs.var ≠ idx.getVar aig)
+    (h0 : rhs.var ≠ idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).NextsValid := by
   grind
 
 @[simp, grind .]
 theorem AcyclicGates_latch_convertToAnd
     (acyclicGates : aig.AcyclicGates)
-    (h0 : rhs0.var < idx.getVar aig)
-    (h0 : rhs1.var < idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).AcyclicGates := by
-  have : rhs0.var ≠ idx.getVar aig ∧ rhs1.var ≠ idx.getVar aig := by grind
+    (h0 : lhs.var < idx.getVar aig)
+    (h0 : rhs.var < idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).AcyclicGates := by
+  have : lhs.var ≠ idx.getVar aig ∧ rhs.var ≠ idx.getVar aig := by grind
   grind
 
 @[simp, grind .]
 theorem AcyclicResets_latch_convertToAnd
     (acyclicResets : aig.AcyclicResets) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).AcyclicResets := by
+    (idx.convertToAnd aig lhs rhs valid varValid).AcyclicResets := by
   grind
 
 @[simp, grind .]
 theorem latch_convertToAnd
     (wellFormed : aig.WF)
-    (h0 : rhs0.var < idx.getVar aig)
-    (h0 : rhs1.var < idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).WF := by
-  have : rhs0.var ≠ idx.getVar aig ∧ rhs1.var ≠ idx.getVar aig := by grind
+    (h0 : lhs.var < idx.getVar aig)
+    (h0 : rhs.var < idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).WF := by
+  have : lhs.var ≠ idx.getVar aig ∧ rhs.var ≠ idx.getVar aig := by grind
   grind
 
 end latch_convertToAnd
@@ -1394,78 +1394,78 @@ end convertAndToLatch
   `rewriteAnd`
 -/
 section rewriteAnd
-variable {var : Var} {rhs0 rhs1 : Lit} (valid : var.validIn aig)
+variable {var : Var} {lhs rhs : Lit} (valid : var.validIn aig)
 
 @[simp, grind .]
 theorem InputsValid_rewriteAnd isAnd
     (inputsValid : aig.InputsValid)
-    (h0 : rhs0.var ≠ var)
-    (h0 : rhs1.var ≠ var) :
-    (aig.rewriteAnd var rhs0 rhs1 valid isAnd).InputsValid := by
+    (h0 : lhs.var ≠ var)
+    (h0 : rhs.var ≠ var) :
+    (aig.rewriteAnd var lhs rhs valid isAnd).InputsValid := by
   grind
 
 @[simp, grind .]
 theorem InputIdxsValid_rewriteAnd isAnd
     (inputIdxsValid : aig.InputIdxsValid)
-    (h0 : rhs0.var ≠ var)
-    (h0 : rhs1.var ≠ var) :
-    (aig.rewriteAnd var rhs0 rhs1 valid isAnd).InputIdxsValid := by
+    (h0 : lhs.var ≠ var)
+    (h0 : rhs.var ≠ var) :
+    (aig.rewriteAnd var lhs rhs valid isAnd).InputIdxsValid := by
   grind
 
 @[simp, grind .]
 theorem LatchesValid_rewriteAnd isAnd
     (latchesValid : aig.LatchesValid)
-    (h0 : rhs0.var ≠ var)
-    (h0 : rhs1.var ≠ var) :
-    (aig.rewriteAnd var rhs0 rhs1 valid isAnd).LatchesValid := by
+    (h0 : lhs.var ≠ var)
+    (h0 : rhs.var ≠ var) :
+    (aig.rewriteAnd var lhs rhs valid isAnd).LatchesValid := by
   grind
 
 @[simp, grind .]
 theorem LatchIdxsValid_rewriteAnd isAnd
     (latchIdxsValid : aig.LatchIdxsValid)
-    (h0 : rhs0.var ≠ var)
-    (h0 : rhs1.var ≠ var) :
-    (aig.rewriteAnd var rhs0 rhs1 valid isAnd).LatchIdxsValid := by
+    (h0 : lhs.var ≠ var)
+    (h0 : rhs.var ≠ var) :
+    (aig.rewriteAnd var lhs rhs valid isAnd).LatchIdxsValid := by
   grind
 
 @[simp, grind .]
 theorem ResetsValid_rewriteAnd isAnd
     (resetsValid : aig.ResetsValid)
-    (h0 : rhs0.var ≠ var)
-    (h0 : rhs1.var ≠ var) :
-    (aig.rewriteAnd var rhs0 rhs1 valid isAnd).ResetsValid := by
+    (h0 : lhs.var ≠ var)
+    (h0 : rhs.var ≠ var) :
+    (aig.rewriteAnd var lhs rhs valid isAnd).ResetsValid := by
   grind
 
 @[simp, grind .]
 theorem NextsValid_rewriteAnd isAnd
     (nextsValid : aig.NextsValid)
-    (h0 : rhs0.var ≠ var)
-    (h0 : rhs1.var ≠ var) :
-    (aig.rewriteAnd var rhs0 rhs1 valid isAnd).NextsValid := by
+    (h0 : lhs.var ≠ var)
+    (h0 : rhs.var ≠ var) :
+    (aig.rewriteAnd var lhs rhs valid isAnd).NextsValid := by
   grind
 
 @[simp, grind .]
 theorem AcyclicGates_rewriteAnd isAnd
     (acyclicGates : aig.AcyclicGates)
-    (h0 : rhs0.var < var)
-    (h0 : rhs1.var < var) :
-    (aig.rewriteAnd var rhs0 rhs1 valid isAnd).AcyclicGates := by
-  have : rhs0.var ≠ var ∧ rhs1.var ≠ var := by grind
+    (h0 : lhs.var < var)
+    (h0 : rhs.var < var) :
+    (aig.rewriteAnd var lhs rhs valid isAnd).AcyclicGates := by
+  have : lhs.var ≠ var ∧ rhs.var ≠ var := by grind
   grind
 
 @[simp, grind .]
 theorem AcyclicResets_rewriteAnd isAnd
     (acyclicResets : aig.AcyclicResets) :
-    (aig.rewriteAnd var rhs0 rhs1 valid isAnd).AcyclicResets := by
+    (aig.rewriteAnd var lhs rhs valid isAnd).AcyclicResets := by
   grind
 
 @[simp, grind .]
 theorem rewriteAnd isAnd
     (wellFormed : aig.WF)
-    (h0 : rhs0.var < var)
-    (h0 : rhs1.var < var) :
-    (aig.rewriteAnd var rhs0 rhs1 valid isAnd).WF := by
-  have : rhs0.var ≠ var ∧ rhs1.var ≠ var := by grind
+    (h0 : lhs.var < var)
+    (h0 : rhs.var < var) :
+    (aig.rewriteAnd var lhs rhs valid isAnd).WF := by
+  have : lhs.var ≠ var ∧ rhs.var ≠ var := by grind
   grind
 
 end rewriteAnd

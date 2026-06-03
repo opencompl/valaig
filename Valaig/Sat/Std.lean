@@ -32,7 +32,7 @@ private def walker (aig : Aig) (reset : Bool) (wf : aig.WF := by grind) : aig.Ca
     let res : Std.Sat.AIG.Entrypoint LeafIdx :=
       match _ : aig[var] with
       | .false => .mk std (std.mkConstCached .false)
-      | .and rhs0 rhs1 => std.mkGate <| .mk (map rhs0) (map rhs1)
+      | .and lhs rhs => std.mkGate <| .mk (map lhs) (map rhs)
       | .input idx => std.mkAtom idx
       | .latch idx =>
         if reset then

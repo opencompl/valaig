@@ -112,9 +112,9 @@ def addLatch (idx : LatchIdx) (var : Var) (next : Lit) (reset : Option Lit) : Bo
     fresh.changeIdx! idx aig
 
 @[inline]
-def addGate (var : Var) (rhs0 rhs1 : Lit) : BodyM Unit :=
+def addGate (var : Var) (lhs rhs : Lit) : BodyM Unit :=
   modifyAig fun aig =>
-    aig.rewriteAnd! var rhs0 rhs1
+    aig.rewriteAnd! var lhs rhs
 
 -- Lean can't automatically convert out of Parsec to our type so we use this
 @[inline]
@@ -261,10 +261,10 @@ namespace ASCII
 
 @[noinline]
 def parseGate : BodyM Unit := do
-  let lhs ← parseDefiningLit
-  let rhs0 ← skipSpace *> parseLit
-  let rhs1 ← skipSpace *> parseLit
-  addGate lhs rhs0 rhs1
+  let var ← parseDefiningLit
+  let lhs ← skipSpace *> parseLit
+  let rhs ← skipSpace *> parseLit
+  addGate var lhs rhs
 
 def parseGates : BodyM Unit := do
   parseNLines (←getHeader).numAnds fun _ => parseGate
@@ -332,9 +332,9 @@ def parseGate (n : Nat) : BodyM Unit := do
     failM "rhs0 delta must be less than lhs"
   let rhs0 := .ofIdx (lhsLit.idx - delta0)
 
-  if delta1 > rhs0.idx then
-    failM "rhs1 delta must be less than rhs0"
-  let rhs1 := .ofIdx (rhs0.idx - delta1)
+  if delta1 > lhs.idx then
+    failM "rhs1 delta must be less than lhs"
+  let rhs1 := .ofIdx (lhs.idx - delta1)
 
   addGate lhs rhs0 rhs1
 

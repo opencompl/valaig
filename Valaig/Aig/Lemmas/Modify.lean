@@ -397,39 +397,39 @@ end addLatch
  `addAndRaw`.
 -/
 section addAndRaw
-variable {rhs0 rhs1 : Lit}
+variable {lhs rhs : Lit}
 attribute [local simp, local grind] addAndRaw
 
 @[simp, grind =]
 theorem snd_addAndRaw :
-    (aig.addAndRaw rhs0 rhs1).snd = aig.nextVar := by
+    (aig.addAndRaw lhs rhs).snd = aig.nextVar := by
   grind
 
 @[simp, grind =]
-theorem nodes_addAndRaw (h0 : rhs0.validIn aig) (h1 : rhs1.validIn aig) :
-    (aig.addAndRaw rhs0 rhs1).fst.nodes =
-    aig.nodes.push aig.nextVar (.and rhs0 rhs1) := by
-  have : rhs0.var ≠ aig.nextVar ∧ rhs1.var ≠ aig.nextVar := by grind
+theorem nodes_addAndRaw (h0 : lhs.validIn aig) (h1 : rhs.validIn aig) :
+    (aig.addAndRaw lhs rhs).fst.nodes =
+    aig.nodes.push aig.nextVar (.and lhs rhs) := by
+  have : lhs.var ≠ aig.nextVar ∧ rhs.var ≠ aig.nextVar := by grind
   grind
 
-theorem nodes_addAndRaw' (h0 : rhs0.var ≠ aig.nextVar) (h1 : rhs1.var ≠ aig.nextVar) :
-    (aig.addAndRaw rhs0 rhs1).fst.nodes =
-    aig.nodes.push aig.nextVar (.and rhs0 rhs1) := by
+theorem nodes_addAndRaw' (h0 : lhs.var ≠ aig.nextVar) (h1 : rhs.var ≠ aig.nextVar) :
+    (aig.addAndRaw lhs rhs).fst.nodes =
+    aig.nodes.push aig.nextVar (.and lhs rhs) := by
   grind
 
 @[simp, grind =]
 theorem inputs_addAndRaw :
-    (aig.addAndRaw rhs0 rhs1).fst.inputs = aig.inputs := by
+    (aig.addAndRaw lhs rhs).fst.inputs = aig.inputs := by
   grind
 
 @[simp, grind =]
 theorem latches_addAndRaw :
-    (aig.addAndRaw rhs0 rhs1).fst.latches = aig.latches := by
+    (aig.addAndRaw lhs rhs).fst.latches = aig.latches := by
   grind
 
 @[simp, grind! .]
 theorem mono_addAndRaw :
-    aig ≤ (aig.addAndRaw rhs0 rhs1).fst := by
+    aig ≤ (aig.addAndRaw lhs rhs).fst := by
   grind
 
 end addAndRaw
@@ -472,25 +472,25 @@ end input_convertToLatch
  `InputIdx.convertToAnd`.
 -/
 section input_convertToAnd
-variable {idx : InputIdx} {rhs0 rhs1 : Lit}
+variable {idx : InputIdx} {lhs rhs : Lit}
 variable (valid : idx.validIn aig) (varValid : (idx.getVar aig).validIn aig)
 attribute [local simp, local grind] InputIdx.convertToAnd
 
 
 @[simp, grind =]
-theorem nodes_input_convertToAnd (h0 : rhs0.var ≠ idx.getVar aig) (h1 : rhs1.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).nodes =
-    aig.nodes.set (idx.getVar aig) (.and rhs0 rhs1) := by
+theorem nodes_input_convertToAnd (h0 : lhs.var ≠ idx.getVar aig) (h1 : rhs.var ≠ idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).nodes =
+    aig.nodes.set (idx.getVar aig) (.and lhs rhs) := by
   grind
 
 @[simp, grind =]
 theorem inputs_input_convertToAnd :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).inputs = aig.inputs.erase idx := by
+    (idx.convertToAnd aig lhs rhs valid varValid).inputs = aig.inputs.erase idx := by
   grind
 
 @[simp, grind =]
 theorem latches_input_convertToAnd :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).latches = aig.latches := by
+    (idx.convertToAnd aig lhs rhs valid varValid).latches = aig.latches := by
   grind
 
 end input_convertToAnd
@@ -572,25 +572,25 @@ end latch_convertToInput
  `LatchIdx.convertToAnd`.
 -/
 section latch_convertToAnd
-variable {idx : LatchIdx} {rhs0 rhs1 : Lit}
+variable {idx : LatchIdx} {lhs rhs : Lit}
 variable (valid : idx.validIn aig) (varValid : (idx.getVar aig).validIn aig)
 attribute [local simp, local grind] LatchIdx.convertToAnd
 
 
 @[simp, grind =]
-theorem nodes_latch_convertToAnd (h0 : rhs0.var ≠ idx.getVar aig) (h1 : rhs1.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).nodes =
-    aig.nodes.set (idx.getVar aig) (.and rhs0 rhs1) := by
+theorem nodes_latch_convertToAnd (h0 : lhs.var ≠ idx.getVar aig) (h1 : rhs.var ≠ idx.getVar aig) :
+    (idx.convertToAnd aig lhs rhs valid varValid).nodes =
+    aig.nodes.set (idx.getVar aig) (.and lhs rhs) := by
   grind
 
 @[simp, grind =]
 theorem inputs_latch_convertToAnd :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).inputs = aig.inputs := by
+    (idx.convertToAnd aig lhs rhs valid varValid).inputs = aig.inputs := by
   grind
 
 @[simp, grind =]
 theorem latches_latch_convertToAnd :
-    (idx.convertToAnd aig rhs0 rhs1 valid varValid).latches = aig.latches.erase idx := by
+    (idx.convertToAnd aig lhs rhs valid varValid).latches = aig.latches.erase idx := by
   grind
 
 end latch_convertToAnd
@@ -703,23 +703,23 @@ end convertAndToLatch
   `rewriteAnd`.
 -/
 section rewriteAnd
-variable {var : Var} {rhs0 rhs1 : Lit} (valid : var.validIn aig)
+variable {var : Var} {lhs rhs : Lit} (valid : var.validIn aig)
 attribute [local simp, local grind] rewriteAnd
 
 @[simp, grind =]
-theorem nodes_rewriteAnd isAnd (h0 : rhs0.var ≠ var) (h1 : rhs1.var ≠ var) :
-    (aig.rewriteAnd var rhs0 rhs1 valid isAnd).nodes =
-    aig.nodes.set var (.and rhs0 rhs1) := by
+theorem nodes_rewriteAnd isAnd (h0 : lhs.var ≠ var) (h1 : rhs.var ≠ var) :
+    (aig.rewriteAnd var lhs rhs valid isAnd).nodes =
+    aig.nodes.set var (.and lhs rhs) := by
   simp (disch := grind)
 
 @[simp, grind =]
 theorem inputs_rewriteAnd isAnd :
-    (aig.rewriteAnd var rhs0 rhs1 valid isAnd).inputs = aig.inputs := by
+    (aig.rewriteAnd var lhs rhs valid isAnd).inputs = aig.inputs := by
   grind
 
 @[simp, grind =]
 theorem latches_rewriteAnd isAnd :
-    (aig.rewriteAnd var rhs0 rhs1 valid isAnd).latches = aig.latches := by
+    (aig.rewriteAnd var lhs rhs valid isAnd).latches = aig.latches := by
   grind
 
 end rewriteAnd

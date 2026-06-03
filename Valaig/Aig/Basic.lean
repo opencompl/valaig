@@ -170,8 +170,8 @@ private def latch (idx : LatchIdx) (var : Var) : NodeData :=
   (var.toLit .true, .ofIdx idx.idx)
 
 @[always_inline, local simp, local grind]
-private def and (rhs0 rhs1 : Lit) : NodeData :=
-  (rhs0, rhs1)
+private def and (lhs rhs : Lit) : NodeData :=
+  (lhs, rhs)
 
 @[always_inline, local simp, local grind]
 private def toNode (data : NodeData) (var : Var) : Node :=
@@ -202,9 +202,9 @@ private theorem toNode_latch {idx : LatchIdx} {var : Var} (notConst : var ≠ .c
 
 set_option linter.unusedVariables false in
 @[simp, grind =]
-private theorem toNode_and {rhs0 rhs1 : Lit} {var : Var} (notConst : var ≠ .constant)
-    (h0 : rhs0.var ≠ var) (h1 : rhs1.var ≠ var) :
-    (and rhs0 rhs1).toNode var = .and rhs0 rhs1 := by
+private theorem toNode_and {lhs rhs : Lit} {var : Var} (notConst : var ≠ .constant)
+    (h0 : lhs.var ≠ var) (h1 : rhs.var ≠ var) :
+    (and lhs rhs).toNode var = .and lhs rhs := by
   grind
 
 end NodeData
@@ -859,9 +859,9 @@ def addLatch (aig : Aig) (next : Lit) (reset : Option Lit := none) : Aig × Latc
   or internal invariants are broken.
 -/
 @[always_inline]
-def addAndRaw (aig : Aig) (rhs0 rhs1 : Lit) : Aig × Var :=
+def addAndRaw (aig : Aig) (lhs rhs : Lit) : Aig × Var :=
   let var := aig.nextVar
-  let aig := aig.pushNode <| .and rhs0 rhs1
+  let aig := aig.pushNode <| .and lhs rhs
   (aig, var)
 
 /--
@@ -893,11 +893,11 @@ def InputIdx.convertToLatch! (idx : InputIdx) (aig : Aig) (next : Lit) (reset : 
   Convert an input into a new and gate that defines the same variable, deleting the input.
 -/
 @[inline]
-def InputIdx.convertToAnd (idx : InputIdx) (aig : Aig) (rhs0 rhs1 : Lit)
+def InputIdx.convertToAnd (idx : InputIdx) (aig : Aig) (lhs rhs : Lit)
     (valid : idx.validIn aig := by grind)
     (varValid : (idx.getVar aig).validIn aig := by grind) : Aig :=
   let var := idx.getVar aig
-  let aig := aig.setNode var <| .and rhs0 rhs1
+  let aig := aig.setNode var <| .and lhs rhs
   let aig := aig.eraseInput idx (by grind [setNode])
   aig
 
@@ -908,10 +908,10 @@ def InputIdx.convertToAnd (idx : InputIdx) (aig : Aig) (rhs0 rhs1 : Lit)
   Otherwise if `idx.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
 -/
 @[always_inline]
-def InputIdx.convertToAnd! (idx : InputIdx) (aig : Aig) (rhs0 rhs1 : Lit) : Option Aig := do
+def InputIdx.convertToAnd! (idx : InputIdx) (aig : Aig) (lhs rhs : Lit) : Option Aig := do
   let h ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.InputIdx.convertToAnd!" "`idx` not valid in `aig`"
   let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.InputIdx.convertToAnd!" "`idx.getVar aig` not valid in `aig`"
-  idx.convertToAnd aig rhs0 rhs1
+  idx.convertToAnd aig lhs rhs
 
 set_option linter.unusedVariables false in
 /--
@@ -972,11 +972,11 @@ def LatchIdx.convertToInput! (idx : LatchIdx) (aig : Aig) : Option (Aig × Input
   Convert a latch into a new and gate that defines the same variable, deleting the latch.
 -/
 @[inline]
-def LatchIdx.convertToAnd (idx : LatchIdx) (aig : Aig) (rhs0 rhs1 : Lit)
+def LatchIdx.convertToAnd (idx : LatchIdx) (aig : Aig) (lhs rhs : Lit)
     (valid : idx.validIn aig := by grind)
     (varValid : (idx.getVar aig).validIn aig := by grind) : Aig :=
   let var := idx.getVar aig
-  let aig := aig.setNode var <| .and rhs0 rhs1
+  let aig := aig.setNode var <| .and lhs rhs
   let aig := aig.eraseLatch idx (by grind [setNode])
   aig
 
@@ -987,10 +987,10 @@ def LatchIdx.convertToAnd (idx : LatchIdx) (aig : Aig) (rhs0 rhs1 : Lit)
   Otherwise if `idx.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
 -/
 @[always_inline]
-def LatchIdx.convertToAnd! (idx : LatchIdx) (aig : Aig) (rhs0 rhs1 : Lit) : Option Aig := do
+def LatchIdx.convertToAnd! (idx : LatchIdx) (aig : Aig) (lhs rhs : Lit) : Option Aig := do
   let h ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.LatchIdx.convertToAnd!" "`idx` not valid in `aig`"
   let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.LatchIdx.convertToAnd!" "`idx.getVar aig` not valid in `aig`"
-  idx.convertToAnd aig rhs0 rhs1
+  idx.convertToAnd aig lhs rhs
 
 set_option linter.unusedVariables false in
 /--
@@ -1076,10 +1076,10 @@ set_option linter.unusedVariables false in
   Update the arguments to an existing and gate.
 -/
 @[inline]
-def rewriteAnd (aig : Aig) (var : Var) (rhs0 rhs1 : Lit)
+def rewriteAnd (aig : Aig) (var : Var) (lhs rhs : Lit)
     (valid : var.validIn aig := by grind)
     (isAnd : aig[var] matches .and _ _ := by grind) : Aig :=
-  aig.setNode var (.and rhs0 rhs1)
+  aig.setNode var (.and lhs rhs)
 
 /--
   Update the arguments to an existing and gate.
@@ -1088,10 +1088,10 @@ def rewriteAnd (aig : Aig) (var : Var) (rhs0 rhs1 : Lit)
   Otherwise if `var` does not define an and gate, throws `errIsAnd`.
 -/
 @[always_inline]
-def rewriteAnd! (aig : Aig) (var : Var) (rhs0 rhs1 : Lit) : Option Aig := do
+def rewriteAnd! (aig : Aig) (var : Var) (lhs rhs : Lit) : Option Aig := do
   let h ← checkOrPanic (var.validIn aig)           "Valaig.Aig.rewriteAnd!" "`var` not valid in `aig`"
   let h ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.rewriteAnd!" "`var` is not an and gate"
-  aig.rewriteAnd var rhs0 rhs1
+  aig.rewriteAnd var lhs rhs
 
 -- TODO: Add convertToInput/convertToLatch/convertToAnd methods that do the right thing regardless
 -- of a variable's current type, deallocing if needed

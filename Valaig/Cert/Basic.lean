@@ -24,8 +24,8 @@ private def walker (old : Aig) (cert : Aiger) (certWf : cert.aig.WF := by grind)
   step var aig cache valid size sm cm :=
     match _ : cert.aig[var] with
     | .false => (aig, .false)
-    | .and rhs0 rhs1 =>
-      let (aig, var) := aig.addAndRaw (cache.mapLit rhs0) (cache.mapLit rhs1)
+    | .and lhs rhs =>
+      let (aig, var) := aig.addAndRaw (cache.mapLit lhs) (cache.mapLit rhs)
       (aig, var)
 
     | .input idx =>

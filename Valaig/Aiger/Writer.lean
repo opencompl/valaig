@@ -33,8 +33,8 @@ def writeAag (aiger : Aiger) (file : IO.FS.Stream) : IO Unit := do
 
   -- Gates
   for h : var in aig.iter do
-    if let .and rhs0 rhs1 := aig[var]'(by simp_all) then
-      file.putStrLn s!"{var.toLit.idx} {rhs0.idx} {rhs1.idx}"
+    if let .and lhs rhs := aig[var]'(by simp_all) then
+      file.putStrLn s!"{var.toLit.idx} {lhs.idx} {rhs.idx}"
 
   -- Leaf Symbols
   for (idx, symbol) in aiger.leafSymbols do
