@@ -888,7 +888,7 @@ def addAnd (aig : Aig) (lhs rhs : Lit) : Aig × Lit := Id.run do
     if rhs = .false then
       return (aig, .false) -- Boundedness
     else
-      return (aig, rhs) -- Neutrality
+      return (aig, lhs) -- Neutrality
 
   -- Idempotence
   if lhs = rhs then
