@@ -664,7 +664,6 @@ def getReset! (idx : LatchIdx) (aig : Aig) : Option (Option Lit) :=
 
 end LatchIdx
 
-set_option linter.unusedVariables false in
 /--
   Update the next state function for a latch in the Aig.
 -/
@@ -682,7 +681,6 @@ def setNext! (aig : Aig) (idx : LatchIdx) (next : Lit) : Option Aig := do
   let h ← checkOrPanic (idx.validIn aig) "Valaig.Aig.setNext!" "`idx` not valid in `aig`"
   aig.setNext idx next
 
-set_option linter.unusedVariables false in
 /--
   Update the reset function for a latch in the Aig.
 -/
@@ -931,7 +929,6 @@ def InputIdx.convertToAnd! (idx : InputIdx) (aig : Aig) (lhs rhs : Lit) : Option
   let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.InputIdx.convertToAnd!" "`idx.getVar aig` not valid in `aig`"
   idx.convertToAnd aig lhs rhs
 
-set_option linter.unusedVariables false in
 /--
   Change the input index used to define an input to a new known unused one.
   This is mainly useful when trying to build a new Aig while preserving indices from an existing one.
@@ -1010,7 +1007,6 @@ def LatchIdx.convertToAnd! (idx : LatchIdx) (aig : Aig) (lhs rhs : Lit) : Option
   let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.LatchIdx.convertToAnd!" "`idx.getVar aig` not valid in `aig`"
   idx.convertToAnd aig lhs rhs
 
-set_option linter.unusedVariables false in
 /--
   Change the latch index used to define a latch to a new known unused one.
   This is mainly useful when trying to build a new Aig while preserving indices from an existing one.
@@ -1040,7 +1036,6 @@ def LatchIdx.changeIdx! (old new : LatchIdx) (aig : Aig) : Option Aig := do
   let h ← checkOrPanic (¬new.validIn aig ∨ old = new) "Valaig.Aig.LatchIdx.changeIdx!" "`new` already used in `aig`"
   old.changeIdx new aig
 
-set_option linter.unusedVariables false in
 /--
   Convert an and gate to a new input.
 -/
@@ -1065,7 +1060,6 @@ def convertAndToInput! (aig : Aig) (var : Var) : Option (Aig × InputIdx) := do
   let h ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.convertAndToInput!" "`var` is not an and gate"
   aig.convertAndToInput var
 
-set_option linter.unusedVariables false in
 /--
   Convert an and gate to a new latch.
 -/
