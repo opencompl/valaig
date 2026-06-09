@@ -826,7 +826,6 @@ private def moveLatch (aig : Aig) (old new : LatchIdx) (valid : old.validIn aig 
 
 attribute [local grind] InputIdx.validIn LatchIdx.validIn newInputIdx newLatchIdx
 
-set_option linter.unusedVariables false in
 /--
   Append an input with a new index to the Aig, returning the index of the input.
 -/
