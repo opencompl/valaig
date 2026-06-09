@@ -1,6 +1,7 @@
 module
 
 public import Valaig.Aig.NodeArray
+public import Valaig.Aig.TwoLevelSimp
 public import Valaig.Data.Pool
 public import Valaig.Data.AbsMap
 public import Valaig.Refs
@@ -872,34 +873,14 @@ def addAndRaw (aig : Aig) (lhs rhs : Lit) : Aig × Var :=
   Note that neither input shuld be set to `nextVar` (equivalent to `Var.ofIdx aig.size`)
   or internal invariants are broken.
 -/
-@[inline]
-def addAnd (aig : Aig) (lhs rhs : Lit) : Aig × Lit := Id.run do
-  -- 1-level rewrites
-
-  -- Left boundedness/neutrality
-  if lhs.isConstant then
-    if lhs = .false then
-      return (aig, .false)
-    else
-      return (aig, rhs)
-
-  -- Right boundedness/neutrality
-  if rhs.isConstant then
-    if rhs = .false then
-      return (aig, .false) -- Boundedness
-    else
-      return (aig, lhs) -- Neutrality
-
-  -- Idempotence
-  if lhs = rhs then
-    return (aig, lhs)
-
-  -- Contradiction
-  if lhs = rhs.invert then
-    return (aig, .false)
-
-  let (aig, var) := aig.addAndRaw lhs rhs
-  return (aig, var)
+def addAnd (aig : Aig) (lhs rhs : Lit) : Aig × Lit :=
+  -- TODO: This misses three-input rewrites that have a leaf anded with an and
+  match aig[lhs.var]?, aig[rhs.var]? with
+  | some (.and l0 l1), some (.and r0 r1) =>
+    match TwoLevelSimp.simplifyAnd lhs rhs l0 l1 r0 r1 with
+    | .lit l => (aig, l)
+    | .and l r => let (aig, var) := aig.addAndRaw l r; (aig, var)
+  | _, _ => let (aig, var) := aig.addAndRaw lhs rhs; (aig, var)
 
 /--
   Convert an input into a new latch that defines the same variable, deleting the input.

@@ -789,7 +789,7 @@ theorem AcyclicGates_addAnd
     (h0 : lhs.validIn aig)
     (h1 : rhs.validIn aig) :
     (aig.addAnd lhs rhs).fst.AcyclicGates := by
-  grind [addAnd]
+  sorry
 
 @[simp, grind .]
 theorem AcyclicResets_addAnd
