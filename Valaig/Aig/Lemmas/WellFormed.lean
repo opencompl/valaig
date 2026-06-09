@@ -298,110 +298,110 @@ section empty
 end empty
 
 /-
-  `LatchIdx.setNext`.
+  `setNext`.
 -/
-section latch_setNext
+section setNext
 variable {idx : LatchIdx} {next : Lit} (valid : idx.validIn aig)
 
 @[simp, grind .]
 theorem InputsValid_setNext
     (inputsValid : aig.InputsValid) :
-    (idx.setNext aig next).InputsValid := by
+    (aig.setNext idx next).InputsValid := by
   grind
 
 @[simp, grind .]
 theorem InputIdxsValid_setNext
     (inputIdxsValid : aig.InputIdxsValid) :
-    (idx.setNext aig next valid).InputIdxsValid := by
+    (aig.setNext idx next valid).InputIdxsValid := by
   grind
 
 @[simp, grind .]
 theorem LatchesValid_setNext
     (latchesValid : aig.LatchesValid) :
-    (idx.setNext aig next valid).LatchesValid := by
+    (aig.setNext idx next valid).LatchesValid := by
   grind
 
 @[simp, grind .]
 theorem LatchIdxsValid_setNext
     (latchIdxsValid : aig.LatchIdxsValid) :
-    (idx.setNext aig next valid).LatchIdxsValid := by
+    (aig.setNext idx next valid).LatchIdxsValid := by
   grind
 
 @[simp, grind .]
 theorem ResetsValid_setNext
     (resetsValid : aig.ResetsValid) :
-    (idx.setNext aig next valid).ResetsValid := by
+    (aig.setNext idx next valid).ResetsValid := by
   grind
 
 @[simp, grind .]
 theorem NextsValid_setNext
     (nextsValid : aig.NextsValid)
     (nextValid : next.validIn aig) :
-    (idx.setNext aig next valid).NextsValid := by
+    (aig.setNext idx next valid).NextsValid := by
   grind
 
 @[simp, grind .]
 theorem AcyclicGates_setNext
     (acyclicGates : aig.AcyclicGates) :
-    (idx.setNext aig next valid).AcyclicGates := by
+    (aig.setNext idx next valid).AcyclicGates := by
   grind
 
 @[simp, grind .]
 theorem AcyclicResets_setNext
     (acyclicResets : aig.AcyclicResets) :
-    (idx.setNext aig next valid).AcyclicResets := by
+    (aig.setNext idx next valid).AcyclicResets := by
   grind
 
 @[simp, grind .]
 theorem setNext
     (wellFormed : aig.WF)
     (nextValid : next.validIn aig) :
-    (idx.setNext aig next valid).WF := by
+    (aig.setNext idx next valid).WF := by
   grind
 
-end latch_setNext
+end setNext
 
 /-
-  `LatchIdx.setReset`.
+  `setReset`.
 -/
-section latch_setReset
+section setReset
 variable {idx : LatchIdx} {reset : Option Lit} (valid : idx.validIn aig)
 
 @[simp, grind .]
 theorem InputsValid_setReset
     (inputsValid : aig.InputsValid) :
-    (idx.setReset aig reset).InputsValid := by
+    (aig.setReset idx reset).InputsValid := by
   grind
 
 @[simp, grind .]
 theorem InputIdxsValid_setReset
     (inputIdxsValid : aig.InputIdxsValid) :
-    (idx.setReset aig reset valid).InputIdxsValid := by
+    (aig.setReset idx reset valid).InputIdxsValid := by
   grind
 
 @[simp, grind .]
 theorem LatchesValid_setReset
     (latchesValid : aig.LatchesValid) :
-    (idx.setReset aig reset valid).LatchesValid := by
+    (aig.setReset idx reset valid).LatchesValid := by
   grind
 
 @[simp, grind .]
 theorem LatchIdxsValid_setReset
     (latchIdxsValid : aig.LatchIdxsValid) :
-    (idx.setReset aig reset valid).LatchIdxsValid := by
+    (aig.setReset idx reset valid).LatchIdxsValid := by
   grind
 
 @[simp]
 theorem ResetsValid_setReset_none
     (resetsValid : aig.ResetsValid) :
-    (idx.setReset aig none valid).ResetsValid := by
+    (aig.setReset idx none valid).ResetsValid := by
   grind
 
 @[simp]
 theorem ResetsValid_setReset_some {reset : Lit}
     (resetsValid : aig.ResetsValid)
     (resetValid : reset.validIn aig) :
-    (idx.setReset aig reset valid).ResetsValid := by
+    (aig.setReset idx reset valid).ResetsValid := by
   grind
 
 @[grind .]
@@ -411,32 +411,32 @@ theorem ResetsValid_setReset
       match reset with
       | none => True
       | some lit => lit.validIn aig) :
-    (idx.setReset aig reset valid).ResetsValid := by
+    (aig.setReset idx reset valid).ResetsValid := by
   grind
 
 @[simp, grind .]
 theorem NextsValid_setReset
     (nextsValid : aig.NextsValid) :
-    (idx.setReset aig reset valid).NextsValid := by
+    (aig.setReset idx reset valid).NextsValid := by
   grind
 
 @[simp, grind .]
 theorem AcyclicGates_setReset
     (acyclicGates : aig.AcyclicGates) :
-    (idx.setReset aig reset valid).AcyclicGates := by
+    (aig.setReset idx reset valid).AcyclicGates := by
   grind
 
 @[simp]
 theorem AcyclicResets_setReset_none
     (acyclicResets : aig.AcyclicResets) :
-    (idx.setReset aig none valid).AcyclicResets := by
+    (aig.setReset idx none valid).AcyclicResets := by
   grind
 
 @[simp]
 theorem AcyclicResets_setReset_some {reset : Lit}
     (acyclicResets : aig.AcyclicResets)
     (resetAcyclic : reset.var < idx.getVar aig) :
-    (idx.setReset aig reset valid).AcyclicResets := by
+    (aig.setReset idx reset valid).AcyclicResets := by
   grind
 
 @[grind .]
@@ -446,20 +446,20 @@ theorem AcyclicResets_setReset
       match reset with
       | none => True
       | some lit => lit.var < idx.getVar aig) :
-    (idx.setReset aig reset valid).AcyclicResets := by
+    (aig.setReset idx reset valid).AcyclicResets := by
   grind
 
 @[simp]
 theorem setReset_none
     (wellFormed : aig.WF) :
-    (idx.setReset aig none valid).WF := by
+    (aig.setReset idx none valid).WF := by
   grind
 
 @[simp]
 theorem setReset_some {reset : Lit}
     (wellFormed : aig.WF)
     (resetAcyclic : reset.var < idx.getVar aig) :
-    (idx.setReset aig reset valid).WF := by
+    (aig.setReset idx reset valid).WF := by
   grind
 
 @[grind .]
@@ -469,10 +469,10 @@ theorem setReset
       match reset with
       | none => True
       | some lit => lit.var < idx.getVar aig) :
-    (idx.setReset aig reset valid).WF := by
+    (aig.setReset idx reset valid).WF := by
   grind
 
-end latch_setReset
+end setReset
 
 /-
   `addInput`

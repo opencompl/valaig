@@ -21,8 +21,8 @@ attribute [local simp, local grind]
   InputIdx.getLit InputIdx.getLit!
   LatchIdx.getVar LatchIdx.getVar!
   LatchIdx.getLit LatchIdx.getLit!
-  LatchIdx.getNext LatchIdx.getNext! LatchIdx.setNext!
-  LatchIdx.getReset LatchIdx.getReset! LatchIdx.setReset!
+  LatchIdx.getNext LatchIdx.getNext! setNext!
+  LatchIdx.getReset LatchIdx.getReset! setReset!
   LeafIdx.validIn
   LeafIdx.getVar LeafIdx.getVar!
   LeafIdx.getLit LeafIdx.getLit!
@@ -334,31 +334,31 @@ theorem getReset!_some {idx : LatchIdx} {lit : Lit} (ok : idx.getReset! aig = li
   grind
 
 /-
-  `LatchIdx.setNext!`.
+  `setNext!`.
 -/
 
 @[simp, grind =]
 theorem setNext!_eq {idx : LatchIdx} {next : Lit} valid :
-    idx.setNext! aig next = idx.setNext aig next valid := by
+    aig.setNext! idx next = aig.setNext idx next valid := by
   grind
 
 @[grind →]
-theorem setNext!_some {idx : LatchIdx} {next : Lit} {aig' : Aig} (ok : idx.setNext! aig next = aig') :
-    aig' = idx.setNext aig next := by
+theorem setNext!_some {idx : LatchIdx} {next : Lit} {aig' : Aig} (ok : aig.setNext! idx next = aig') :
+    aig' = aig.setNext idx next := by
   grind
 
 /-
-  `LatchIdx.setReset!`
+  `setReset!`
 -/
 
 @[simp, grind =]
 theorem setReset!_eq {idx : LatchIdx} {reset : Option Lit} valid :
-    idx.setReset! aig reset = idx.setReset aig reset valid := by
+    aig.setReset! idx reset = aig.setReset idx reset valid := by
   grind
 
 @[grind →]
-theorem setReset!_some {idx : LatchIdx} {reset : Option Lit} {aig' : Aig} (ok : idx.setReset! aig reset = aig') :
-    aig' = idx.setReset aig reset := by
+theorem setReset!_some {idx : LatchIdx} {reset : Option Lit} {aig' : Aig} (ok : aig.setReset! idx reset = aig') :
+    aig' = aig.setReset idx reset := by
   grind
 
 namespace LeafIdx

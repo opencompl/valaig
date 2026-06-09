@@ -277,52 +277,52 @@ theorem mono_empty (new : Aig) :
 end empty
 
 /-
-  `LatchIdx.setNext`.
+  `setNext`.
 -/
-section latch_setNext
+section setNext
 variable {idx : LatchIdx} {next : Lit} {valid : idx.validIn aig}
-attribute [local simp, local grind] LatchIdx.setNext
+attribute [local simp, local grind] setNext
 
 @[simp, grind =]
 theorem nodes_setNext :
-    (idx.setNext aig next valid).nodes = aig.nodes := by
+    (aig.setNext idx next valid).nodes = aig.nodes := by
   grind
 
 @[simp, grind =]
 theorem inputs_setNext :
-    (idx.setNext aig next valid).inputs = aig.inputs := by
+    (aig.setNext idx next valid).inputs = aig.inputs := by
   grind
 
 @[simp, grind =]
 theorem latches_setNext :
-    (idx.setNext aig next valid).latches = aig.latches.modify idx ({ · with next }) := by
+    (aig.setNext idx next valid).latches = aig.latches.modify idx ({ · with next }) := by
   apply AbsMap.ext' <;> grind
 
-end latch_setNext
+end setNext
 
 /-
-  `LatchIdx.setReset`.
+  `setReset`.
 -/
-section latch_setReset
+section setReset
 variable {idx : LatchIdx} {reset : Option Lit} {valid : idx.validIn aig}
-attribute [local simp, local grind] LatchIdx.setReset
+attribute [local simp, local grind] setReset
 
 @[simp, grind =]
 theorem nodes_setReset :
-    (idx.setReset aig reset valid).nodes = aig.nodes := by
+    (aig.setReset idx reset valid).nodes = aig.nodes := by
   grind
 
 @[simp, grind =]
 theorem inputs_setReset :
-    (idx.setReset aig reset valid).inputs = aig.inputs := by
+    (aig.setReset idx reset valid).inputs = aig.inputs := by
   grind
 
 @[simp, grind =]
 theorem latches_setReset :
-    (idx.setReset aig reset valid).latches = aig.latches.modify idx ({· with reset }) := by
+    (aig.setReset idx reset valid).latches = aig.latches.modify idx ({· with reset }) := by
   apply AbsMap.ext' <;> grind
 
-end latch_setReset
+end setReset
 
 /-
  `addInput`.

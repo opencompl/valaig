@@ -661,12 +661,15 @@ def getReset! (idx : LatchIdx) (aig : Aig) : Option (Option Lit) :=
   | none       => panicAt "Valaig.Aig.LatchIdx.getReset!" "`idx` not valid in `aig`"
   | some latch => return latch.val.reset
 
+
+end LatchIdx
+
 set_option linter.unusedVariables false in
 /--
   Update the next state function for a latch in the Aig.
 -/
 @[inline]
-def setNext (idx : LatchIdx) (aig : Aig) (next : Lit) (valid : idx.validIn aig := by grind) : Aig :=
+def setNext (aig : Aig) (idx : LatchIdx) (next : Lit) (valid : idx.validIn aig := by grind) : Aig :=
   { aig with _latches := aig._latches.modify idx.idx (⟨{ ·.val with next }, by grind⟩) }
 
 /--
@@ -675,16 +678,16 @@ def setNext (idx : LatchIdx) (aig : Aig) (next : Lit) (valid : idx.validIn aig :
   If `idx` isn't valid in the Aig, throws `err`.
 -/
 @[always_inline]
-def setNext! (idx : LatchIdx) (aig : Aig) (next : Lit) : Option Aig := do
-  let h ← checkOrPanic (idx.validIn aig) "Valaig.Aig.LatchIdx.setNext!" "`idx` not valid in `aig`"
-  idx.setNext aig next
+def setNext! (aig : Aig) (idx : LatchIdx) (next : Lit) : Option Aig := do
+  let h ← checkOrPanic (idx.validIn aig) "Valaig.Aig.setNext!" "`idx` not valid in `aig`"
+  aig.setNext idx next
 
 set_option linter.unusedVariables false in
 /--
   Update the reset function for a latch in the Aig.
 -/
 @[inline]
-def setReset (idx : LatchIdx) (aig : Aig) (reset : Option Lit) (valid : idx.validIn aig := by grind) : Aig :=
+def setReset (aig : Aig) (idx : LatchIdx) (reset : Option Lit) (valid : idx.validIn aig := by grind) : Aig :=
   { aig with _latches := aig._latches.modify idx.idx (⟨{ ·.val with reset }, by grind⟩) }
 
 /--
@@ -693,11 +696,9 @@ def setReset (idx : LatchIdx) (aig : Aig) (reset : Option Lit) (valid : idx.vali
   If `idx` isn't valid in the Aig, throws `err`.
 -/
 @[always_inline]
-def setReset! (idx : LatchIdx) (aig : Aig) (reset : Option Lit) : Option Aig := do
-  let h ← checkOrPanic (idx.validIn aig) "Valaig.Aig.LatchIdx.setReset!" "`idx` not valid in `aig`"
-  idx.setReset aig reset
-
-end LatchIdx
+def setReset! (aig : Aig) (idx : LatchIdx) (reset : Option Lit) : Option Aig := do
+  let h ← checkOrPanic (idx.validIn aig) "Valaig.Aig.setReset!" "`idx` not valid in `aig`"
+  aig.setReset idx reset
 
 namespace LeafIdx
 

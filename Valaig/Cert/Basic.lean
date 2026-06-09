@@ -92,10 +92,10 @@ private def internal (aig : Aig) (cert : Aiger) (aigWF : aig.WF := by grind) (ce
   for h : e in state.deferredLatches.iter do
     have : e.fst.validIn cert.aig := by grind [Std.HashMap.toList_iter, State]
     have : e.snd.validIn aig := by grind [Std.HashMap.toList_iter, State]
-    let aig' := e.snd.setReset aig ((e.fst.getReset cert.aig).map fun x => if _ : x.var.idx < cache.size then cache.mapLit x else .false)
+    let aig' := aig.val.setReset e.snd ((e.fst.getReset cert.aig).map fun x => if _ : x.var.idx < cache.size then cache.mapLit x else .false)
     let next := e.fst.getNext cert.aig
     let next := if _ : next.var.idx < cache.size then cache.mapLit next else .false
-    let aig' := e.snd.setNext aig' next
+    let aig' := aig'.setNext e.snd next
     aig := ⟨aig', by grind⟩
   ⟨aig, cache⟩
 
