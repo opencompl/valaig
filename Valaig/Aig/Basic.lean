@@ -1,7 +1,7 @@
 module
 
 public import Valaig.Aig.NodeArray
-public import Valaig.Aig.TwoLevelSimp
+import Valaig.Aig.TwoLevelSimp
 public import Valaig.Data.Pool
 public import Valaig.Data.AbsMap
 public import Valaig.Refs

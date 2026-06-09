@@ -5,6 +5,7 @@ import Valaig.Cert
 import Valaig.Sat.Std
 import Valaig.Sat.External
 import Valaig.Transform.Unroll
+import Valaig.Transform.TwoLevelSimp
 import Std.Sat.AIG.RelabelNat
 import Std.Sat.AIG.CNF
 
@@ -37,6 +38,9 @@ def run (model cert : String) : IO Unit := do
   IO.println "Reading certificate"
   let cert ← IO.FS.Handle.mk cert .read
   let (_, cert) ← IO.ofExcept <| Valaig.Aiger.parse <| ← cert.readBinToEnd
+
+  let modelaig := Transform.twoLevelSimp model.aig sorry
+  let model := { model with aig := modelaig }
 
   IO.println "Constructing product circuit"
   let (product, invbad) ← IO.ofExcept <| Valaig.Cert.appendCert model cert
