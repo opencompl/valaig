@@ -172,26 +172,30 @@ end erase
 -/
 @[inline]
 def push (pool : Pool α) (v : α) : Pool α :=
-  match h : pool.frees.iter.atIdxSlow? 0 with
-  | none => {
+  if hempty : pool.frees.isEmpty then
+    {
       values := pool.values.push v
       frees := pool.frees
       freesValid := by grind
     }
-  | some n => {
-      values := pool.values.set n v <| by apply pool.freesValid; grind
-      frees := pool.frees.erase n
-      freesValid := by grind
-    }
+  else
+    match h : pool.frees.iter.atIdxSlow? 0 with
+    | some n => {
+        values := pool.values.set n v <| by apply pool.freesValid; grind
+        frees := pool.frees.erase n
+        freesValid := by grind
+      }
+    | none => by grind [Std.HashSet.isEmpty_eq_size_eq_zero]
 
 section push
 attribute [local simp, local grind] push nextIdx
+attribute [local grind =] Std.HashSet.isEmpty_eq_size_eq_zero
 
 @[simp, grind =]
 theorem mem_push_iff :
     idx ∈ pool.push v ↔
       idx ∈ pool ∨ idx = pool.nextIdx := by
-  grind
+  grind 
 
 @[simp, grind =]
 theorem getElem_push (mem : idx ∈ pool.push v) :
