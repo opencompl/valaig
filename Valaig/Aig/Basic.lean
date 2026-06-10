@@ -519,6 +519,9 @@ attribute [local simp, local grind =] InputIdx.validIn_def LatchIdx.validIn_def
 def instGetElemVar.impl (aig : Aig) (var : Var) (valid : var.validIn aig := by grind) : Node :=
   NodeData.toNode aig._nodes[var] var
 
+/--
+  Lookup the node defining a particular variable in the Aig.
+-/
 @[always_inline]
 instance instGetElemVar : GetElem Aig Var Node (fun aig var => var.validIn aig) where
   getElem aig var h :=

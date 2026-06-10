@@ -29,6 +29,28 @@ theorem WF :
     aig.raw.WF :=
   aig.wf
 
+@[always_inline, inherit_doc Aig.instGetElemVar]
+instance instGetElemVar : GetElem WFAig Var Node (fun aig var => var.validIn aig) where
+  getElem aig var h := aig.raw[var]'h
+
+@[simp, grind =]
+theorem getElem_eq {var : Var} h :
+    aig[var]'h = aig.raw[var]'h := by
+  rfl
+
+@[always_inline, inherit_doc Aig.empty]
+def empty : WFAig :=
+  Aig.empty.toWF
+
+@[simp, grind =]
+theorem raw_empty :
+    empty.raw = .empty := by
+  rfl
+
+@[always_inline]
+instance : Inhabited WFAig where
+  default := empty
+
 @[always_inline, inherit_doc Aig.setNext]
 def setNext (aig : WFAig) (idx : LatchIdx) (next : Lit) (valid : idx.validIn aig := by grind)
     (nextValid : next.validIn aig := by grind) : WFAig :=
@@ -214,7 +236,7 @@ theorem raw_changeLatchIdx {old new : LatchIdx} valid varValid unused :
 @[always_inline, inherit_doc Aig.andToInput]
 def andToInput (aig : WFAig) (var : Var)
     (valid : var.validIn aig := by grind)
-    (isAnd : aig.raw[var] matches .and _ _ := by grind) : WFAig × InputIdx :=
+    (isAnd : aig[var] matches .and _ _ := by grind) : WFAig × InputIdx :=
   let (eq:=_) (aig, idx) := aig.raw.andToInput var
   (aig.toWF, idx)
 
@@ -236,7 +258,7 @@ def andToLatch (aig : WFAig) (var : Var) (next : Lit) (reset : Option Lit)
         match reset with
         | none => True
         | some lit => lit.var < var := by grind)
-    (isAnd : aig.raw[var] matches .and _ _ := by grind) : WFAig × LatchIdx :=
+    (isAnd : aig[var] matches .and _ _ := by grind) : WFAig × LatchIdx :=
   let (eq:=_) (aig, idx) := aig.raw.andToLatch var next reset
   (aig.toWF, idx)
 
@@ -255,7 +277,7 @@ theorem snd_andToLatch {var : Var} {next : Lit} {reset : Option Lit} valid nextV
 @[always_inline, inherit_doc Aig.rewriteAnd]
 def rewriteAnd (aig : WFAig) (var : Var) (lhs rhs : Lit)
     (valid : var.validIn aig := by grind)
-    (isAnd : aig.raw[var] matches .and _ _ := by grind)
+    (isAnd : aig[var] matches .and _ _ := by grind)
     (lvalid : lhs.var < var := by grind)
     (rvalid : rhs.var < var := by grind) : WFAig :=
   aig.raw.rewriteAnd var lhs rhs |>.toWF
