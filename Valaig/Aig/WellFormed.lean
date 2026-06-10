@@ -34,10 +34,19 @@ theorem raw_ofAig {aig : Aig} wf :
 instance : Coe WFAig Aig where
   coe := (·.raw)
 
-@[simp, grind .]
+@[simp, grind! .]
 theorem is_WF :
     aig.raw.WF :=
   aig.wf
+
+@[inherit_doc Aig.instLE]
+instance : LE WFAig where
+  le a b := a.raw ≤ b.raw
+
+@[simp, grind =]
+theorem le_iff {a b : WFAig} :
+    a ≤ b ↔ a.raw ≤ b.raw := by
+  rfl
 
 @[always_inline, inherit_doc Aig.instGetElemVar]
 instance instGetElemVar : GetElem WFAig Var Node (fun aig var => var.validIn aig) where
