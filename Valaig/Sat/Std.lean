@@ -51,9 +51,12 @@ private def walker (aig : WFAig) (reset : Bool) : aig.CachingForwardsWalker (Std
 
 end toStd
 
-set_option warn.sorry false in
 def toStd (aig : WFAig) (reset : Bool) : (aig' : Std.Sat.AIG LeafIdx) × (Lit.In aig -> aig'.Ref) :=
   let res := (toStd.walker aig reset).walk Std.Sat.AIG.empty (by grind [toStd.walker])
-  ⟨res.fst, fun lit => (res.snd.mapLit lit.val).toRef res.fst sorry⟩
+  ⟨res.fst, fun lit => (res.snd.mapLit lit.val).toRef res.fst <|
+    by
+      have := CachingForwardsWalker.cacheMotive_walk (walker := toStd.walker aig reset) Std.Sat.AIG.empty (by grind [toStd.walker])
+      grind [toStd.walker]
+  ⟩
 
 end Valaig.Sat
