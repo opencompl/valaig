@@ -9,17 +9,27 @@ namespace Valaig
 structure WFAig extends raw : Aig where
   wf : raw.WF := by grind
 
-@[expose, simp, grind]
+@[always_inline]
 def Aig.toWF (aig : Aig) (wf : aig.WF := by grind) : WFAig :=
   ⟨aig, wf⟩
+
+@[simp, grind norm]
+theorem Aig.raw_toWF {aig : Aig} wf :
+    (toWF aig wf).raw = aig := by
+  rfl
 
 namespace WFAig
 open Aig
 variable {aig : WFAig}
 
-@[expose, simp, grind]
+@[always_inline]
 def ofAig (aig : Aig) (wf : aig.WF := by grind) : WFAig :=
   ⟨aig, wf⟩
+
+@[simp, grind norm]
+theorem raw_ofAig {aig : Aig} wf :
+    (ofAig aig wf).raw = aig := by
+  rfl
 
 instance : Coe WFAig Aig where
   coe := (·.raw)
