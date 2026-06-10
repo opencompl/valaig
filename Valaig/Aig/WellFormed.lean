@@ -39,6 +39,10 @@ theorem is_WF :
     aig.raw.WF :=
   aig.wf
 
+@[always_inline]
+instance : Decidable aig.WF :=
+  isTrue aig.wf
+
 @[inherit_doc Aig.instLE]
 instance : LE WFAig where
   le a b := a.raw ≤ b.raw
