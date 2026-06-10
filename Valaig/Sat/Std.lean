@@ -1,6 +1,7 @@
 module
 
 public import Valaig.Aig.Walker
+public import Valaig.Aig.WellFormed
 public import Std.Sat.AIG.Basic
 import Std.Sat.AIG.CachedLemmas
 import Std.Sat.AIG.Cached
@@ -20,7 +21,7 @@ private theorem gate_le_decls_size (entrypoint : Std.Sat.AIG.Entrypoint LeafIdx)
   entrypoint.ref.hgate
 
 @[always_inline]
-private def walker (aig : Aig) (reset : Bool) (wf : aig.WF := by grind) : aig.CachingForwardsWalker (Std.Sat.AIG LeafIdx) Lit where
+private def walker (aig : WFAig) (reset : Bool) : aig.CachingForwardsWalker (Std.Sat.AIG LeafIdx) Lit where
   stateMotive std size le := True
   cacheMotive std size le sm var lt lit :=
     lit.var.idx < std.decls.size
@@ -51,7 +52,7 @@ private def walker (aig : Aig) (reset : Bool) (wf : aig.WF := by grind) : aig.Ca
 end toStd
 
 set_option warn.sorry false in
-def toStd (aig : Aig) (reset : Bool) (wf : aig.WF := by grind) : (aig' : Std.Sat.AIG LeafIdx) × (Lit.In aig -> aig'.Ref) :=
+def toStd (aig : WFAig) (reset : Bool) : (aig' : Std.Sat.AIG LeafIdx) × (Lit.In aig -> aig'.Ref) :=
   let res := (toStd.walker aig reset).walk Std.Sat.AIG.empty (by grind [toStd.walker])
   ⟨res.fst, fun lit => (res.snd.mapLit lit.val).toRef res.fst sorry⟩
 

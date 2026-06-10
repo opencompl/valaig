@@ -15,7 +15,7 @@ to a single literal, it is replaced with an and-gate with two inputs the same.
 namespace twoLevelSimp
 
 @[inline]
-def resolveInputs (aig : Aig) (var : Var) (valid : var.validIn aig := by grind) (wf : aig.WF := by grind) : Option (Lit × Lit × Lit × Lit × Lit × Lit) :=
+def resolveInputs (aig : WFAig) (var : Var) (valid : var.validIn aig := by grind) : Option (Lit × Lit × Lit × Lit × Lit × Lit) :=
   match _ : aig[var] with
   | .and l r =>
     match _ : aig[l.var], _ : aig[r.var] with
@@ -41,19 +41,19 @@ def resolveInputs (aig : Aig) (var : Var) (valid : var.validIn aig := by grind) 
   | _ => none
 
 @[always_inline]
-private def walker (old : Aig) : old.ForwardsWalker Aig where
-  motive aig size le := aig.WF ∧ ∀ {var : Var}, var.validIn old → var.validIn aig
+private def walker (old : WFAig) : old.ForwardsWalker WFAig where
+  motive aig size le := ∀ {var : Var}, var.validIn old → var.validIn aig
 
   step var aig valid sm := Id.run do
     let some (lhs, rhs, l0, l1, r0, r1) := resolveInputs aig var | return aig
     match TwoLevelSimp.simplifyAnd lhs rhs l0 l1 r0 r1 with
-    | .lit l => return aig.rewriteAnd! var l l |>.get!
-    | .and l r => return aig.rewriteAnd! var l r |>.get!
+    | .lit l => return aig.rewriteAnd! var l l |>.get! |>.toWF sorry
+    | .and l r => return aig.rewriteAnd! var l r |>.get! |>.toWF sorry
 
   motiveStep := sorry
 end twoLevelSimp
 
-def twoLevelSimp (aig : Aig) (wf : aig.WF := by grind) : Aig :=
+def twoLevelSimp (aig : WFAig) : WFAig :=
   (twoLevelSimp.walker aig).walk aig (by grind [twoLevelSimp.walker])
 
 end Valaig.Transform
