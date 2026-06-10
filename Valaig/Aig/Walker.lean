@@ -49,15 +49,28 @@ def walk (walker : aig.ForwardsWalker σ) (init : σ) (motive : walker.motive in
 
 variable {walker : aig.ForwardsWalker σ} (init : σ) (motive : walker.motive init 0 (by grind))
 
-@[simp, grind .]
-private theorem walk.motive_go {step it state} valid eq :
-    walker.motive (walk.go walker step it state valid eq) aig.size (by grind) := by
+private theorem walk.induction_go {step it state} valid eq
+    {inv : σ -> (idx : Nat) -> idx ≤ aig.size -> Prop}
+    (invInit : inv state (aig.iterVal it).idx (by grind))
+    (invStep : (var : Var) -> (state : σ) -> (valid : var.validIn aig) ->
+      (motive : walker.motive state var.idx (by grind)) ->
+      inv (walker.step var state valid motive) (var.idx + 1) (by grind)) :
+    inv (walk.go walker step it state valid eq) aig.size (by grind) := by
   fun_induction go <;> grind
+
+theorem induction {inv : σ -> (idx : Nat) -> idx ≤ aig.size -> Prop}
+    (invInit : inv init 0 (by grind))
+    (invStep : (var : Var) -> (state : σ) -> (valid : var.validIn aig) ->
+      (motive : walker.motive state var.idx (by grind)) ->
+      inv (walker.step var state valid motive) (var.idx + 1) (by grind)) :
+    inv (walker.walk init motive) aig.size (by grind) := by
+  apply walk.induction_go <;> grind
 
 @[simp, grind! .]
 theorem motive_walk :
     walker.motive (walker.walk init motive) aig.size (by grind) := by
-  grind [walk]
+  apply induction <;> grind
+
 
 end ForwardsWalker
 
@@ -129,29 +142,97 @@ private theorem walk.size_cache_go {step it state cache} size sm cm eq :
     (walk.go walker step it state cache size sm cm eq).snd.size = aig.size := by
   fun_induction go <;> grind
 
-@[simp, grind .]
-private theorem walk.cacheMotive_go {step it state cache} size sm cm eq var lt :
-    walker.cacheMotive
-      (walk.go walker step it state cache size sm cm eq).fst aig.size (by grind) (by grind)
-      var lt (walk.go walker step it state cache size sm cm eq).snd[var] := by
-  fun_induction go <;> (unfold go; grind)
-
-@[simp, grind! .]
-theorem stateMotive_walk :
-    walker.stateMotive (walker.walk init motive).fst aig.size (by grind) := by
-  grind [walk]
-
 @[simp, grind =]
 theorem size_cache_walk :
     (walker.walk init motive).snd.size = aig.size := by
   grind [walk]
+
+private theorem walk.stateInduction_go {step it state cache} size sm cm eq
+    {inv : σ -> (idx : Nat) -> idx ≤ aig.size -> Prop}
+    (invInit : inv state (aig.iterVal it).idx (by grind))
+    (invStep : (var : Var) -> (state : σ) -> (cache : VarCache α) -> (valid : var.validIn aig) ->
+      (size : cache.size = var.idx) -> (sm : _) -> (cm : _) ->
+      inv (walker.step var state cache valid size sm cm).fst (var.idx + 1) (by grind)) :
+    inv (walk.go walker step it state cache size sm cm eq).fst aig.size (by grind) := by
+  fun_induction go
+  · grind
+  next it state cache _ _ _ _ _ _ _ _ _ _ =>
+    have := @invStep (aig.iterVal it) state cache (by grind) (by grind) (by grind) (by grind)
+    grind
+
+theorem stateInduction {inv : σ -> (idx : Nat) -> idx ≤ aig.size -> Prop}
+    (invInit : inv init 0 (by grind))
+    (invStep : (var : Var) -> (state : σ) -> (cache : VarCache α) -> (valid : var.validIn aig) ->
+      (size : cache.size = var.idx) -> (sm : _) -> (cm : _) ->
+      inv (walker.step var state cache valid size sm cm).fst (var.idx + 1) (by grind)) :
+    inv (walker.walk init motive).fst aig.size (by grind) := by
+  apply walk.stateInduction_go <;> grind
+
+@[simp, grind! .]
+theorem stateMotive_walk :
+    walker.stateMotive (walker.walk init motive).fst aig.size (by grind) := by
+  apply stateInduction <;> grind [walker.stepState]
+
+private theorem walk.cacheInduction_go {step it state cache} size sm cm eq
+    {inv : (state : σ) -> (idx : Nat) -> (le : idx ≤ aig.size) -> walker.stateMotive state idx le ->
+      (var : Var) -> var.idx < idx -> α -> Prop}
+    (invUpTo :
+      ∀ {var' : Var} (h : var'.idx < (aig.iterVal it).idx),
+        inv state (aig.iterVal it).idx (by grind) sm var' h cache[var'])
+    (invStep : (var : Var) -> (state : σ) -> (cache : VarCache α) -> (valid : var.validIn aig) ->
+      (size : cache.size = var.idx) -> (sm : _) -> (cm : _) ->
+      ∀ {var' : Var} (h : var' < var),
+        inv (walker.step var state cache valid size sm cm).fst (var.idx + 1) (by grind) (by grind [walker.stepState])
+          var' (by grind) cache[var'])
+    (invStepNew : (var : Var) -> (state : σ) -> (cache : VarCache α) -> (valid : var.validIn aig) ->
+      (size : cache.size = var.idx) -> (sm : _) -> (cm : _) ->
+      inv (walker.step var state cache valid size sm cm).fst (var.idx + 1) (by grind) (by grind [walker.stepState])
+        var (by grind) (step var state cache valid size sm cm).snd)
+    var lt :
+    inv (walk.go walker step it state cache size sm cm eq).fst aig.size (by grind) (by grind)
+      var lt (walk.go walker step it state cache size sm cm eq).snd[var] := by
+  fun_induction go
+  · unfold go
+    grind only [→ VarIter.done_eq, = iterVal_iterEnd, = idx_nextVar]
+  next it state cache _ _ _ _ _ _ _ step res ih =>
+    unfold go
+    simp only [step]
+    apply ih
+    simp only [VarCache.getElem_push]
+    intros
+    split
+    · have := @invStepNew (aig.iterVal it) state cache (by grind) (by grind) (by grind) (by grind)
+      grind
+    · have := @invStep (aig.iterVal it) state cache (by grind) (by grind) (by grind) (by grind)
+      grind
+
+theorem cacheInduction
+    {inv : (state : σ) -> (idx : Nat) -> (le : idx ≤ aig.size) -> walker.stateMotive state idx le ->
+      (var : Var) -> var.idx < idx -> α -> Prop}
+    (invStep : (var : Var) -> (state : σ) -> (cache : VarCache α) -> (valid : var.validIn aig) ->
+      (size : cache.size = var.idx) -> (sm : _) -> (cm : _) ->
+      ∀ {var' : Var} (h : var' < var),
+        inv (walker.step var state cache valid size sm cm).fst (var.idx + 1) (by grind) (by grind [walker.stepState])
+          var' (by grind) cache[var'])
+    (invStepNew : (var : Var) -> (state : σ) -> (cache : VarCache α) -> (valid : var.validIn aig) ->
+      (size : cache.size = var.idx) -> (sm : _) -> (cm : _) ->
+      inv (walker.step var state cache valid size sm cm).fst (var.idx + 1) (by grind) (by grind [walker.stepState])
+        var (by grind) (walker.step var state cache valid size sm cm).snd) var lt :
+    inv (walker.walk init motive).fst aig.size (by grind) (by grind)
+      var lt (walker.walk init motive).snd[var] := by
+  apply walk.cacheInduction_go
+  · grind
+  · apply invStep
+  · apply invStepNew
 
 @[simp, grind! .]
 theorem cacheMotive_walk var lt :
     walker.cacheMotive
       (walker.walk init motive).fst aig.size (by grind) (by grind)
       var lt (walker.walk init motive).snd[var] := by
-  grind [walk]
+  apply cacheInduction
+  · grind [walker.stepCache]
+  · grind [walker.stepCacheNew]
 
 end CachingForwardsWalker
 
