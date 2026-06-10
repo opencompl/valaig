@@ -33,7 +33,7 @@ theorem WF :
 instance instGetElemVar : GetElem WFAig Var Node (fun aig var => var.validIn aig) where
   getElem aig var h := aig.raw[var]'h
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem getElem_eq {var : Var} h :
     aig[var]'h = aig.raw[var]'h := by
   rfl
@@ -42,7 +42,7 @@ theorem getElem_eq {var : Var} h :
 def empty : WFAig :=
   Aig.empty.toWF
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_empty :
     empty.raw = .empty := by
   rfl
@@ -56,7 +56,7 @@ def setNext (aig : WFAig) (idx : LatchIdx) (next : Lit) (valid : idx.validIn aig
     (nextValid : next.validIn aig := by grind) : WFAig :=
   aig.raw.setNext idx next |>.toWF
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_setNext {idx : LatchIdx} {next : Lit} valid nextValid :
     (aig.setNext idx next valid nextValid).raw = aig.raw.setNext idx next := by
   rfl
@@ -69,7 +69,7 @@ def setReset (aig : WFAig) (idx : LatchIdx) (reset : Option Lit) (valid : idx.va
       | some lit => lit.var < idx.getVar aig := by grind) : WFAig :=
   aig.raw.setReset idx reset |>.toWF
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_setReset {idx : LatchIdx} {reset : Option Lit} valid resetValid :
     (aig.setReset idx reset valid resetValid).raw = aig.raw.setReset idx reset := by
   rfl
@@ -79,12 +79,12 @@ def addInput (aig : WFAig) : WFAig × InputIdx :=
   let (eq:=_) (aig, idx) := aig.raw.addInput
   (aig.toWF, idx)
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_fst_addInput :
     aig.addInput.fst.raw = aig.raw.addInput.fst := by
   rfl
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem snd_addInput :
     aig.addInput.snd = aig.raw.addInput.snd := by
   rfl
@@ -99,12 +99,12 @@ def addLatch (aig : WFAig) (next : Lit) (reset : Option Lit := none)
   let (eq:=_) (aig, idx) := aig.raw.addLatch next reset
   (aig.toWF, idx)
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_fst_addLatch {next : Lit} {reset : Option Lit} nextValid resetValid :
     (aig.addLatch next reset nextValid resetValid).fst.raw = (aig.raw.addLatch next reset).fst := by
   rfl
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem snd_addLatch {next : Lit} {reset : Option Lit} nextValid resetValid :
     (aig.addLatch next reset nextValid resetValid).snd = (aig.raw.addLatch next reset).snd := by
   rfl
@@ -116,12 +116,12 @@ def addAndRaw (aig : WFAig) (lhs rhs : Lit)
   let (eq:=_) (aig, var) := aig.raw.addAndRaw lhs rhs
   (aig.toWF, var)
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_fst_addAndRaw {lhs rhs : Lit} lvalid rvalid :
     (aig.addAndRaw lhs rhs lvalid rvalid).fst.raw = (aig.raw.addAndRaw lhs rhs).fst := by
   rfl
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem snd_addAndRaw {lhs rhs : Lit} lvalid rvalid :
     (aig.addAndRaw lhs rhs lvalid rvalid).snd = (aig.raw.addAndRaw lhs rhs).snd := by
   rfl
@@ -133,12 +133,12 @@ def addAnd (aig : WFAig) (lhs rhs : Lit)
   let (eq:=_) (aig, lit) := aig.raw.addAnd lhs rhs
   (aig.toWF, lit)
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_fst_addAnd {lhs rhs : Lit} lvalid rvalid :
     (aig.addAnd lhs rhs lvalid rvalid).fst.raw = (aig.raw.addAnd lhs rhs).fst := by
   rfl
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem snd_addAnd {lhs rhs : Lit} lvalid rvalid :
     (aig.addAnd lhs rhs lvalid rvalid).snd = (aig.raw.addAnd lhs rhs).snd := by
   rfl
@@ -155,13 +155,13 @@ def inputToLatch (aig : WFAig) (idx : InputIdx) (next : Lit) (reset : Option Lit
   let (eq:=_) (aig, latch) := aig.raw.inputToLatch idx next reset
   (aig.toWF, latch)
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_fst_inputToLatch {idx : InputIdx} {next : Lit} {reset : Option Lit} valid varValid nextValid resetValid :
     (aig.inputToLatch idx next reset valid varValid nextValid resetValid).fst.raw =
     (aig.raw.inputToLatch idx next reset).fst := by
   rfl
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem snd_inputToLatch {idx : InputIdx} {next : Lit} {reset : Option Lit} valid varValid nextValid resetValid :
     (aig.inputToLatch idx next reset valid varValid nextValid resetValid).snd = (aig.raw.inputToLatch idx next reset).snd := by
   rfl
@@ -174,7 +174,7 @@ def inputToAnd (aig : WFAig) (idx : InputIdx) (lhs rhs : Lit)
     (rvalid : rhs.var < idx.getVar aig := by grind) : WFAig :=
   aig.raw.inputToAnd idx lhs rhs |>.toWF
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_inputToAnd {idx : InputIdx} {lhs rhs : Lit} valid varValid lvalid rvalid :
     (aig.inputToAnd idx lhs rhs valid varValid lvalid rvalid).raw = aig.raw.inputToAnd idx lhs rhs:= by
   rfl
@@ -186,7 +186,7 @@ def changeInputIdx (aig : WFAig) (old new : InputIdx)
     (unused : ¬new.validIn aig ∨ old = new := by grind) : WFAig :=
   aig.raw.changeInputIdx old new |>.toWF
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_changeInputIdx {old new : InputIdx} valid varValid unused :
     (aig.changeInputIdx old new valid varValid unused).raw = aig.raw.changeInputIdx old new := by
   rfl
@@ -198,12 +198,12 @@ def latchToInput (aig : WFAig) (idx : LatchIdx)
   let (eq:=_) (aig, idx) := aig.raw.latchToInput idx
   (aig.toWF, idx)
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_fst_latchToInput {idx : LatchIdx} valid varValid :
     (aig.latchToInput idx valid varValid).fst.raw = (aig.raw.latchToInput idx).fst := by
   rfl
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem snd_latchToInput {idx : LatchIdx} valid varValid :
     (aig.latchToInput idx valid varValid).snd = (aig.raw.latchToInput idx).snd := by
   rfl
@@ -216,7 +216,7 @@ def latchToAnd (aig : WFAig) (idx : LatchIdx) (lhs rhs : Lit)
     (rvalid : rhs.var < idx.getVar aig := by grind) : WFAig :=
   aig.raw.latchToAnd idx lhs rhs |>.toWF
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_latchToAnd {idx : LatchIdx} {lhs rhs : Lit} valid varValid lvalid rvalid :
     (aig.latchToAnd idx lhs rhs valid varValid lvalid rvalid).raw = aig.raw.latchToAnd idx lhs rhs:= by
   rfl
@@ -228,7 +228,7 @@ def changeLatchIdx (aig : WFAig) (old new : LatchIdx)
     (unused : ¬new.validIn aig ∨ old = new := by grind) : WFAig :=
   aig.raw.changeLatchIdx old new |>.toWF
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_changeLatchIdx {old new : LatchIdx} valid varValid unused :
     (aig.changeLatchIdx old new valid varValid unused).raw = aig.raw.changeLatchIdx old new := by
   rfl
@@ -240,12 +240,12 @@ def andToInput (aig : WFAig) (var : Var)
   let (eq:=_) (aig, idx) := aig.raw.andToInput var
   (aig.toWF, idx)
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_fst_andToInput {var : Var} valid isAnd :
     (aig.andToInput var valid isAnd).fst.raw = (aig.raw.andToInput var).fst := by
   rfl
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem snd_andToInput {var : Var} valid isAnd :
     (aig.andToInput var valid isAnd).snd = (aig.raw.andToInput var).snd := by
   rfl
@@ -262,13 +262,13 @@ def andToLatch (aig : WFAig) (var : Var) (next : Lit) (reset : Option Lit)
   let (eq:=_) (aig, idx) := aig.raw.andToLatch var next reset
   (aig.toWF, idx)
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_fst_andToLatch {var : Var} {next : Lit} {reset : Option Lit} valid nextValid resetValid isAnd :
     (aig.andToLatch var next reset valid nextValid resetValid isAnd).fst.raw =
     (aig.raw.andToLatch var next reset).fst := by
   rfl
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem snd_andToLatch {var : Var} {next : Lit} {reset : Option Lit} valid nextValid resetValid isAnd :
     (aig.andToLatch var next reset valid nextValid resetValid isAnd).snd =
     (aig.raw.andToLatch var next reset).snd := by
@@ -282,7 +282,7 @@ def rewriteAnd (aig : WFAig) (var : Var) (lhs rhs : Lit)
     (rvalid : rhs.var < var := by grind) : WFAig :=
   aig.raw.rewriteAnd var lhs rhs |>.toWF
 
-@[simp, grind =]
+@[simp, grind norm]
 theorem raw_rewriteAnd {var : Var} {lhs rhs : Lit} valid isAnd lvalid rvalid :
     (aig.rewriteAnd var lhs rhs valid isAnd lvalid rvalid).raw = aig.raw.rewriteAnd var lhs rhs := by
   rfl
