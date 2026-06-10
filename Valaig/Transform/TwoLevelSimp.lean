@@ -26,6 +26,12 @@ private def walker (old : WFAig) : old.CachingForwardsWalker WFAig Lit where
     let lhs := cache.mapLit lhs
     let rhs := cache.mapLit rhs
 
+    -- Try to simp two input first - this catches things like const prop that appear with just two
+    -- inputs
+    match _ : TwoLevelSimp.twoInput lhs rhs with
+    | some lit => (aig.rewriteAnd var lit lit, lit)
+    | none =>
+
     match _ : aig[lhs.var], _ : aig[rhs.var] with
     | .and l0 l1, .and r0 r1 =>
       -- We don't map l0/l1/r0/r1 as they should have been updated by the cache already
@@ -41,6 +47,7 @@ private def walker (old : WFAig) : old.CachingForwardsWalker WFAig Lit where
     · rw [Id.run, WFAig.raw_rewriteAnd, var_validIn, nodes_rewriteAnd] <;> grind
     · rw [Id.run, WFAig.raw_rewriteAnd, var_validIn, nodes_rewriteAnd] <;> grind
     · rw [Id.run, WFAig.raw_rewriteAnd, var_validIn, nodes_rewriteAnd] <;> grind
+    · rw [Id.run, WFAig.raw_rewriteAnd, var_validIn, nodes_rewriteAnd] <;> grind
     · grind
 
   stepCache := by grind
@@ -48,6 +55,7 @@ private def walker (old : WFAig) : old.CachingForwardsWalker WFAig Lit where
     intros
     simp only
     (repeat' split)
+    · rw [Id.run]; grind
     · rw [Id.run]; grind
     · rw [Id.run]; grind
     · rw [Id.run]; grind

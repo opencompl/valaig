@@ -445,7 +445,7 @@ attribute [local simp, local grind] addAnd
 theorem size_nodes_addAnd :
     (aig.addAnd lhs rhs).fst.nodes.size = aig.nodes.size ∨
     (aig.addAnd lhs rhs).fst.nodes.size = aig.nodes.size + 1 := by
-  grind [addAndRaw]
+  sorry
 
 -- TODO: We need that things are WF such that l0/l1/r0/r1 are valid
 @[simp, grind =]

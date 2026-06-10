@@ -875,6 +875,10 @@ def addAndRaw (aig : Aig) (lhs rhs : Lit) : Aig × Var :=
   or internal invariants are broken.
 -/
 def addAnd (aig : Aig) (lhs rhs : Lit) : Aig × Lit :=
+  match TwoLevelSimp.twoInput lhs rhs with
+  | some lit => (aig, lit)
+  | none =>
+
   -- TODO: This misses three-input rewrites that have a leaf anded with an and
   match aig[lhs.var]?, aig[rhs.var]? with
   | some (.and l0 l1), some (.and r0 r1) =>
