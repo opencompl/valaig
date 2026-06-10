@@ -102,14 +102,14 @@ def modifyAig (f : Aig -> Option Aig) : BodyM Unit := do
 @[inline]
 def addInput (idx : InputIdx) (var : Var) : BodyM Unit :=
   modifyAig <| fun aig => do
-    let (aig, fresh) ← aig.convertAndToInput! var
-    fresh.changeIdx! idx aig
+    let (aig, fresh) ← aig.andToInput! var
+    aig.changeInputIdx! fresh idx
 
 @[inline]
 def addLatch (idx : LatchIdx) (var : Var) (next : Lit) (reset : Option Lit) : BodyM Unit :=
   modifyAig <| fun aig => do
-    let (aig, fresh) ← aig.convertAndToLatch! var next reset
-    fresh.changeIdx! idx aig
+    let (aig, fresh) ← aig.andToLatch! var next reset
+    aig.changeLatchIdx! fresh idx
 
 @[inline]
 def addGate (var : Var) (lhs rhs : Lit) : BodyM Unit :=

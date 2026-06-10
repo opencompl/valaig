@@ -808,658 +808,658 @@ theorem addAnd
 end addAnd
 
 /-
-  `InputIdx.convertToLatch`
+  `inputToLatch`
 -/
-section input_convertToLatch
+section inputToLatch
 variable {idx : InputIdx} {next : Lit} {reset : Option Lit}
 variable (valid : idx.validIn aig) (varValid : (idx.getVar aig valid).validIn aig)
 
 @[simp, grind .]
-theorem InputsValid_input_convertToLatch
+theorem InputsValid_inputToLatch
     (inputsValid : aig.InputsValid) :
-    (idx.convertToLatch aig next reset valid varValid).fst.InputsValid := by
+    (aig.inputToLatch idx next reset valid varValid).fst.InputsValid := by
   grind
 
 @[simp, grind .]
-theorem InputIdxsValid_input_convertToLatch
+theorem InputIdxsValid_inputToLatch
     (inputIdxsValid : aig.InputIdxsValid) :
-    (idx.convertToLatch aig next reset valid varValid).fst.InputIdxsValid := by
+    (aig.inputToLatch idx next reset valid varValid).fst.InputIdxsValid := by
   grind
 
 @[simp, grind .]
-theorem LatchesValid_input_convertToLatch
+theorem LatchesValid_inputToLatch
     (latchesValid : aig.LatchesValid)
     (inputsValid  : aig.InputsValid) :
-    (idx.convertToLatch aig next reset valid varValid).fst.LatchesValid := by
+    (aig.inputToLatch idx next reset valid varValid).fst.LatchesValid := by
   grind
 
 @[simp, grind .]
-theorem LatchIdxsValid_input_convertToLatch
+theorem LatchIdxsValid_inputToLatch
     (latchIdxsValid : aig.LatchIdxsValid) :
-    (idx.convertToLatch aig next reset valid varValid).fst.LatchIdxsValid := by
+    (aig.inputToLatch idx next reset valid varValid).fst.LatchIdxsValid := by
   grind
 
 @[simp]
-theorem ResetsValid_input_convertToLatch_none
+theorem ResetsValid_inputToLatch_none
     (resetsValid : aig.ResetsValid) :
-    (idx.convertToLatch aig next none valid varValid).fst.ResetsValid := by
+    (aig.inputToLatch idx next none valid varValid).fst.ResetsValid := by
   grind
 
 @[simp]
-theorem ResetsValid_input_convertToLatch_some {reset : Lit}
+theorem ResetsValid_inputToLatch_some {reset : Lit}
     (resetsValid : aig.ResetsValid)
     (resetValid : reset.validIn aig) :
-    (idx.convertToLatch aig next reset valid varValid).fst.ResetsValid := by
+    (aig.inputToLatch idx next reset valid varValid).fst.ResetsValid := by
   grind
 
 @[grind .]
-theorem ResetsValid_input_convertToLatch
+theorem ResetsValid_inputToLatch
     (resetsValid : aig.ResetsValid)
     (resetValid :
       match reset with
       | none => True
       | some lit => lit.validIn aig) :
-    (idx.convertToLatch aig next reset valid varValid).fst.ResetsValid := by
+    (aig.inputToLatch idx next reset valid varValid).fst.ResetsValid := by
   grind
 
 @[simp, grind .]
-theorem NextsValid_input_convertToLatch
+theorem NextsValid_inputToLatch
     (nextsValid : aig.NextsValid)
     (nextValid : next.validIn aig) :
-    (idx.convertToLatch aig next reset valid varValid).fst.NextsValid := by
+    (aig.inputToLatch idx next reset valid varValid).fst.NextsValid := by
   grind
 
 @[simp, grind .]
-theorem AcyclicGates_input_convertToLatch
+theorem AcyclicGates_inputToLatch
     (acyclicGates : aig.AcyclicGates) :
-    (idx.convertToLatch aig next reset valid varValid).fst.AcyclicGates := by
+    (aig.inputToLatch idx next reset valid varValid).fst.AcyclicGates := by
   grind
 
 @[simp]
-theorem AcyclicResets_input_convertToLatch_none
+theorem AcyclicResets_inputToLatch_none
     (acyclicResets : aig.AcyclicResets) :
-    (idx.convertToLatch aig next none valid varValid).fst.AcyclicResets := by
+    (aig.inputToLatch idx next none valid varValid).fst.AcyclicResets := by
   grind
 
 @[simp]
-theorem AcyclicResets_input_convertToLatch_some {reset : Lit}
+theorem AcyclicResets_inputToLatch_some {reset : Lit}
     (acyclicResets : aig.AcyclicResets)
     (resetAcyclic : reset.var < idx.getVar aig) :
-    (idx.convertToLatch aig next reset valid varValid).fst.AcyclicResets := by
+    (aig.inputToLatch idx next reset valid varValid).fst.AcyclicResets := by
   grind
 
 @[grind .]
-theorem AcyclicResets_input_convertToLatch
+theorem AcyclicResets_inputToLatch
     (acyclicResets : aig.AcyclicResets)
     (resetAcyclic :
       match reset with
       | none => True
       | some lit => lit.var < idx.getVar aig) :
-    (idx.convertToLatch aig next reset valid varValid).fst.AcyclicResets := by
+    (aig.inputToLatch idx next reset valid varValid).fst.AcyclicResets := by
   grind
 
 @[simp]
-theorem input_convertToLatch_none
+theorem inputToLatch_none
     (wellFormed : aig.WF)
     (nextValid : next.validIn aig) :
-    (idx.convertToLatch aig next none valid varValid).fst.WF := by
+    (aig.inputToLatch idx next none valid varValid).fst.WF := by
   grind
 
 @[simp]
-theorem input_convertToLatch_some {reset : Lit}
+theorem inputToLatch_some {reset : Lit}
     (wellFormed : aig.WF)
     (nextValid : next.validIn aig)
     (resetAcyclic : reset.var < idx.getVar aig) :
-    (idx.convertToLatch aig next reset valid varValid).fst.WF := by
+    (aig.inputToLatch idx next reset valid varValid).fst.WF := by
   grind
 
 @[grind .]
-theorem input_convertToLatch
+theorem inputToLatch
     (wellFormed : aig.WF)
     (nextValid : next.validIn aig)
     (resetAcyclic :
       match reset with
       | none => True
       | some lit => lit.var < idx.getVar aig) :
-    (idx.convertToLatch aig next reset valid varValid).fst.WF := by
+    (aig.inputToLatch idx next reset valid varValid).fst.WF := by
   grind
 
-end input_convertToLatch
+end inputToLatch
 
 /-
-  `InputIdx.convertToAnd`
+  `inputToAnd`
 -/
-section input_convertToAnd
+section inputToAnd
 variable {idx : InputIdx} {lhs rhs : Lit}
 variable (valid : idx.validIn aig) (varValid : (idx.getVar aig valid).validIn aig)
 
 @[simp, grind .]
-theorem InputsValid_input_convertToAnd
+theorem InputsValid_inputToAnd
     (inputsValid : aig.InputsValid)
     (h0 : lhs.var ≠ idx.getVar aig)
     (h0 : rhs.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).InputsValid := by
+    (aig.inputToAnd idx lhs rhs valid varValid).InputsValid := by
   grind
 
 @[simp, grind .]
-theorem InputIdxsValid_input_convertToAnd
+theorem InputIdxsValid_inputToAnd
     (inputIdxsValid : aig.InputIdxsValid)
     (h0 : lhs.var ≠ idx.getVar aig)
     (h0 : rhs.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).InputIdxsValid := by
+    (aig.inputToAnd idx lhs rhs valid varValid).InputIdxsValid := by
   grind
 
 @[simp, grind .]
-theorem LatchesValid_input_convertToAnd
+theorem LatchesValid_inputToAnd
     (latchesValid : aig.LatchesValid)
     (inputsValid  : aig.InputsValid)
     (h0 : lhs.var ≠ idx.getVar aig)
     (h0 : rhs.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).LatchesValid := by
+    (aig.inputToAnd idx lhs rhs valid varValid).LatchesValid := by
   grind
 
 @[simp, grind .]
-theorem LatchIdxsValid_input_convertToAnd
+theorem LatchIdxsValid_inputToAnd
     (latchIdxsValid : aig.LatchIdxsValid)
     (h0 : lhs.var ≠ idx.getVar aig)
     (h0 : rhs.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).LatchIdxsValid := by
+    (aig.inputToAnd idx lhs rhs valid varValid).LatchIdxsValid := by
   grind
 
 @[simp, grind .]
-theorem ResetsValid_input_convertToAnd
+theorem ResetsValid_inputToAnd
     (resetsValid : aig.ResetsValid)
     (h0 : lhs.var ≠ idx.getVar aig)
     (h0 : rhs.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).ResetsValid := by
+    (aig.inputToAnd idx lhs rhs valid varValid).ResetsValid := by
   grind
 
 @[simp, grind .]
-theorem NextsValid_input_convertToAnd
+theorem NextsValid_inputToAnd
     (nextsValid : aig.NextsValid)
     (h0 : lhs.var ≠ idx.getVar aig)
     (h0 : rhs.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).NextsValid := by
+    (aig.inputToAnd idx lhs rhs valid varValid).NextsValid := by
   grind
 
 @[simp, grind .]
-theorem AcyclicGates_input_convertToAnd
+theorem AcyclicGates_inputToAnd
     (acyclicGates : aig.AcyclicGates)
     (h0 : lhs.var < idx.getVar aig)
     (h0 : rhs.var < idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).AcyclicGates := by
+    (aig.inputToAnd idx lhs rhs valid varValid).AcyclicGates := by
   have : lhs.var ≠ idx.getVar aig ∧ rhs.var ≠ idx.getVar aig := by grind
   grind
 
 @[simp, grind .]
-theorem AcyclicResets_input_convertToAnd
+theorem AcyclicResets_inputToAnd
     (acyclicResets : aig.AcyclicResets) :
-    (idx.convertToAnd aig lhs rhs valid varValid).AcyclicResets := by
+    (aig.inputToAnd idx lhs rhs valid varValid).AcyclicResets := by
   grind
 
 @[simp, grind .]
-theorem input_convertToAnd
+theorem inputToAnd
     (wellFormed : aig.WF)
     (h0 : lhs.var < idx.getVar aig)
     (h0 : rhs.var < idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).WF := by
+    (aig.inputToAnd idx lhs rhs valid varValid).WF := by
   have : lhs.var ≠ idx.getVar aig ∧ rhs.var ≠ idx.getVar aig := by grind
   grind
 
-end input_convertToAnd
+end inputToAnd
 
 /-
-  `InputIdx.changeIdx`
+  `changeInputIdx`
 -/
-section input_changeIdx
+section changeInputIdx
 variable {old new : InputIdx}
 variable (valid : old.validIn aig) (varValid : (old.getVar aig).validIn aig) (unused : ¬new.validIn aig ∨ old = new)
 
 @[simp, grind .]
-theorem InputsValid_input_changeIdx
+theorem InputsValid_changeInputIdx
     (inputsValid : aig.InputsValid) :
-    (old.changeIdx new aig valid varValid unused).InputsValid := by
+    (aig.changeInputIdx old new valid varValid unused).InputsValid := by
   grind
 
 @[simp, grind .]
-theorem InputIdxsValid_input_changeIdx
+theorem InputIdxsValid_changeInputIdx
     (inputIdxsValid : aig.InputIdxsValid) :
-    (old.changeIdx new aig valid varValid unused).InputIdxsValid := by
+    (aig.changeInputIdx old new valid varValid unused).InputIdxsValid := by
   grind
 
 @[simp, grind .]
-theorem LatchesValid_input_changeIdx
+theorem LatchesValid_changeInputIdx
     (latchesValid : aig.LatchesValid)
     (inputsValid : aig.InputsValid) :
-    (old.changeIdx new aig valid varValid unused).LatchesValid := by
+    (aig.changeInputIdx old new valid varValid unused).LatchesValid := by
   grind
 
 @[simp, grind .]
-theorem LatchIdxsValid_input_changeIdx
+theorem LatchIdxsValid_changeInputIdx
     (latchIdxsValid : aig.LatchIdxsValid) :
-    (old.changeIdx new aig valid varValid unused).LatchIdxsValid := by
+    (aig.changeInputIdx old new valid varValid unused).LatchIdxsValid := by
   grind
 
 @[simp, grind .]
-theorem ResetsValid_input_changeIdx
+theorem ResetsValid_changeInputIdx
     (resetsValid : aig.ResetsValid) :
-    (old.changeIdx new aig valid varValid unused).ResetsValid := by
+    (aig.changeInputIdx old new valid varValid unused).ResetsValid := by
   grind
 
 @[simp, grind .]
-theorem NextsValid_input_changeIdx
+theorem NextsValid_changeInputIdx
     (nextsValid : aig.NextsValid) :
-    (old.changeIdx new aig valid varValid unused).NextsValid := by
+    (aig.changeInputIdx old new valid varValid unused).NextsValid := by
   grind
 
 @[simp, grind .]
-theorem AcyclicGates_input_changeIdx
+theorem AcyclicGates_changeInputIdx
     (acyclicGates : aig.AcyclicGates) :
-    (old.changeIdx new aig valid varValid unused).AcyclicGates := by
+    (aig.changeInputIdx old new valid varValid unused).AcyclicGates := by
   grind
 
 @[simp, grind .]
-theorem AcyclicResets_input_changeIdx
+theorem AcyclicResets_changeInputIdx
     (acyclicResets : aig.AcyclicResets) :
-    (old.changeIdx new aig valid varValid unused).AcyclicResets := by
+    (aig.changeInputIdx old new valid varValid unused).AcyclicResets := by
   grind
 
 @[simp, grind .]
-theorem input_changeIdx
+theorem changeInputIdx
     (wellFormed : aig.WF) :
-    (old.changeIdx new aig valid varValid unused).WF := by
+    (aig.changeInputIdx old new valid varValid unused).WF := by
   grind
 
-end input_changeIdx
+end changeInputIdx
 
 /-
-  `LatchIdx.convertToInput`
+  `convertToInput`
 -/
-section latch_convertToInput
+section latchToInput
 variable {idx : LatchIdx}
 variable (valid : idx.validIn aig) (varValid : (idx.getVar aig valid).validIn aig)
 
 @[simp, grind .]
-theorem InputsValid_latch_convertToInput
+theorem InputsValid_latchToInput
     (inputsValid : aig.InputsValid)
     (latchesValid : aig.LatchesValid) :
-    (idx.convertToInput aig valid varValid).fst.InputsValid := by
+    (aig.latchToInput idx valid varValid).fst.InputsValid := by
   grind
 
 @[simp, grind .]
-theorem InputIdxsValid_latch_convertToInput
+theorem InputIdxsValid_latchToInput
     (inputIdxsValid : aig.InputIdxsValid) :
-    (idx.convertToInput aig valid varValid).fst.InputIdxsValid := by
+    (aig.latchToInput idx valid varValid).fst.InputIdxsValid := by
   grind
 
 @[simp, grind .]
-theorem LatchesValid_latch_convertToInput
+theorem LatchesValid_latchToInput
     (latchesValid : aig.LatchesValid) :
-    (idx.convertToInput aig valid varValid).fst.LatchesValid := by
+    (aig.latchToInput idx valid varValid).fst.LatchesValid := by
   grind
 
 @[simp, grind .]
-theorem LatchIdxsValid_latch_convertToInput
+theorem LatchIdxsValid_latchToInput
     (latchIdxsValid : aig.LatchIdxsValid) :
-    (idx.convertToInput aig valid varValid).fst.LatchIdxsValid := by
+    (aig.latchToInput idx valid varValid).fst.LatchIdxsValid := by
   grind
 
 @[simp, grind .]
-theorem ResetsValid_latch_convertToInput
+theorem ResetsValid_latchToInput
     (resetsValid : aig.ResetsValid) :
-    (idx.convertToInput aig valid varValid).fst.ResetsValid := by
+    (aig.latchToInput idx valid varValid).fst.ResetsValid := by
   grind
 
 @[simp, grind .]
-theorem NextsValid_latch_convertToInput
+theorem NextsValid_latchToInput
     (nextsValid : aig.NextsValid) :
-    (idx.convertToInput aig valid varValid).fst.NextsValid := by
+    (aig.latchToInput idx valid varValid).fst.NextsValid := by
   grind
 
 @[simp, grind .]
-theorem AcyclicGates_latch_convertToInput
+theorem AcyclicGates_latchToInput
     (acyclicGates : aig.AcyclicGates) :
-    (idx.convertToInput aig valid varValid).fst.AcyclicGates := by
+    (aig.latchToInput idx valid varValid).fst.AcyclicGates := by
   grind
 
 @[simp, grind .]
-theorem AcyclicResets_latch_convertToInput
+theorem AcyclicResets_latchToInput
     (acyclicResets : aig.AcyclicResets) :
-    (idx.convertToInput aig valid varValid).fst.AcyclicResets := by
+    (aig.latchToInput idx valid varValid).fst.AcyclicResets := by
   grind
 
 @[simp, grind .]
-theorem latch_convertToInput
+theorem latchToInput
     (wellFormed : aig.WF) :
-    (idx.convertToInput aig valid varValid).fst.WF := by
+    (aig.latchToInput idx valid varValid).fst.WF := by
   grind
 
-end latch_convertToInput
+end latchToInput
 
 /-
-  `LatchIdx.convertToAnd`
+  `convertToAnd`
 -/
-section latch_convertToAnd
+section latchToAnd
 variable {idx : LatchIdx} {lhs rhs : Lit}
 variable (valid : idx.validIn aig) (varValid : (idx.getVar aig valid).validIn aig)
 
 @[simp, grind .]
-theorem InputsValid_latch_convertToAnd
+theorem InputsValid_latchToAnd
     (inputsValid : aig.InputsValid)
     (latchesValid : aig.LatchesValid)
     (h0 : lhs.var ≠ idx.getVar aig)
     (h0 : rhs.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).InputsValid := by
+    (aig.latchToAnd idx lhs rhs valid varValid).InputsValid := by
   grind
 
 @[simp, grind .]
-theorem InputIdxsValid_latch_convertToAnd
+theorem InputIdxsValid_latchToAnd
     (inputIdxsValid : aig.InputIdxsValid)
     (h0 : lhs.var ≠ idx.getVar aig)
     (h0 : rhs.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).InputIdxsValid := by
+    (aig.latchToAnd idx lhs rhs valid varValid).InputIdxsValid := by
   grind
 
 @[simp, grind .]
-theorem LatchesValid_latch_convertToAnd
+theorem LatchesValid_latchToAnd
     (latchesValid : aig.LatchesValid)
     (h0 : lhs.var ≠ idx.getVar aig)
     (h0 : rhs.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).LatchesValid := by
+    (aig.latchToAnd idx lhs rhs valid varValid).LatchesValid := by
   grind
 
 @[simp, grind .]
-theorem LatchIdxsValid_latch_convertToAnd
+theorem LatchIdxsValid_latchToAnd
     (latchIdxsValid : aig.LatchIdxsValid)
     (h0 : lhs.var ≠ idx.getVar aig)
     (h0 : rhs.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).LatchIdxsValid := by
+    (aig.latchToAnd idx lhs rhs valid varValid).LatchIdxsValid := by
   grind
 
 @[simp, grind .]
-theorem ResetsValid_latch_convertToAnd
+theorem ResetsValid_latchToAnd
     (resetsValid : aig.ResetsValid)
     (h0 : lhs.var ≠ idx.getVar aig)
     (h0 : rhs.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).ResetsValid := by
+    (aig.latchToAnd idx lhs rhs valid varValid).ResetsValid := by
   grind
 
 @[simp, grind .]
-theorem NextsValid_latch_convertToAnd
+theorem NextsValid_latchToAnd
     (nextsValid : aig.NextsValid)
     (h0 : lhs.var ≠ idx.getVar aig)
     (h0 : rhs.var ≠ idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).NextsValid := by
+    (aig.latchToAnd idx lhs rhs valid varValid).NextsValid := by
   grind
 
 @[simp, grind .]
-theorem AcyclicGates_latch_convertToAnd
+theorem AcyclicGates_latchToAnd
     (acyclicGates : aig.AcyclicGates)
     (h0 : lhs.var < idx.getVar aig)
     (h0 : rhs.var < idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).AcyclicGates := by
+    (aig.latchToAnd idx lhs rhs valid varValid).AcyclicGates := by
   have : lhs.var ≠ idx.getVar aig ∧ rhs.var ≠ idx.getVar aig := by grind
   grind
 
 @[simp, grind .]
-theorem AcyclicResets_latch_convertToAnd
+theorem AcyclicResets_latchToAnd
     (acyclicResets : aig.AcyclicResets) :
-    (idx.convertToAnd aig lhs rhs valid varValid).AcyclicResets := by
+    (aig.latchToAnd idx lhs rhs valid varValid).AcyclicResets := by
   grind
 
 @[simp, grind .]
-theorem latch_convertToAnd
+theorem latchToAnd
     (wellFormed : aig.WF)
     (h0 : lhs.var < idx.getVar aig)
     (h0 : rhs.var < idx.getVar aig) :
-    (idx.convertToAnd aig lhs rhs valid varValid).WF := by
+    (aig.latchToAnd idx lhs rhs valid varValid).WF := by
   have : lhs.var ≠ idx.getVar aig ∧ rhs.var ≠ idx.getVar aig := by grind
   grind
 
-end latch_convertToAnd
+end latchToAnd
 
 /-
-  `LatchIdx.changeIdx`
+  `changeLatchIdx`
 -/
-section latch_changeIdx
+section changeLatchIdx
 variable {old new : LatchIdx}
 variable (valid : old.validIn aig) (varValid : (old.getVar aig).validIn aig) (unused : ¬new.validIn aig ∨ old = new)
 
 @[simp, grind .]
-theorem InputsValid_latch_changeIdx
+theorem InputsValid_changeLatchIdx
     (inputsValid : aig.InputsValid)
     (latchesValid : aig.LatchesValid) :
-    (old.changeIdx new aig valid varValid unused).InputsValid := by
+    (aig.changeLatchIdx old new valid varValid unused).InputsValid := by
   grind
 
 @[simp, grind .]
-theorem InputIdxsValid_latch_changeIdx
+theorem InputIdxsValid_changeLatchIdx
     (inputIdxsValid : aig.InputIdxsValid) :
-    (old.changeIdx new aig valid varValid unused).InputIdxsValid := by
+    (aig.changeLatchIdx old new valid varValid unused).InputIdxsValid := by
   grind
 
 @[simp, grind .]
-theorem LatchesValid_latch_changeIdx
+theorem LatchesValid_changeLatchIdx
     (latchesValid : aig.LatchesValid) :
-    (old.changeIdx new aig valid varValid unused).LatchesValid := by
+    (aig.changeLatchIdx old new valid varValid unused).LatchesValid := by
   grind
 
 @[simp, grind .]
-theorem LatchIdxsValid_latch_changeIdx
+theorem LatchIdxsValid_changeLatchIdx
     (latchIdxsValid : aig.LatchIdxsValid) :
-    (old.changeIdx new aig valid varValid unused).LatchIdxsValid := by
+    (aig.changeLatchIdx old new valid varValid unused).LatchIdxsValid := by
   grind
 
 @[simp, grind .]
-theorem ResetsValid_latch_changeIdx
+theorem ResetsValid_changeLatchIdx
     (resetsValid : aig.ResetsValid) :
-    (old.changeIdx new aig valid varValid unused).ResetsValid := by
+    (aig.changeLatchIdx old new valid varValid unused).ResetsValid := by
   grind
 
 @[simp, grind .]
-theorem NextsValid_latch_changeIdx
+theorem NextsValid_changeLatchIdx
     (nextsValid : aig.NextsValid) :
-    (old.changeIdx new aig valid varValid unused).NextsValid := by
+    (aig.changeLatchIdx old new valid varValid unused).NextsValid := by
   grind
 
 @[simp, grind .]
-theorem AcyclicGates_latch_changeIdx
+theorem AcyclicGates_changeLatchIdx
     (acyclicGates : aig.AcyclicGates) :
-    (old.changeIdx new aig valid varValid unused).AcyclicGates := by
+    (aig.changeLatchIdx old new valid varValid unused).AcyclicGates := by
   grind
 
 @[simp, grind .]
-theorem AcyclicResets_latch_changeIdx
+theorem AcyclicResets_changeLatchIdx
     (acyclicResets : aig.AcyclicResets) :
-    (old.changeIdx new aig valid varValid unused).AcyclicResets := by
+    (aig.changeLatchIdx old new valid varValid unused).AcyclicResets := by
   grind
 
 @[simp, grind .]
-theorem latch_changeIdx
+theorem changeLatchIdx
     (wellFormed : aig.WF) :
-    (old.changeIdx new aig valid varValid unused).WF := by
+    (aig.changeLatchIdx old new valid varValid unused).WF := by
   grind
 
-end latch_changeIdx
+end changeLatchIdx
 
 /-
-  `convertAndToInput`
+  `andToInput`
 -/
-section convertAndToInput
+section andToInput
 variable {var : Var} (valid : var.validIn aig)
 
 @[simp, grind .]
-theorem InputsValid_convertAndToInput isAnd
+theorem InputsValid_andToInput isAnd
     (inputsValid : aig.InputsValid) :
-    (aig.convertAndToInput var valid isAnd).fst.InputsValid := by
+    (aig.andToInput var valid isAnd).fst.InputsValid := by
   grind
 
 @[simp, grind .]
-theorem InputIdxsValid_convertAndToInput isAnd
+theorem InputIdxsValid_andToInput isAnd
     (inputIdxsValid : aig.InputIdxsValid) :
-    (aig.convertAndToInput var valid isAnd).fst.InputIdxsValid := by
+    (aig.andToInput var valid isAnd).fst.InputIdxsValid := by
   grind
 
 @[simp, grind .]
-theorem LatchesValid_convertAndToInput isAnd
+theorem LatchesValid_andToInput isAnd
     (latchesValid : aig.LatchesValid) :
-    (aig.convertAndToInput var valid isAnd).fst.LatchesValid := by
+    (aig.andToInput var valid isAnd).fst.LatchesValid := by
   grind
 
 @[simp, grind .]
-theorem LatchIdxsValid_convertAndToInput isAnd
+theorem LatchIdxsValid_andToInput isAnd
     (latchIdxsValid : aig.LatchIdxsValid) :
-    (aig.convertAndToInput var valid isAnd).fst.LatchIdxsValid := by
+    (aig.andToInput var valid isAnd).fst.LatchIdxsValid := by
   grind
 
 @[simp, grind .]
-theorem ResetsValid_convertAndToInput isAnd
+theorem ResetsValid_andToInput isAnd
     (resetsValid : aig.ResetsValid) :
-    (aig.convertAndToInput var valid isAnd).fst.ResetsValid := by
+    (aig.andToInput var valid isAnd).fst.ResetsValid := by
   grind
 
 @[simp, grind .]
-theorem NextsValid_convertAndToInput isAnd
+theorem NextsValid_andToInput isAnd
     (nextsValid : aig.NextsValid) :
-    (aig.convertAndToInput var valid isAnd).fst.NextsValid := by
+    (aig.andToInput var valid isAnd).fst.NextsValid := by
   grind
 
 @[simp, grind .]
-theorem AcyclicGates_convertAndToInput isAnd
+theorem AcyclicGates_andToInput isAnd
     (acyclicGates : aig.AcyclicGates) :
-    (aig.convertAndToInput var valid isAnd).fst.AcyclicGates := by
+    (aig.andToInput var valid isAnd).fst.AcyclicGates := by
   grind
 
 @[simp, grind .]
-theorem AcyclicResets_convertAndToInput isAnd
+theorem AcyclicResets_andToInput isAnd
     (acyclicResets : aig.AcyclicResets) :
-    (aig.convertAndToInput var valid isAnd).fst.AcyclicResets := by
+    (aig.andToInput var valid isAnd).fst.AcyclicResets := by
   grind
 
 @[simp, grind .]
-theorem convertAndToInput isAnd
+theorem andToInput isAnd
     (wellFormed : aig.WF) :
-    (aig.convertAndToInput var valid isAnd).fst.WF := by
+    (aig.andToInput var valid isAnd).fst.WF := by
   grind
 
-end convertAndToInput
+end andToInput
 
 /-
-  `convertAndToLatch`
+  `andToLatch`
 -/
-section convertAndToLatch
+section andToLatch
 variable {var : Var} {next : Lit} {reset : Option Lit} (valid : var.validIn aig)
 
 @[simp, grind .]
-theorem InputsValid_convertAndToLatch isAnd
+theorem InputsValid_andToLatch isAnd
     (inputsValid : aig.InputsValid) :
-    (aig.convertAndToLatch var next reset valid isAnd).fst.InputsValid := by
+    (aig.andToLatch var next reset valid isAnd).fst.InputsValid := by
   grind
 
 @[simp, grind .]
-theorem InputIdxsValid_convertAndToLatch isAnd
+theorem InputIdxsValid_andToLatch isAnd
     (inputIdxsValid : aig.InputIdxsValid) :
-    (aig.convertAndToLatch var next reset valid isAnd).fst.InputIdxsValid := by
+    (aig.andToLatch var next reset valid isAnd).fst.InputIdxsValid := by
   grind
 
 @[simp, grind .]
-theorem LatchesValid_convertAndToLatch isAnd
+theorem LatchesValid_andToLatch isAnd
     (latchesValid : aig.LatchesValid) :
-    (aig.convertAndToLatch var next reset valid isAnd).fst.LatchesValid := by
+    (aig.andToLatch var next reset valid isAnd).fst.LatchesValid := by
   grind
 
 @[simp, grind .]
-theorem LatchIdxsValid_convertAndToLatch isAnd
+theorem LatchIdxsValid_andToLatch isAnd
     (latchIdxsValid : aig.LatchIdxsValid) :
-    (aig.convertAndToLatch var next reset valid isAnd).fst.LatchIdxsValid := by
+    (aig.andToLatch var next reset valid isAnd).fst.LatchIdxsValid := by
   grind
 
 @[simp]
-theorem ResetsValid_convertAndToLatch_none isAnd
+theorem ResetsValid_andToLatch_none isAnd
     (resetsValid : aig.ResetsValid) :
-    (aig.convertAndToLatch var next none valid isAnd).fst.ResetsValid := by
+    (aig.andToLatch var next none valid isAnd).fst.ResetsValid := by
   grind
 
 @[simp]
-theorem ResetsValid_convertAndToLatch_some isAnd {reset : Lit}
+theorem ResetsValid_andToLatch_some isAnd {reset : Lit}
     (resetsValid : aig.ResetsValid)
     (resetValid : reset.validIn aig) :
-    (aig.convertAndToLatch var next reset valid isAnd).fst.ResetsValid := by
+    (aig.andToLatch var next reset valid isAnd).fst.ResetsValid := by
   grind
 
 @[grind .]
-theorem ResetsValid_convertAndToLatch isAnd
+theorem ResetsValid_andToLatch isAnd
     (resetsValid : aig.ResetsValid)
     (resetValid :
       match reset with
       | none => True
       | some lit => lit.validIn aig) :
-    (aig.convertAndToLatch var next reset valid isAnd).fst.ResetsValid := by
+    (aig.andToLatch var next reset valid isAnd).fst.ResetsValid := by
   grind
 
 @[simp, grind .]
-theorem NextsValid_convertAndToLatch isAnd
+theorem NextsValid_andToLatch isAnd
     (nextsValid : aig.NextsValid)
     (nextValid : next.validIn aig) :
-    (aig.convertAndToLatch var next reset valid isAnd).fst.NextsValid := by
+    (aig.andToLatch var next reset valid isAnd).fst.NextsValid := by
   grind
 
 @[simp, grind .]
-theorem AcyclicGates_convertAndToLatch isAnd
+theorem AcyclicGates_andToLatch isAnd
     (acyclicGates : aig.AcyclicGates) :
-    (aig.convertAndToLatch var next reset valid isAnd).fst.AcyclicGates := by
+    (aig.andToLatch var next reset valid isAnd).fst.AcyclicGates := by
   grind
 
 @[simp]
-theorem AcyclicResets_convertAndToLatch_none isAnd
+theorem AcyclicResets_andToLatch_none isAnd
     (acyclicResets : aig.AcyclicResets) :
-    (aig.convertAndToLatch var next none valid isAnd).fst.AcyclicResets := by
+    (aig.andToLatch var next none valid isAnd).fst.AcyclicResets := by
   grind
 
 @[simp]
-theorem AcyclicResets_convertAndToLatch_some isAnd {reset : Lit}
+theorem AcyclicResets_andToLatch_some isAnd {reset : Lit}
     (acyclicResets : aig.AcyclicResets)
     (resetAcyclic : reset.var < var) :
-    (aig.convertAndToLatch var next reset valid isAnd).fst.AcyclicResets := by
+    (aig.andToLatch var next reset valid isAnd).fst.AcyclicResets := by
   grind
 
 @[grind .]
-theorem AcyclicResets_convertAndToLatch isAnd
+theorem AcyclicResets_andToLatch isAnd
     (acyclicResets : aig.AcyclicResets)
     (resetAcyclic :
       match reset with
       | none => True
       | some lit => lit.var < var) :
-    (aig.convertAndToLatch var next reset valid isAnd).fst.AcyclicResets := by
+    (aig.andToLatch var next reset valid isAnd).fst.AcyclicResets := by
   grind
 
 @[simp]
-theorem convertAndToLatch_none isAnd
+theorem andToLatch_none isAnd
     (wellFormed : aig.WF)
     (nextValid : next.validIn aig) :
-    (aig.convertAndToLatch var next none valid isAnd).fst.WF := by
+    (aig.andToLatch var next none valid isAnd).fst.WF := by
   grind
 
 @[simp]
-theorem convertAndToLatch_some isAnd {reset : Lit}
+theorem andToLatch_some isAnd {reset : Lit}
     (wellFormed : aig.WF)
     (nextValid : next.validIn aig)
     (resetAcyclic : reset.var < var) :
-    (aig.convertAndToLatch var next reset valid isAnd).fst.WF := by
+    (aig.andToLatch var next reset valid isAnd).fst.WF := by
   grind
 
 @[grind .]
-theorem convertAndToLatch isAnd
+theorem andToLatch isAnd
     (wellFormed : aig.WF)
     (nextValid : next.validIn aig)
     (resetAcyclic :
       match reset with
       | none => True
       | some lit => lit.var < var) :
-    (aig.convertAndToLatch var next reset valid isAnd).fst.WF := by
+    (aig.andToLatch var next reset valid isAnd).fst.WF := by
   grind
 
-end convertAndToLatch
+end andToLatch
 
 /-
   `rewriteAnd`

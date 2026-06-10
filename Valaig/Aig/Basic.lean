@@ -883,13 +883,13 @@ def addAnd (aig : Aig) (lhs rhs : Lit) : Aig × Lit :=
 /--
   Convert an input into a new latch that defines the same variable, deleting the input.
 -/
-def InputIdx.convertToLatch (idx : InputIdx) (aig : Aig) (next : Lit) (reset : Option Lit := none)
+def inputToLatch (aig : Aig) (idx : InputIdx) (next : Lit) (reset : Option Lit := none)
     (valid : idx.validIn aig := by grind)
     (varValid : (idx.getVar aig).validIn aig := by grind) : Aig × LatchIdx :=
   let var := idx.getVar aig
   let latch := aig.newLatchIdx
   let aig := aig.setNode var <| .latch latch var
-  let aig := aig.pushLatch { var, next, reset } (by grind [getVar])
+  let aig := aig.pushLatch { var, next, reset } (by grind [InputIdx.getVar])
   let aig := aig.eraseInput idx (by grind [pushLatch, setNode])
   (aig, latch)
 
@@ -900,16 +900,16 @@ def InputIdx.convertToLatch (idx : InputIdx) (aig : Aig) (next : Lit) (reset : O
   Otherwise if `idx.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
 -/
 @[always_inline]
-def InputIdx.convertToLatch! (idx : InputIdx) (aig : Aig) (next : Lit) (reset : Option Lit := none) : Option (Aig × LatchIdx) := do
-  let h ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.InputIdx.convertToLatch!" "`idx` not valid in `aig`"
-  let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.InputIdx.convertToLatch!" "`idx.getVar aig` not valid in `aig`"
-  idx.convertToLatch aig next reset
+def inputToLatch! (aig : Aig) (idx : InputIdx) (next : Lit) (reset : Option Lit := none) : Option (Aig × LatchIdx) := do
+  let h ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.inputToLatch!" "`idx` not valid in `aig`"
+  let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.inputToLatch!" "`idx.getVar aig` not valid in `aig`"
+  aig.inputToLatch idx next reset
 
 /--
   Convert an input into a new and gate that defines the same variable, deleting the input.
 -/
 @[inline]
-def InputIdx.convertToAnd (idx : InputIdx) (aig : Aig) (lhs rhs : Lit)
+def inputToAnd (aig : Aig) (idx : InputIdx) (lhs rhs : Lit)
     (valid : idx.validIn aig := by grind)
     (varValid : (idx.getVar aig).validIn aig := by grind) : Aig :=
   let var := idx.getVar aig
@@ -924,23 +924,23 @@ def InputIdx.convertToAnd (idx : InputIdx) (aig : Aig) (lhs rhs : Lit)
   Otherwise if `idx.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
 -/
 @[always_inline]
-def InputIdx.convertToAnd! (idx : InputIdx) (aig : Aig) (lhs rhs : Lit) : Option Aig := do
-  let h ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.InputIdx.convertToAnd!" "`idx` not valid in `aig`"
-  let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.InputIdx.convertToAnd!" "`idx.getVar aig` not valid in `aig`"
-  idx.convertToAnd aig lhs rhs
+def inputToAnd! (aig : Aig) (idx : InputIdx) (lhs rhs : Lit) : Option Aig := do
+  let h ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.inputToAnd!" "`idx` not valid in `aig`"
+  let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.inputToAnd!" "`idx.getVar aig` not valid in `aig`"
+  aig.inputToAnd idx lhs rhs
 
 /--
   Change the input index used to define an input to a new known unused one.
   This is mainly useful when trying to build a new Aig while preserving indices from an existing one.
 -/
 @[inline]
-def InputIdx.changeIdx (old new : InputIdx) (aig : Aig)
+def changeInputIdx (aig : Aig) (old new : InputIdx)
     (valid : old.validIn aig := by grind)
     (varValid : (old.getVar aig).validIn aig := by grind)
     (unused : ¬new.validIn aig ∨ old = new := by grind) : Aig :=
   let data := aig._inputs[old.idx]
   let aig := aig.moveInput old new
-  let aig := aig.setNode data.val.var (.input new data.val.var) (by grind [getVar, Var.validIn, moveInput, nodes])
+  let aig := aig.setNode data.val.var (.input new data.val.var) (by grind [InputIdx.getVar, Var.validIn, moveInput, nodes])
   aig
 
 /--
@@ -952,22 +952,22 @@ def InputIdx.changeIdx (old new : InputIdx) (aig : Aig)
   Otherwise if `new` is already valid in `aig` and not equal to `old`, throws `errUsed`.
 -/
 @[inline]
-def InputIdx.changeIdx! (old new : InputIdx) (aig : Aig) : Option Aig := do
-  let h ← checkOrPanic (old.validIn aig)              "Valaig.Aig.InputIdx.changeIdx!" "`old` not valid in `aig`"
-  let h ← checkOrPanic ((old.getVar aig).validIn aig) "Valaig.Aig.InputIdx.changeIdx!" "`old.getVar aig` not valid in `aig`"
-  let h ← checkOrPanic (¬new.validIn aig ∨ old = new) "Valaig.Aig.InputIdx.changeIdx!" "`new` already used in `aig`"
-  old.changeIdx new aig
+def changeInputIdx! (aig : Aig) (old new : InputIdx) : Option Aig := do
+  let h ← checkOrPanic (old.validIn aig)              "Valaig.Aig.changeInputIdx!" "`old` not valid in `aig`"
+  let h ← checkOrPanic ((old.getVar aig).validIn aig) "Valaig.Aig.changeInputIdx!" "`old.getVar aig` not valid in `aig`"
+  let h ← checkOrPanic (¬new.validIn aig ∨ old = new) "Valaig.Aig.changeInputIdx!" "`new` already used in `aig`"
+  aig.changeInputIdx old new
 
 /--
   Convert a latch into a new input that defines the same variable, deleting the latch.
 -/
-def LatchIdx.convertToInput (idx : LatchIdx) (aig : Aig)
+def latchToInput (aig : Aig) (idx : LatchIdx)
     (valid : idx.validIn aig := by grind)
     (varValid : (idx.getVar aig).validIn aig := by grind) : Aig × InputIdx :=
   let var := idx.getVar aig
   let input := aig.newInputIdx
   let aig := aig.setNode var <| .input input var
-  let aig := aig.pushInput { var } (by grind [getVar])
+  let aig := aig.pushInput { var } (by grind [LatchIdx.getVar])
   let aig := aig.eraseLatch idx (by grind [setNode, pushInput])
   (aig, input)
 
@@ -978,16 +978,16 @@ def LatchIdx.convertToInput (idx : LatchIdx) (aig : Aig)
   Otherwise if `idx.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
 -/
 @[always_inline]
-def LatchIdx.convertToInput! (idx : LatchIdx) (aig : Aig) : Option (Aig × InputIdx) := do
-  let h ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.LatchIdx.convertToInput!" "`idx` not valid in `aig`"
-  let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.LatchIdx.convertToInput!" "`idx.getVar aig` not valid in `aig`"
-  idx.convertToInput aig
+def latchToInput! (aig : Aig) (idx : LatchIdx) : Option (Aig × InputIdx) := do
+  let h ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.latchToInput!" "`idx` not valid in `aig`"
+  let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.latchToInput!" "`idx.getVar aig` not valid in `aig`"
+  aig.latchToInput idx
 
 /--
   Convert a latch into a new and gate that defines the same variable, deleting the latch.
 -/
 @[inline]
-def LatchIdx.convertToAnd (idx : LatchIdx) (aig : Aig) (lhs rhs : Lit)
+def latchToAnd (aig : Aig) (idx : LatchIdx) (lhs rhs : Lit)
     (valid : idx.validIn aig := by grind)
     (varValid : (idx.getVar aig).validIn aig := by grind) : Aig :=
   let var := idx.getVar aig
@@ -1002,23 +1002,23 @@ def LatchIdx.convertToAnd (idx : LatchIdx) (aig : Aig) (lhs rhs : Lit)
   Otherwise if `idx.getVar aig` is not valid in `aig`, throws `errVarInvalid`.
 -/
 @[always_inline]
-def LatchIdx.convertToAnd! (idx : LatchIdx) (aig : Aig) (lhs rhs : Lit) : Option Aig := do
-  let h ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.LatchIdx.convertToAnd!" "`idx` not valid in `aig`"
-  let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.LatchIdx.convertToAnd!" "`idx.getVar aig` not valid in `aig`"
-  idx.convertToAnd aig lhs rhs
+def latchToAnd! (aig : Aig) (idx : LatchIdx) (lhs rhs : Lit) : Option Aig := do
+  let h ← checkOrPanic (idx.validIn aig)              "Valaig.Aig.latchToAnd!" "`idx` not valid in `aig`"
+  let h ← checkOrPanic ((idx.getVar aig).validIn aig) "Valaig.Aig.latchToAnd!" "`idx.getVar aig` not valid in `aig`"
+  aig.latchToAnd idx lhs rhs
 
 /--
   Change the latch index used to define a latch to a new known unused one.
   This is mainly useful when trying to build a new Aig while preserving indices from an existing one.
 -/
 @[inline]
-def LatchIdx.changeIdx (old new : LatchIdx) (aig : Aig)
+def changeLatchIdx (aig : Aig) (old new : LatchIdx)
     (valid : old.validIn aig := by grind)
     (varValid : (old.getVar aig).validIn aig := by grind)
     (unused : ¬new.validIn aig ∨ old = new := by grind) : Aig :=
   let data := aig._latches[old.idx]
   let aig := aig.moveLatch old new
-  let aig := aig.setNode data.val.var (.latch new data.val.var) (by grind [getVar, Var.validIn, moveLatch, nodes])
+  let aig := aig.setNode data.val.var (.latch new data.val.var) (by grind [LatchIdx.getVar, Var.validIn, moveLatch, nodes])
   aig
 
 /--
@@ -1030,17 +1030,17 @@ def LatchIdx.changeIdx (old new : LatchIdx) (aig : Aig)
   Otherwise if `new` is already valid in `aig` and not equal to `old`, throws `errUsed`.
 -/
 @[always_inline]
-def LatchIdx.changeIdx! (old new : LatchIdx) (aig : Aig) : Option Aig := do
-  let h ← checkOrPanic (old.validIn aig)              "Valaig.Aig.LatchIdx.changeIdx!" "`old` not valid in `aig`"
-  let h ← checkOrPanic ((old.getVar aig).validIn aig) "Valaig.Aig.LatchIdx.changeIdx!" "`old.getVar aig` not valid in `aig`"
-  let h ← checkOrPanic (¬new.validIn aig ∨ old = new) "Valaig.Aig.LatchIdx.changeIdx!" "`new` already used in `aig`"
-  old.changeIdx new aig
+def changeLatchIdx! (aig : Aig) (old new : LatchIdx) : Option Aig := do
+  let h ← checkOrPanic (old.validIn aig)              "Valaig.Aig.changeLatchIdx!" "`old` not valid in `aig`"
+  let h ← checkOrPanic ((old.getVar aig).validIn aig) "Valaig.Aig.changeLatchIdx!" "`old.getVar aig` not valid in `aig`"
+  let h ← checkOrPanic (¬new.validIn aig ∨ old = new) "Valaig.Aig.changeLatchIdx!" "`new` already used in `aig`"
+  aig.changeLatchIdx old new
 
 /--
   Convert an and gate to a new input.
 -/
 @[inline]
-def convertAndToInput (aig : Aig) (var : Var)
+def andToInput (aig : Aig) (var : Var)
     (valid : var.validIn aig := by grind)
     (isAnd : aig[var] matches .and _ _ := by grind) : Aig × InputIdx :=
   let idx := aig.newInputIdx
@@ -1055,15 +1055,15 @@ def convertAndToInput (aig : Aig) (var : Var)
   Otherwise if `var` does not define an and gate, throws `errIsAnd`.
 -/
 @[always_inline]
-def convertAndToInput! (aig : Aig) (var : Var) : Option (Aig × InputIdx) := do
-  let h ← checkOrPanic (var.validIn aig)           "Valaig.Aig.convertAndToInput!" "`var` not valid in `aig`"
-  let h ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.convertAndToInput!" "`var` is not an and gate"
-  aig.convertAndToInput var
+def andToInput! (aig : Aig) (var : Var) : Option (Aig × InputIdx) := do
+  let h ← checkOrPanic (var.validIn aig)           "Valaig.Aig.andToInput!" "`var` not valid in `aig`"
+  let h ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.andToInput!" "`var` is not an and gate"
+  aig.andToInput var
 
 /--
   Convert an and gate to a new latch.
 -/
-def convertAndToLatch (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit := none)
+def andToLatch (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit := none)
     (valid : var.validIn aig := by grind)
     (isAnd : aig[var] matches .and _ _ := by grind) : Aig × LatchIdx :=
   let idx := aig.newLatchIdx
@@ -1078,10 +1078,10 @@ def convertAndToLatch (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit :
   Otherwise if `var` does not define an and gate, throws `errIsAnd`.
 -/
 @[always_inline]
-def convertAndToLatch! (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit := none) : Option (Aig × LatchIdx) := do
-  let h ← checkOrPanic (var.validIn aig)           "Valaig.Aig.convertAndToLatch!" "`var` not valid in `aig`"
-  let h ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.convertAndToLatch!" "`var` is not an and gate"
-  aig.convertAndToLatch var next reset
+def andToLatch! (aig : Aig) (var : Var) (next : Lit) (reset : Option Lit := none) : Option (Aig × LatchIdx) := do
+  let h ← checkOrPanic (var.validIn aig)           "Valaig.Aig.andToLatch!" "`var` not valid in `aig`"
+  let h ← checkOrPanic (aig[var] matches .and _ _) "Valaig.Aig.andToLatch!" "`var` is not an and gate"
+  aig.andToLatch var next reset
 
 set_option linter.unusedVariables false in
 /--
