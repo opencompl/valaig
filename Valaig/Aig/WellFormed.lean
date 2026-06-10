@@ -252,7 +252,7 @@ theorem snd_andToLatch {var : Var} {next : Lit} {reset : Option Lit} valid nextV
     (aig.raw.andToLatch var next reset).snd := by
   rfl
 
-@[inline]
+@[always_inline, inherit_doc Aig.rewriteAnd]
 def rewriteAnd (aig : WFAig) (var : Var) (lhs rhs : Lit)
     (valid : var.validIn aig := by grind)
     (isAnd : aig.raw[var] matches .and _ _ := by grind)
