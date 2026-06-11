@@ -874,18 +874,18 @@ def addAndRaw (aig : Aig) (lhs rhs : Lit) : Aig × Var :=
   Note that neither input shuld be set to `nextVar` (equivalent to `Var.ofIdx aig.size`)
   or internal invariants are broken.
 -/
-def addAnd (aig : Aig) (lhs rhs : Lit) : Aig × Lit :=
-  match TwoLevelSimp.twoInput lhs rhs with
-  | some lit => (aig, lit)
-  | none =>
+def addAnd (aig : Aig) (lhs rhs : @&Lit) : Aig × Lit :=
+  let lin := match aig[lhs.var]? with
+    | some (.and l0 l1) => some (l0, l1)
+    | _ => none
 
-  -- TODO: This misses three-input rewrites that have a leaf anded with an and
-  match aig[lhs.var]?, aig[rhs.var]? with
-  | some (.and l0 l1), some (.and r0 r1) =>
-    match TwoLevelSimp.simplifyAnd lhs rhs l0 l1 r0 r1 with
-    | .lit l => (aig, l)
-    | .and l r => let (aig, var) := aig.addAndRaw l r; (aig, var)
-  | _, _ => let (aig, var) := aig.addAndRaw lhs rhs; (aig, var)
+  let rin := match aig[rhs.var]? with
+    | some (.and r0 r1) => some (r0, r1)
+    | _ => none
+
+  match TwoLevelSimp.simplifyAnd lhs rhs lin rin with
+  | .lit lit => (aig, lit)
+  | .and l r => let (aig, var) := aig.addAndRaw l r; (aig, var)
 
 /--
   Convert an input into a new latch that defines the same variable, deleting the input.

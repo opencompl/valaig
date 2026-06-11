@@ -29,7 +29,7 @@ def denote (assign : Lit -> Bool) : SimplifiedAnd -> Bool
 end SimplifiedAnd
 
 @[inline]
-def constFoldLeft (lhs rhs : @&Lit) : Option Lit := do
+def constFoldLeft (lhs rhs : Lit) : Option Lit := do
   if ¬lhs.isConstant then
     none
 
@@ -51,7 +51,7 @@ theorem values_constFoldLeft {lhs rhs out : Lit} (heq : constFoldLeft lhs rhs = 
   grind [constFoldLeft]
 
 @[inline]
-def constFold (lhs rhs : @&Lit) : Option Lit := do
+def constFold (lhs rhs : Lit) : Option Lit := do
   if let some l := constFoldLeft lhs rhs then
     return l
 
@@ -72,7 +72,7 @@ theorem values_constFold {lhs rhs out : Lit} (heq : constFold lhs rhs = some out
   grind [constFold]
 
 @[inline]
-def twoInput (lhs rhs : @&Lit) : Option Lit := do
+def twoInput (lhs rhs : Lit) : Option Lit := do
   if let some l := constFold lhs rhs then
     return l
 
@@ -98,7 +98,7 @@ theorem values_twoInput {lhs rhs out : Lit} (heq : twoInput lhs rhs = some out) 
   grind [twoInput]
 
 @[inline]
-def threeInputLeftNeg (rhs l0 l1 : @&Lit) : Option SimplifiedAnd := do
+def threeInputLeftNeg (rhs l0 l1 : Lit) : Option SimplifiedAnd := do
   -- Subsumption: ¬(¬r ∧ l1) ∧ r = ¬(l0 ∧ ¬r) ∧ r = r
   if l0 = rhs.invert ∨ l1 = rhs.invert then
     return .lit rhs
@@ -139,7 +139,7 @@ theorem values_threeInputLeftNeg_and_rhs {rhs l0 l1 o0 o1 : Lit}
   grind [threeInputLeftNeg]
 
 @[inline]
-def threeInputLeftPos (lhs rhs l0 l1 : @&Lit) : Option SimplifiedAnd := do
+def threeInputLeftPos (lhs rhs l0 l1 : Lit) : Option SimplifiedAnd := do
   -- Contradiction: (¬r ∧ l1) ∧ r = (l0 ∧ ¬r) ∧ r = ⊥
   if l0 = rhs.invert ∨ l1 = rhs.invert then
     return .lit .false
@@ -177,7 +177,7 @@ theorem values_threeInputLeftPos_and_rhs {lhs rhs l0 l1 o0 o1 : Lit}
   grind [threeInputLeftPos]
 
 @[inline]
-def threeInputLeft (lhs rhs l0 l1 : @&Lit) : Option SimplifiedAnd := do
+def threeInputLeft (lhs rhs l0 l1 : Lit) : Option SimplifiedAnd := do
   if lhs.inverted then
     if let some l := threeInputLeftNeg rhs l0 l1 then
       return l
@@ -218,45 +218,7 @@ theorem values_threeInputLeft_and_rhs {lhs rhs l0 l1 o0 o1 : Lit}
   grind [threeInputLeft]
 
 @[inline]
-def threeInput (lhs rhs l0 l1 r0 r1 : @&Lit) : Option SimplifiedAnd := do
-  if let some l := threeInputLeft lhs rhs l0 l1 then
-    return l
-
-  if let some l := threeInputLeft rhs lhs r0 r1 then
-    return l
-
-  none
-
-include assignInv assignFalse in
-theorem denote_threeInput {lhs rhs l0 l1 r0 r1 : Lit} {out : SimplifiedAnd}
-    (heq : threeInput lhs rhs l0 l1 r0 r1 = some out)
-    (hl : assign lhs.strip = (assign l0 && assign l1))
-    (hr : assign rhs.strip = (assign r0 && assign r1)) :
-    out.denote assign = (assign lhs && assign rhs) := by
-  simp [threeInput] at heq
-  have := @denote_threeInputLeft assign
-  grind
-
-@[grind →]
-theorem values_threeInput_lit {lhs rhs l0 l1 r0 r1 out : Lit}
-    (heq : threeInput lhs rhs l0 l1 r0 r1 = some (.lit out)) :
-    out.isConstant ∨ out.var = lhs.var ∨ out.var = rhs.var ∨ out.var = l0.var ∨ out.var = l1.var ∨ out.var = r0.var ∨ out.var = r1.var := by
-  grind [threeInput]
-
-@[grind →]
-theorem values_threeInput_and_lhs {lhs rhs l0 l1 r0 r1 o0 o1 : Lit}
-    (heq : threeInput lhs rhs l0 l1 r0 r1 = some (.and o0 o1)) :
-    o0.isConstant ∨ o0.var = lhs.var ∨ o0.var = rhs.var ∨ o0.var = l0.var ∨ o0.var = l1.var ∨ o0.var = r0.var ∨ o0.var = r1.var := by
-  grind [threeInput]
-
-@[grind →]
-theorem values_threeInput_and_rhs {lhs rhs l0 l1 r0 r1 o0 o1 : Lit}
-    (heq : threeInput lhs rhs l0 l1 r0 r1 = some (.and o0 o1)) :
-    o1.isConstant ∨ o1.var = lhs.var ∨ o1.var = rhs.var ∨ o1.var = l0.var ∨ o1.var = l1.var ∨ o1.var = r0.var ∨ o1.var = r1.var := by
-  grind [threeInput]
-
-@[inline]
-def fourInputPosPos (lhs l0 l1 r0 r1 : @&Lit) : Option SimplifiedAnd := do
+def fourInputPosPos (lhs l0 l1 r0 r1 : Lit) : Option SimplifiedAnd := do
   -- Contradiction: (l0 ∧ l1) ∧ (¬l0 ∧ r1) = ⊥
   if l0 = r0.invert ∨ l0 = r1.invert ∨ l1 = r0.invert ∨ l1 = r1.invert then
     return .lit false
@@ -301,7 +263,7 @@ theorem values_fourInputPosPos_and_rhs {lhs l0 l1 r0 r1 o0 o1 : Lit}
   grind [fourInputPosPos]
 
 @[inline]
-def fourInputPosNeg (lhs l0 l1 r0 r1 : @&Lit) : Option SimplifiedAnd := do
+def fourInputPosNeg (lhs l0 l1 r0 r1 : Lit) : Option SimplifiedAnd := do
   -- Subsumption: (l0 ∧ l1) ∧ ¬(¬l0 ∧ r1) = (l0 ∧ l1)
   if l0 = r0.invert ∨ l0 = r1.invert ∨ l1 = r0.invert ∨ l1 = r1.invert then
     return .lit lhs
@@ -343,7 +305,7 @@ theorem values_fourInputPosNeg_and_rhs {lhs l0 l1 r0 r1 o0 o1 : Lit}
   grind [fourInputPosNeg]
 
 @[inline]
-def fourInputNegNeg (l0 l1 r0 r1 : @&Lit) : Option SimplifiedAnd := do
+def fourInputNegNeg (l0 l1 r0 r1 : Lit) : Option SimplifiedAnd := do
   -- Resolution: ¬(l0 ∧ l1) ∧ ¬(l0 ∧ ¬l1) = ¬l0
   if (l0 = r0 ∧ l1 = r1.invert) ∨ (l0 = r1 ∧ l1 = r0.invert) then
     return .lit l0.invert
@@ -380,7 +342,7 @@ theorem values_fourInputNegNeg_and_rhs {l0 l1 r0 r1 o0 o1 : Lit}
   grind [fourInputNegNeg]
 
 @[inline]
-def fourInput (lhs rhs l0 l1 r0 r1 : @&Lit) : Option SimplifiedAnd :=
+def fourInput (lhs rhs l0 l1 r0 r1 : Lit) : Option SimplifiedAnd :=
   match decide lhs.inverted, decide rhs.inverted with
   | false, false => fourInputPosPos lhs l0 l1 r0 r1
   | false,  true => fourInputPosNeg lhs l0 l1 r0 r1
@@ -423,53 +385,43 @@ theorem values_fourInput_and_rhs {lhs rhs l0 l1 r0 r1 o0 o1 : Lit}
   grind [fourInput]
 
 @[inline]
-def simplifyAnd (lhs rhs l0 l1 r0 r1 : @&Lit) : SimplifiedAnd := Id.run do
-  if let some l := twoInput lhs rhs then
-    return .lit l
+def simplifyAnd (lhs rhs : Lit) (lin rin : Option (Lit × Lit)) : SimplifiedAnd := Id.run do
+  if let some lit := twoInput lhs rhs then
+    return .lit lit
 
-  if let some l := threeInput lhs rhs l0 l1 r0 r1 then
-    return l
+  if let some (l0, l1) := lin then
+    if let some new := threeInputLeft lhs rhs l0 l1 then
+      return new
 
-  if let some l := fourInput lhs rhs l0 l1 r0 r1 then
-    return l
-  
+  if let some (r0, r1) := rin then
+    if let some new := threeInputLeft rhs lhs r0 r1 then
+      return new
+
+  if let some (l0, l1) := lin then
+    if let some (r0, r1) := rin then
+      if let some new := fourInput lhs rhs l0 l1 r0 r1 then
+        return new
+
   return .and lhs rhs
 
 include assignInv assignFalse in
-theorem denote_simplifyAnd {lhs rhs l0 l1 r0 r1 : Lit} {out : SimplifiedAnd}
-    (heq : simplifyAnd lhs rhs l0 l1 r0 r1 = some out)
-    (hl : assign lhs.strip = (assign l0 && assign l1))
-    (hr : assign rhs.strip = (assign r0 && assign r1)) :
+theorem denote_simplifyAnd {lhs rhs : Lit} (lin rin : Option (Lit × Lit)) {out : SimplifiedAnd}
+    (heq : simplifyAnd lhs rhs lin rin = some out)
+    (hl : ∀ {l0 l1}, lin = some (l0, l1) → assign lhs.strip = (assign l0 && assign l1))
+    (hr : ∀ {r0 r1}, rin = some (r0, r1) → assign rhs.strip = (assign r0 && assign r1)) :
     out.denote assign = (assign lhs && assign rhs) := by
-  simp [simplifyAnd] at heq
-  split at heq
-  · have := @denote_twoInput assign
-    grind
-  · split at heq
-    · have := @denote_threeInput assign
-      grind
-    · split at heq
-      · have := @denote_fourInput assign
-        grind
-      · grind
-
-@[grind →]
-theorem values_simplifyAnd_lit {lhs rhs l0 l1 r0 r1 out : Lit}
-    (heq : simplifyAnd lhs rhs l0 l1 r0 r1 = .lit out) :
-    out.isConstant ∨ out.var = lhs.var ∨ out.var = rhs.var ∨ out.var = l0.var ∨ out.var = l1.var ∨ out.var = r0.var ∨ out.var = r1.var := by
-  grind [simplifyAnd]
-
-@[grind →]
-theorem values_simplifyAnd_and_lhs {lhs rhs l0 l1 r0 r1 o0 o1 : Lit}
-    (heq : simplifyAnd lhs rhs l0 l1 r0 r1 = .and o0 o1) :
-    o0.isConstant ∨ o0.var = lhs.var ∨ o0.var = rhs.var ∨ o0.var = l0.var ∨ o0.var = l1.var ∨ o0.var = r0.var ∨ o0.var = r1.var := by
-  grind [simplifyAnd]
-
-@[grind →]
-theorem values_simplifyAnd_and_rhs {lhs rhs l0 l1 r0 r1 o0 o1 : Lit}
-    (heq : simplifyAnd lhs rhs l0 l1 r0 r1 = .and o0 o1) :
-    o1.isConstant ∨ o1.var = lhs.var ∨ o1.var = rhs.var ∨ o1.var = l0.var ∨ o1.var = l1.var ∨ o1.var = r0.var ∨ o1.var = r1.var := by
-  grind [simplifyAnd]
+  simp only [simplifyAnd] at heq
+  repeat' (split at heq; simp at heq)
+  · have := @denote_twoInput assign; grind only [= Id.run_pure, SimplifiedAnd.denote]
+  · have := @denote_threeInputLeft assign; grind only [= Id.run_pure, SimplifiedAnd.denote]
+  · have := @denote_threeInputLeft assign; grind only [= Id.run_pure, SimplifiedAnd.denote]
+  · have := @denote_fourInput assign; grind only [= Id.run_pure, SimplifiedAnd.denote]
+  · grind only [= Id.run_pure, SimplifiedAnd.denote]
+  · grind only [= Id.run_pure, SimplifiedAnd.denote]
+  · have := @denote_threeInputLeft assign; grind only [= Id.run_pure, SimplifiedAnd.denote]
+  · grind only [= Id.run_pure, SimplifiedAnd.denote]
+  · grind only [= Id.run_pure, SimplifiedAnd.denote]
+  · grind only [= Id.run_pure, SimplifiedAnd.denote]
 
 end TwoLevelSimp
 end Valaig.Aig

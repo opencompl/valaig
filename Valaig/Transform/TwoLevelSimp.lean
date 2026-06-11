@@ -26,39 +26,43 @@ private def walker (old : WFAig) : old.CachingForwardsWalker WFAig Lit where
     let lhs := cache.mapLit lhs
     let rhs := cache.mapLit rhs
 
-    -- Try to simp two input first - this catches things like const prop that appear with just two
-    -- inputs
-    match _ : TwoLevelSimp.twoInput lhs rhs with
-    | some lit => (aig.rewriteAnd var lit lit, lit)
-    | none =>
+    -- Try to get arguments
+    let lin := match aig[lhs.var] with
+      | .and l0 l1 => some (l0, l1)
+      | _ => none
 
-    match _ : aig[lhs.var], _ : aig[rhs.var] with
-    | .and l0 l1, .and r0 r1 =>
-      -- We don't map l0/l1/r0/r1 as they should have been updated by the cache already
-      match  _ : TwoLevelSimp.simplifyAnd lhs rhs l0 l1 r0 r1 with
-      | .lit l => (aig.rewriteAnd var l l, l)
-      | .and l r => (aig.rewriteAnd var l r, var)
-    | _, _ => (aig.rewriteAnd var lhs rhs, var)
+    let rin := match aig[rhs.var] with
+      | .and r0 r1 => some (r0, r1)
+      | _ => none
+
+    match  _ : TwoLevelSimp.simplifyAnd lhs rhs lin rin with
+    | .lit lit => (aig.rewriteAnd var lit lit (lvalid := sorry) (rvalid := sorry), lit)
+    | .and l r => (aig.rewriteAnd var l r (lvalid := sorry) (rvalid := sorry), var)
 
   stepState := by
     intros
     simp only
-    (repeat' split)
-    · rw [Id.run, WFAig.raw_rewriteAnd, var_validIn, nodes_rewriteAnd] <;> grind
-    · rw [Id.run, WFAig.raw_rewriteAnd, var_validIn, nodes_rewriteAnd] <;> grind
-    · rw [Id.run, WFAig.raw_rewriteAnd, var_validIn, nodes_rewriteAnd] <;> grind
-    · rw [Id.run, WFAig.raw_rewriteAnd, var_validIn, nodes_rewriteAnd] <;> grind
+    split
+    · rw [Id.run, var_validIn];
+      split
+      · rw [WFAig.raw_rewriteAnd, nodes_rewriteAnd]
+        · grind
+        · sorry
+        · sorry
+      · rw [WFAig.raw_rewriteAnd, nodes_rewriteAnd]
+        · grind
+        · sorry
+        · sorry
     · grind
 
   stepCache := by grind
   stepCacheNew := by
     intros
     simp only
-    (repeat' split)
-    · rw [Id.run]; grind
-    · rw [Id.run]; grind
-    · rw [Id.run]; grind
-    · rw [Id.run]; grind
+    split
+    · split
+      · rw [Id.run]; sorry
+      · rw [Id.run]; sorry
     · grind
 
 end twoLevelSimp
