@@ -156,15 +156,7 @@ theorem snd_addAndRaw {lhs rhs : Lit} lvalid rvalid :
 def addAnd (aig : WFAig) (lhs rhs : @&Lit)
     (lvalid : lhs.validIn aig := by grind)
     (rvalid : rhs.validIn aig := by grind) : WFAig × Lit :=
-  let lin := match aig[lhs.var] with
-    | .and l0 l1 => some (l0, l1)
-    | _ => none
-
-  let rin := match aig[rhs.var] with
-    | .and r0 r1 => some (r0, r1)
-    | _ => none
-
-  match TwoLevelSimp.simplifyAnd lhs rhs lin rin with
+  match TwoLevelSimp.simplifyAnd lhs rhs (aig.asAnd lhs.var) (aig.asAnd rhs.var) with
   | .lit lit => (aig, lit)
   | .and l r => let (aig, var) := aig.addAndRaw l r sorry sorry; (aig, var)
 

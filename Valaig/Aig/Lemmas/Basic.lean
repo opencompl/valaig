@@ -16,7 +16,6 @@ attribute [local simp, local grind]
   size numInputs numLatches
   maxVar nextVar newInputIdx newLatchIdx
   numInputs numLatches numGates
-  empty
   InputIdx.getVar InputIdx.getVar!
   InputIdx.getLit InputIdx.getLit!
   LatchIdx.getVar LatchIdx.getVar!
@@ -215,6 +214,22 @@ theorem mem_nodes_of_getElem?_some {var : Var} {node : Node} (h : aig[var]? = so
   grind
 
 grind_pattern mem_nodes_of_getElem?_some => aig[var]?, some node, var ∈ aig.nodes
+
+@[simp, grind =]
+theorem asAnd_eq {var : Var} (h : var.validIn aig) :
+    aig.asAnd var h =
+      match aig[var] with
+      | .and lhs rhs => some (lhs, rhs)
+      | _ => none := by
+  rfl
+
+@[simp, grind =]
+theorem asAnd?_eq {var : Var} :
+    aig.asAnd? var =
+      match aig[var]? with
+      | some (.and lhs rhs) => some (lhs, rhs)
+      | _ => none := by
+  rfl
 
 -- TODO: Write some theorems about when ! variant functions return errors, and what errors
 -- they return

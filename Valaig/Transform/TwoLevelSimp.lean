@@ -26,16 +26,7 @@ private def walker (old : WFAig) : old.CachingForwardsWalker WFAig Lit where
     let lhs := cache.mapLit lhs
     let rhs := cache.mapLit rhs
 
-    -- Try to get arguments
-    let lin := match aig[lhs.var] with
-      | .and l0 l1 => some (l0, l1)
-      | _ => none
-
-    let rin := match aig[rhs.var] with
-      | .and r0 r1 => some (r0, r1)
-      | _ => none
-
-    match  _ : TwoLevelSimp.simplifyAnd lhs rhs lin rin with
+    match  _ : TwoLevelSimp.simplifyAnd lhs rhs (aig.asAnd lhs.var) (aig.asAnd rhs.var) with
     | .lit lit => (aig.rewriteAnd var lit lit (lvalid := sorry) (rvalid := sorry), lit)
     | .and l r => (aig.rewriteAnd var l r (lvalid := sorry) (rvalid := sorry), var)
 

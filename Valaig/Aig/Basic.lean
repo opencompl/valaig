@@ -543,6 +543,25 @@ def empty : Aig where
 instance : Inhabited Aig where
   default := empty
 
+/--
+ Get the inputs to an and gate at a given variable index, if it is one.
+-/
+@[inline]
+def asAnd (aig : Aig) (var : Var) (h : var.validIn aig := by grind) : Option (Lit × Lit) :=
+  match aig[var] with
+  | .and lhs rhs => some (lhs, rhs)
+  | _ => none
+
+/--
+ Get the inputs to an and gate at a given variable index, if the variable is valid and it is an
+ and gate.
+-/
+@[inline]
+def asAnd? (aig : Aig) (var : Var) : Option (Lit × Lit) :=
+  match aig[var]? with
+  | some (.and lhs rhs) => some (lhs, rhs)
+  | _ => none
+
 /-
   Input accessors.
 -/
@@ -875,15 +894,7 @@ def addAndRaw (aig : Aig) (lhs rhs : Lit) : Aig × Var :=
   or internal invariants are broken.
 -/
 def addAnd (aig : Aig) (lhs rhs : @&Lit) : Aig × Lit :=
-  let lin := match aig[lhs.var]? with
-    | some (.and l0 l1) => some (l0, l1)
-    | _ => none
-
-  let rin := match aig[rhs.var]? with
-    | some (.and r0 r1) => some (r0, r1)
-    | _ => none
-
-  match TwoLevelSimp.simplifyAnd lhs rhs lin rin with
+  match TwoLevelSimp.simplifyAnd lhs rhs (aig.asAnd? lhs.var) (aig.asAnd? rhs.var) with
   | .lit lit => (aig, lit)
   | .and l r => let (aig, var) := aig.addAndRaw l r; (aig, var)
 
