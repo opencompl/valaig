@@ -368,7 +368,7 @@ theorem values_fourInputNegNeg_lit {l0 l1 r0 r1 out : Lit}
   grind [fourInputNegNeg]
 
 @[grind →]
-theorem values_fourInputNegNeg_and_{l0 l1 r0 r1 o0 o1 : Lit}
+theorem values_fourInputNegNeg_and_lhs {l0 l1 r0 r1 o0 o1 : Lit}
     (heq : fourInputNegNeg l0 l1 r0 r1 = some (.and o0 o1)) :
     o0.isConstant ∨ o0.var = l0.var ∨ o0.var = l1.var ∨ o0.var = r0.var ∨ o0.var = r1.var := by
   grind [fourInputNegNeg]
@@ -411,7 +411,7 @@ theorem values_fourInput_lit {lhs rhs l0 l1 r0 r1 out : Lit}
   grind [fourInput]
 
 @[grind →]
-theorem values_fourInput_and_{lhs rhs l0 l1 r0 r1 o0 o1 : Lit}
+theorem values_fourInput_and_lhs {lhs rhs l0 l1 r0 r1 o0 o1 : Lit}
     (heq : fourInput lhs rhs l0 l1 r0 r1 = some (.and o0 o1)) :
     o0.isConstant ∨ o0.var = lhs.var ∨ o0.var = rhs.var ∨ o0.var = l0.var ∨ o0.var = l1.var ∨ o0.var = r0.var ∨ o0.var = r1.var := by
   grind [fourInput]
@@ -460,7 +460,7 @@ theorem values_simplifyAnd_lit {lhs rhs l0 l1 r0 r1 out : Lit}
   grind [simplifyAnd]
 
 @[grind →]
-theorem values_simplifyAnd_and_{lhs rhs l0 l1 r0 r1 o0 o1 : Lit}
+theorem values_simplifyAnd_and_lhs {lhs rhs l0 l1 r0 r1 o0 o1 : Lit}
     (heq : simplifyAnd lhs rhs l0 l1 r0 r1 = .and o0 o1) :
     o0.isConstant ∨ o0.var = lhs.var ∨ o0.var = rhs.var ∨ o0.var = l0.var ∨ o0.var = l1.var ∨ o0.var = r0.var ∨ o0.var = r1.var := by
   grind [simplifyAnd]
