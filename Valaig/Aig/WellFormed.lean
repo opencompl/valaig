@@ -2,6 +2,8 @@ module
 
 public import Valaig.Aig.Basic
 public import Valaig.Aig.Lemmas.WellFormed
+import Valaig.Aig.TwoLevelSimp
+import all Valaig.Aig.Basic
 
 public section
 namespace Valaig
@@ -149,22 +151,34 @@ theorem snd_addAndRaw {lhs rhs : Lit} lvalid rvalid :
     (aig.addAndRaw lhs rhs lvalid rvalid).snd = (aig.raw.addAndRaw lhs rhs).snd := by
   rfl
 
-@[always_inline, inherit_doc Aig.addAnd]
-def addAnd (aig : WFAig) (lhs rhs : Lit)
+-- We reimplement addAnd for WFAig to remove the runtime bounds checks
+@[inherit_doc Aig.addAnd]
+def addAnd (aig : WFAig) (lhs rhs : @&Lit)
     (lvalid : lhs.validIn aig := by grind)
     (rvalid : rhs.validIn aig := by grind) : WFAig × Lit :=
-  let (eq:=_) (aig, lit) := aig.raw.addAnd lhs rhs
-  (aig.toWF, lit)
+  let lin := match aig[lhs.var] with
+    | .and l0 l1 => some (l0, l1)
+    | _ => none
+
+  let rin := match aig[rhs.var] with
+    | .and r0 r1 => some (r0, r1)
+    | _ => none
+
+  match TwoLevelSimp.simplifyAnd lhs rhs lin rin with
+  | .lit lit => (aig, lit)
+  | .and l r => let (aig, var) := aig.addAndRaw l r sorry sorry; (aig, var)
 
 @[simp, grind =]
 theorem raw_fst_addAnd {lhs rhs : Lit} lvalid rvalid :
     (aig.addAnd lhs rhs lvalid rvalid).fst.raw = (aig.raw.addAnd lhs rhs).fst := by
-  rfl
+  simp only [addAnd, Aig.addAnd]
+  grind
 
 @[simp, grind =]
 theorem snd_addAnd {lhs rhs : Lit} lvalid rvalid :
     (aig.addAnd lhs rhs lvalid rvalid).snd = (aig.raw.addAnd lhs rhs).snd := by
-  rfl
+  simp only [addAnd, Aig.addAnd]
+  grind
 
 @[always_inline, inherit_doc Aig.inputToLatch]
 def inputToLatch (aig : WFAig) (idx : InputIdx) (next : Lit) (reset : Option Lit := none)
