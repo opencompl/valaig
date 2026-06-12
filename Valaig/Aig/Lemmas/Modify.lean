@@ -125,7 +125,7 @@ theorem nodes_pushLatch :
   grind
 
 @[simp, grind =]
-theorem latchs_pushLatch :
+theorem inputs_pushLatch :
     (aig.pushLatch latch h).inputs = aig.inputs := by
   grind
 
