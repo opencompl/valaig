@@ -26,26 +26,24 @@ private def walker (old : WFAig) : old.CachingForwardsWalker WFAig Lit where
     let lhs := cache.mapLit lhs
     let rhs := cache.mapLit rhs
 
-    match  heq : TwoLevelSimp.simplifyAnd lhs rhs (aig.asAnd lhs.var) (aig.asAnd rhs.var) with
-    | .lit lit =>
-      have := TwoLevelSimp.var_simplifyAnd (· < var) heq
-      (aig.rewriteAnd var lit lit, lit)
-    | .and l r =>
-      have := TwoLevelSimp.var_simplifyAnd (· < var) heq
-      (aig.rewriteAnd var l r , var)
+    let (eq:=heq) res := TwoLevelSimp.simplifyAnd lhs rhs (aig.asAnd lhs.var) (aig.asAnd rhs.var)
+    have := TwoLevelSimp.var_simplifyAnd (· < var) heq
+
+    match _ : res with
+    | .lit lit => (aig.rewriteAnd var lit lit, lit)
+    | .and l r => (aig.rewriteAnd var l r, var)
 
   stepState := by
     intro var
     intros
-    simp only
     split
-    · rw [Id.run, var_validIn];
+    · simp only [Id.run, var_validIn]
       split
       next heq =>
-        have := TwoLevelSimp.var_simplifyAnd (· ≠ var) heq
+        have := TwoLevelSimp.var_simplifyAnd_lit (· ≠ var) heq (by grind) (by grind) (by grind) (by grind)
         rw [WFAig.raw_rewriteAnd, nodes_rewriteAnd] <;> grind
       next heq =>
-        have := TwoLevelSimp.var_simplifyAnd (· ≠ var) heq
+        have := TwoLevelSimp.var_simplifyAnd_and (· ≠ var) heq (by grind) (by grind) (by grind) (by grind)
         rw [WFAig.raw_rewriteAnd, nodes_rewriteAnd] <;> grind
     · grind
 
@@ -53,15 +51,15 @@ private def walker (old : WFAig) : old.CachingForwardsWalker WFAig Lit where
   stepCacheNew := by
     intro var
     intros
-    simp only
     split
-    · split
+    · simp only [Id.run]
+      split
       next heq =>
-        have := TwoLevelSimp.var_simplifyAnd (·.idx < var.idx + 1) heq
-        simp only [Id.run]; grind
+        have := TwoLevelSimp.var_simplifyAnd_lit (·.idx < var.idx + 1) heq (by grind) (by grind) (by grind) (by grind)
+        grind
       next heq =>
-        have := TwoLevelSimp.var_simplifyAnd (·.idx < var.idx + 1) heq
-        simp only [Id.run]; grind
+        have := TwoLevelSimp.var_simplifyAnd_and (·.idx < var.idx + 1) heq (by grind) (by grind) (by grind) (by grind)
+        grind
     · grind
 
 end twoLevelSimp
