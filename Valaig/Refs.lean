@@ -56,13 +56,7 @@ theorem lt_idx (var var' : Var) :
   simp +instances [instLT]
 
 grind_pattern le_idx => var.idx, var'.idx, var ≤ var'
-grind_pattern le_idx => var.idx, var'.idx, var > var'
-grind_pattern le_idx => var.idx, var'.idx, var.idx ≤ var'.idx
-grind_pattern le_idx => var.idx, var'.idx, var.idx > var'.idx
 grind_pattern lt_idx => var.idx, var'.idx, var < var'
-grind_pattern lt_idx => var.idx, var'.idx, var ≥ var'
-grind_pattern lt_idx => var.idx, var'.idx, var.idx < var'.idx
-grind_pattern lt_idx => var.idx, var'.idx, var.idx ≥ var'.idx
 
 instance : Std.LawfulOrderLT Var := by
   apply Std.LawfulOrderLT.of_le

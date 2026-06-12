@@ -26,6 +26,7 @@ private def walker (old : WFAig) : old.CachingForwardsWalker WFAig Lit where
     let lhs := cache.mapLit lhs
     let rhs := cache.mapLit rhs
 
+    have : ∀ {var' : Var} (h : var' < var), cache[var'].validIn aig := by grind [mem_nodes_iff]
     let (eq:=heq) res := TwoLevelSimp.simplifyAnd lhs rhs (aig.asAnd lhs.var) (aig.asAnd rhs.var)
     have := TwoLevelSimp.var_simplifyAnd (· < var) heq
 

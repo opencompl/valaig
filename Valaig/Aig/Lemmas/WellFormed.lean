@@ -179,14 +179,26 @@ theorem WF.lhs_lt_and_of_le (lt : var ≤ var') :
   grind
 
 grind_pattern WF.lhs_lt_and_of_le => lhs.var < var', Node.and lhs rhs, aig.nodes[var]'mem
-grind_pattern WF.lhs_lt_and_of_le => lhs.var ≤ var', Node.and lhs rhs, aig.nodes[var]'mem
 
 theorem WF.rhs_lt_and_of_le (lt : var ≤ var') :
     rhs.var < var' := by
   grind
 
 grind_pattern WF.rhs_lt_and_of_le => rhs.var < var', Node.and lhs rhs, aig.nodes[var]'mem
-grind_pattern WF.rhs_lt_and_of_le => rhs.var ≤ var', Node.and lhs rhs, aig.nodes[var]'mem
+
+theorem WF.lhs_idx_lt_and_of_le {n : Nat} (lt : var.idx ≤ n) :
+    lhs.var.idx < n := by
+  grind
+
+grind_pattern WF.lhs_idx_lt_and_of_le => lhs.var.idx < n, Node.and lhs rhs, aig.nodes[var]'mem
+grind_pattern WF.lhs_idx_lt_and_of_le => n ≤ lhs.var.idx, Node.and lhs rhs, aig.nodes[var]'mem
+
+theorem WF.rhs_idx_lt_and_of_le {n : Nat} (lt : var.idx ≤ n) :
+    rhs.var.idx < n := by
+  grind
+
+grind_pattern WF.rhs_idx_lt_and_of_le => rhs.var.idx < n, Node.and lhs rhs, aig.nodes[var]'mem
+grind_pattern WF.rhs_idx_lt_and_of_le => n ≤ rhs.var.idx, Node.and lhs rhs, aig.nodes[var]'mem
 
 @[simp]
 theorem WF.lhs_mem_nodes_and :

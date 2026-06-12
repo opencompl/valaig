@@ -485,16 +485,16 @@ def simplifyAnd (lhs rhs : Lit) (lin rin : Option (Lit × Lit)) : SimplifiedAnd 
 
 include assignInv assignConst in
 theorem denote_simplifyAnd {lhs rhs : Lit} {lin rin : Option (Lit × Lit)} {out : SimplifiedAnd}
-    (heq : simplifyAnd lhs rhs lin rin = some out)
+    (heq : simplifyAnd lhs rhs lin rin = out)
     (hl : ∀ {l0 l1}, lin = some (l0, l1) → assign lhs = (lhs.inverted ^^ (assign l0 && assign l1)))
     (hr : ∀ {r0 r1}, rin = some (r0, r1) → assign rhs = (rhs.inverted ^^ (assign r0 && assign r1))) :
     out.denote assign = (assign lhs && assign rhs) := by
-  have : some (.and lhs rhs) = some out → out.denote assign = (assign lhs && assign rhs) := by grind
+  have : .and lhs rhs = out → out.denote assign = (assign lhs && assign rhs) := by grind
   revert heq
   generalize h : simplifyAnd lhs rhs lin rin = res
   apply Id.of_wp_run_eq h
   mvcgen
-  <;> (intro h; simp only [Option.some.injEq] at h; rw [←h])
+  <;> (intro h; rw [←h])
   next heq => apply denote_twoInput assign heq <;> grind
   next heq => apply denote_threeInputLeft assign heq <;> grind
   next heq => rw [Bool.and_comm]; apply denote_threeInputLeft assign heq <;> grind
@@ -505,18 +505,18 @@ theorem denote_simplifyAnd {lhs rhs : Lit} {lin rin : Option (Lit × Lit)} {out 
   next => grind
 
 theorem var_simplifyAnd_lit {lhs rhs : Lit} {lin rin : Option (Lit × Lit)} {out : Lit} (motive : Var -> Prop)
-    (heq : simplifyAnd lhs rhs lin rin = some (SimplifiedAnd.lit out))
+    (heq : simplifyAnd lhs rhs lin rin = .lit out)
     (hconst : motive .constant) (hlhs : motive lhs.var) (hrhs : motive rhs.var)
     (hl : ∀ {l0 l1}, lin = some (l0, l1) → motive l0.var ∧ motive l1.var) :
     motive out.var := by
   revert heq
   generalize h : simplifyAnd lhs rhs lin rin = res
   apply Id.of_wp_run_eq h
-  have {lhs rhs} : some (SimplifiedAnd.and lhs rhs) = some (.lit out) → motive out.var := by grind only
+  have {lhs rhs} : SimplifiedAnd.and lhs rhs = .lit out → motive out.var := by grind only
   mvcgen
   <;> (try apply this)
-  <;> (intro h; simp [Option.some.injEq, SimplifiedAnd.lit.injEq] at h)
-  next heq => rw [←h]; apply var_twoInput motive heq <;> grind
+  <;> intro h
+  next heq => simp only [SimplifiedAnd.lit.injEq] at h; rw [←h]; apply var_twoInput motive heq <;> grind
   next heq => rw [h] at heq; apply var_threeInputLeft_lit motive heq <;> grind
   next heq => rw [h] at heq; apply var_threeInputLeft_lit motive heq <;> grind
   next heq => rw [h] at heq; apply var_fourInput_lit motive heq <;> grind
@@ -526,7 +526,7 @@ theorem var_simplifyAnd_lit {lhs rhs : Lit} {lin rin : Option (Lit × Lit)} {out
   next => grind
 
 theorem var_simplifyAnd_and {lhs rhs o0 o1 : Lit} {lin rin : Option (Lit × Lit)} (motive : Var -> Prop)
-    (heq : simplifyAnd lhs rhs lin rin = some (SimplifiedAnd.and o0 o1))
+    (heq : simplifyAnd lhs rhs lin rin = .and o0 o1)
     (hlhs : motive lhs.var) (hrhs : motive rhs.var)
     (hl : ∀ {l0 l1}, lin = some (l0, l1) → motive l0.var ∧ motive l1.var)
     (hr : ∀ {r0 r1}, rin = some (r0, r1) → motive r0.var ∧ motive r1.var) :
@@ -534,9 +534,9 @@ theorem var_simplifyAnd_and {lhs rhs o0 o1 : Lit} {lin rin : Option (Lit × Lit)
   revert heq
   generalize h : simplifyAnd lhs rhs lin rin = res
   apply Id.of_wp_run_eq h
-  have : some (SimplifiedAnd.and lhs rhs) = some (.and o0 o1) → motive o0.var ∧ motive o1.var := by grind only
+  have : SimplifiedAnd.and lhs rhs = .and o0 o1 → motive o0.var ∧ motive o1.var := by grind only
   mvcgen
-  <;> (intro h; simp [Option.some.injEq] at h)
+  <;> (intro h; try simp at h)
   next heq => rw [h] at heq; apply var_threeInputLeft_and motive heq <;> grind
   next heq => rw [h] at heq; apply var_threeInputLeft_and motive heq <;> grind
   next heq => rw [h] at heq; apply var_fourInput_and motive heq <;> grind
@@ -544,6 +544,19 @@ theorem var_simplifyAnd_and {lhs rhs o0 o1 : Lit} {lin rin : Option (Lit × Lit)
   next heq => rw [h] at heq; apply var_threeInputLeft_and motive heq <;> grind
   next heq => rw [h] at heq; apply var_fourInput_and motive heq <;> grind
   next => grind
+
+theorem var_simplifyAnd {lhs rhs : Lit} {lin rin : Option (Lit × Lit)} {out : SimplifiedAnd}
+    (motive : Var -> Prop)
+    (heq : simplifyAnd lhs rhs lin rin = out)
+    (hconst : motive .constant := by grind) (hlhs : motive lhs.var := by grind) (hrhs : motive rhs.var := by grind)
+    (hl : ∀ {l0 l1}, lin = some (l0, l1) → motive l0.var ∧ motive l1.var := by grind)
+    (hr : ∀ {r0 r1}, rin = some (r0, r1) → motive r0.var ∧ motive r1.var := by grind) :
+    match out with
+    | .lit l => motive l.var
+    | .and lhs rhs => motive lhs.var ∧ motive rhs.var := by
+  split
+  next heq => apply var_simplifyAnd_lit motive heq <;> trivial
+  next heq => apply var_simplifyAnd_and motive heq <;> trivial
 
 end TwoLevelSimp
 end Valaig.Aig
