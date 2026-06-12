@@ -366,7 +366,7 @@ end Aig
 /-
   Validity predicates.
 -/
-namespace Var 
+namespace Var
 
 /--
   A variable is `validIn` an Aig iff it has a node defined for it.

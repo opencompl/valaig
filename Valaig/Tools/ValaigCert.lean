@@ -32,7 +32,7 @@ def run (model cert : String) : IO Unit := do
   IO.println "Reading model"
   let model ← IO.FS.Handle.mk model .read
   let (_, model) ← IO.ofExcept <| Valaig.Aiger.parse <| ← model.readBinToEnd
-  
+
   let bad := model.bads[0]!.lit
 
   IO.println "Reading certificate"

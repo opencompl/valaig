@@ -24,7 +24,7 @@ attribute [local ext, local grind ext] Std.Iter Std.IterM VarIter
 attribute [local grind] Std.Iter.toIterM step iterVal iterEnd
 attribute [local grind =] IsPlausibleStep_iff IsPlausibleSuccessorOf_iff
 
-variable {it it' : @Std.Iter aig.VarIter Var}
+variable {it it' : @Std.Iter aig.VarIter Var} {out : Var}
 
 @[simp, grind .]
 theorem IsPlausibleStep_skip:
@@ -108,7 +108,7 @@ theorem iterVal_yield_mem_nodes (h : it.IsPlausibleStep (.yield it' out)) :
 theorem toList_eq_ofFn :
     it.toList = List.ofFn (fun (n : Fin it.length) => aig.iterVal it + n.val) := by
   induction it using Std.Iter.inductSteps with | step it ihy _ =>
-  rw [Std.Iter.toList_eq_match_step] 
+  rw [Std.Iter.toList_eq_match_step]
   apply List.ext_getElem <;> split <;> grind
 
 @[simp]

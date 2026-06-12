@@ -459,12 +459,12 @@ attribute [local simp, local grind] mapVal
 @[simp, grind =]
 theorem size_mapVal :
     (map.mapVal f).size = map.size := by
-  grind 
+  grind
 
 @[simp, grind =]
 theorem mem_mapVal :
     key ∈ (map.mapVal f) ↔ key ∈ map := by
-  grind 
+  grind
 
 @[simp, grind =]
 theorem getElem_mapVal (mem : key ∈ map.mapVal f) :

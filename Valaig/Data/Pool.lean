@@ -195,7 +195,7 @@ attribute [local grind =] Std.HashSet.isEmpty_eq_size_eq_zero
 theorem mem_push_iff :
     idx ∈ pool.push v ↔
       idx ∈ pool ∨ idx = pool.nextIdx := by
-  grind 
+  grind
 
 @[simp, grind =]
 theorem getElem_push (mem : idx ∈ pool.push v) :
