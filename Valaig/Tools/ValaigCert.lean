@@ -23,9 +23,9 @@ def checkUnsat (aig : WFAig) (lit : Lit) (reset : Bool) (valid : lit.validIn aig
   let res := Sat.toStd aig reset
   IO.print s!"({res.fst.decls.size} nodes) "
   let entry : Std.Sat.AIG.Entrypoint Aig.LeafIdx := .mk res.fst (res.snd ⟨lit, valid⟩)
-  let relabelled := entry.relabelNat
-  let cnf := Std.Sat.AIG.toCNF relabelled
-  IO.print s!"({cnf.clauses.size} clauses, {cnf.numLiterals} literals) "
+  -- let relabelled := entry.relabelNat
+  -- let cnf := Std.Sat.AIG.toCNF relabelled
+  -- IO.print s!"({cnf.clauses.size} clauses, {cnf.numLiterals} literals) "
   liftCoreM <| Sat.External.solveUnsatChecked entry
 
 def run (model cert : String) : IO Unit := do
@@ -53,17 +53,19 @@ def run (model cert : String) : IO Unit := do
   IO.println "ok"
 
   -- Check that whenever the invariant holds, the original property does too
-  let (product, imp) := product.addAndRaw invbad.invert bad sorry sorry
+  let (product, imp) := product.addAnd invbad.invert bad sorry sorry
   IO.print "Implication: "
   IO.ofExcept <| ← checkUnsat product imp false sorry
   IO.println "ok"
 
   -- Check that the invariant is inductive
   let (product, map) := Transform.unroll product
-  let (product, imp) := product.addAndRaw invbad.invert (map.mapLit invbad sorry) sorry sorry
+  let (product, imp) := product.addAnd invbad.invert (map.mapLit invbad sorry) sorry sorry
   IO.print "Consecution: "
   IO.ofExcept <| ← checkUnsat product imp false sorry
   IO.println "ok"
+
+  IO.println "s CERTIFICATE SAFE"
 
   return ()
 
