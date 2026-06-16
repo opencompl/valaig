@@ -68,8 +68,14 @@ private def walker (old : WFAig) (cert : Aiger) (wf : cert.aig.WF := by grind) :
     | .latch idx =>
       match _ : leafMapping cert idx |>.filter (·.validIn s.aig) with
       | none =>
-        let (eq:=_) (aig, idx) := s.aig.addLatch .false none
-        (s.with aig, idx.getVar aig)
+        let (eq:=_) (aig, idx') := s.aig.addLatch .false none
+        ({ s with
+           aig,
+           deferredLatches := s.deferredLatches.insert idx idx'
+           mono := by grind
+           latchKeys := by grind [s.latchKeys]
+           latchVals := by grind [s.latchVals]
+        }, idx'.getVar aig)
       | some lit => (s, lit)
 
   stepState := by grind
