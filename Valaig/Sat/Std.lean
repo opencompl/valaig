@@ -13,7 +13,7 @@ variable {aig : Aig}
 
 namespace toStd
 
-attribute [local grind! .] Std.Sat.AIG.mkAtom_le_size Std.Sat.AIG.mkGate_le_size
+attribute [local grind! .] Std.Sat.AIG.mkAtom_le_size Std.Sat.AIG.mkGateCached_le_size
 
 @[simp, grind! .]
 private theorem gate_le_decls_size (entrypoint : Std.Sat.AIG.Entrypoint LeafIdx) :
@@ -33,7 +33,7 @@ private def walker (aig : WFAig) (reset : Bool) : aig.CachingForwardsWalker (Std
     let res : Std.Sat.AIG.Entrypoint LeafIdx :=
       match _ : aig[var] with
       | .false => .mk std (std.mkConstCached .false)
-      | .and lhs rhs => std.mkGate <| .mk (map lhs) (map rhs)
+      | .and lhs rhs => std.mkGateCached <| .mk (map lhs) (map rhs)
       | .input idx => std.mkAtom idx
       | .latch idx =>
         if reset then
