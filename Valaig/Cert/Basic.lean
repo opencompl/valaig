@@ -37,7 +37,7 @@ def State.with {old cert : WFAig} (state : State old cert) (aig : WFAig)
   latchVals := by grind [state.latchVals]
 
 @[always_inline, grind, simp]
-def State.new {cert : WFAig} (aig : WFAig) : State aig cert where
+def State.new {cert : WFAig} {aig : WFAig} : State aig cert where
   aig := aig
   mono := by grind
   deferredLatches := .emptyWithCapacity
@@ -49,6 +49,9 @@ private def walker (old : WFAig) (cert : Aiger) (wf : cert.aig.WF := by grind) :
     cert.aig.CachingForwardsWalker (State old cert.aig.toWF) Lit where
   stateMotive _ _ _ := True
   cacheMotive s size le sm var lt val := val.validIn s.aig
+
+  init := .new
+  initState := by grind
 
   step var s cache valid size sm cm :=
     match _ : cert.aig[var] with
@@ -84,7 +87,7 @@ private def walker (old : WFAig) (cert : Aiger) (wf : cert.aig.WF := by grind) :
 
 private def walk (aig : WFAig) (cert : Aiger) (certWf : cert.aig.WF := by grind) :
     State aig cert.aig.toWF × Data.VarCache Lit :=
-  (walker aig cert).walk (.new aig) (by grind [walker])
+  (walker aig cert).walk
 
 @[simp, grind =]
 private theorem size_walk {aig : WFAig} {cert : Aiger} (certWf : cert.aig.WF) :

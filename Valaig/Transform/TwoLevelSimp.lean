@@ -19,6 +19,9 @@ private def walker (old : WFAig) : old.CachingForwardsWalker WFAig Lit where
   stateMotive aig size le := ∀ {var : Var}, var.validIn old → var.validIn aig
   cacheMotive aig idx le sm var lt lit := lit.var.idx < idx
 
+  init := old
+  initState := by grind
+
   step var aig cache valid size sm cm := Id.run do
     let (eq:=_) .and lhs rhs := aig[var] | return (aig, var)
 
@@ -66,6 +69,6 @@ private def walker (old : WFAig) : old.CachingForwardsWalker WFAig Lit where
 end twoLevelSimp
 
 def twoLevelSimp (aig : WFAig) : WFAig :=
-  (twoLevelSimp.walker aig).walk aig (by grind [twoLevelSimp.walker]) |>.fst
+  (twoLevelSimp.walker aig).walk.fst
 
 end Valaig.Transform

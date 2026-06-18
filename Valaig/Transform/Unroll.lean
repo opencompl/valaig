@@ -13,6 +13,9 @@ private def walker (old : WFAig) : old.CachingForwardsWalker WFAig Lit where
   stateMotive aig size le := old ≤ aig
   cacheMotive aig size le sm var lt lit := lit.validIn aig
 
+  init := old
+  initState := by grind
+
   step var aig cache valid size sm cm :=
     match _ : aig[var] with
     | .false       => (aig, .false)
@@ -34,6 +37,6 @@ end unroll
   TODO: Strashing whilst unrolling
 -/
 def unroll (aig : WFAig) : WFAig × Data.VarCache Lit :=
-  (unroll.walker aig).walk aig (by grind [unroll.walker])
+  (unroll.walker aig).walk
 
 end Valaig.Transform
