@@ -1,6 +1,6 @@
 module
 
-public import Valaig.Aiger.Basic
+public import Valaig.External.Aiger.Basic
 import Valaig.Data.DetIter
 import Std.Data.Iterators.Combinators.Zip
 import Std.Data.Iterators.Producers.Repeat

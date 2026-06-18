@@ -1,6 +1,6 @@
 module
 
-public import Valaig.Prelude
+public import Valaig.ForLean.Prelude
 public import Std.Sat.AIG.Basic
 
 public section

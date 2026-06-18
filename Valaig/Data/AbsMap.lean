@@ -1,7 +1,7 @@
 module
 
+public import Valaig.ForLean.Prelude
 public import Valaig.Data.Pool
-public import Valaig.Prelude
 
 public section
 namespace Valaig.Data

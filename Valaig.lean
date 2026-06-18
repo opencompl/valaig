@@ -1,6 +1,6 @@
 module
 
 import Valaig.Aig
-import Valaig.Cert
-import Valaig.Aiger
-import Valaig.Sat
+import Valaig.External.Cert
+import Valaig.External.Aiger
+import Valaig.External.Sat

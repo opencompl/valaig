@@ -1,6 +1,6 @@
 module
 
-public import Valaig.Aiger.Basic
+public import Valaig.External.Aiger.Basic
 public import Std.Internal.Parsec
 public meta import Std.Internal.Parsec
 

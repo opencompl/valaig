@@ -1,6 +1,6 @@
 module
 
-public import Valaig.Prelude
+public import Valaig.ForLean.Prelude
 public import Std.Data.HashSet
 import Std.Data.Iterators.Producers.Range
 import Std.Data.Iterators.Lemmas.Producers.Range

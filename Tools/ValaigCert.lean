@@ -1,9 +1,9 @@
 module
 
-import Valaig.Aiger
-import Valaig.Cert
-import Valaig.Sat.Std
-import Valaig.Sat.External
+import Valaig.External.Aiger
+import Valaig.External.Cert
+import Valaig.External.Sat.Std
+import Valaig.External.Sat.External
 import Valaig.Transform.Unroll
 import Valaig.Transform.TwoLevelSimp
 import Std.Sat.AIG.RelabelNat

@@ -1,6 +1,6 @@
 module
 
-import Valaig.Aiger
+import Valaig.External.Aiger
 
 public section
 
