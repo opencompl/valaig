@@ -1,7 +1,7 @@
 module
 
 public import Valaig.Aig
-import Valaig.Aig.TwoLevelSimp
+import Valaig.Aig.Core.TwoLevelSimp
 
 public section
 namespace Valaig.Transform

@@ -1,6 +1,7 @@
 module
 
-public import Valaig.Aig.Lemmas.Basic
+public import Valaig.Aig.Core.Basic
+import Valaig.Aig.Core.Lemmas.Basic
 
 public section
 namespace Valaig.Aig

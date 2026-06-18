@@ -1,8 +1,9 @@
 module
 
-import all Valaig.Aig.Basic
-public import Valaig.Aig.Lemmas.Basic
-import Valaig.Aig.Lemmas.Monotone
+public import Valaig.Aig.Core.Basic
+import Valaig.Aig.Core.Lemmas.Basic
+import all Valaig.Aig.Core.Basic
+import Valaig.Aig.Core.Lemmas.Monotone
 
 namespace Valaig.Aig
 open Data (AbsMap)

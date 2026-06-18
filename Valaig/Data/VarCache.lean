@@ -1,8 +1,8 @@
 module
 
-public import Valaig.Refs
-import Valaig.ForLean.Array
+public import Valaig.Data.Refs
 public import Valaig.Data.Nullable
+import Valaig.ForLean.Array
 
 public section
 namespace Valaig.Data

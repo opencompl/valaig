@@ -1,6 +1,6 @@
 module
 
-public import Valaig.Refs
+public import Valaig.Data.Refs
 import Std.Tactic.Do
 import Std.Do
 

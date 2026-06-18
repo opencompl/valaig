@@ -1,7 +1,7 @@
 module
 
-public import Valaig.Aig.Basic
-import all Valaig.Aig.Basic
+public import Valaig.Aig.Core.Basic
+import all Valaig.Aig.Core.Basic
 import Valaig.ForLean.Iter
 
 public section

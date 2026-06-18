@@ -1,12 +1,12 @@
 module
 
+public import Valaig.Aig.Core
 public import Lean.CoreM
-import Std.Tactic.BVDecide.Syntax
 public import Std.Sat.CNF.Basic
 public import Lean.Elab.Tactic.BVDecide
+import Std.Tactic.BVDecide.Syntax
 import all Lean.Meta.Tactic.BVDecide.TacticContext
 import Std.Tactic.BVDecide.Reflect
-public import Valaig.Aig.Basic
 
 public section
 namespace Valaig.Sat.External

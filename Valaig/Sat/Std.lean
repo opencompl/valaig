@@ -1,7 +1,6 @@
 module
 
-public import Valaig.Aig.Walker
-public import Valaig.Aig.WellFormed
+public import Valaig.Aig
 public import Std.Sat.AIG.Basic
 import Std.Sat.AIG.CachedLemmas
 import Std.Sat.AIG.Cached

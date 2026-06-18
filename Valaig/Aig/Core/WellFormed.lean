@@ -1,9 +1,9 @@
 module
 
-public import Valaig.Aig.Basic
-public import Valaig.Aig.Lemmas.WellFormed
-import Valaig.Aig.TwoLevelSimp
-import all Valaig.Aig.Basic
+public import Valaig.Aig.Core.Basic
+public import Valaig.Aig.Core.Lemmas
+import Valaig.Aig.Core.TwoLevelSimp
+import all Valaig.Aig.Core.Basic
 
 public section
 namespace Valaig

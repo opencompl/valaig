@@ -7,8 +7,8 @@ name = "Valaig"
 
 [[lean_exe]]
 name = "valaigcert"
-root = "Valaig.Tools.ValaigCert"
+root = "Tools.ValaigCert"
 
 [[lean_exe]]
 name = "valaigmiloabcjf"
-root = "Valaig.Tools.ValaigMILOABCJF"
+root = "Tools.ValaigMILOABCJF"

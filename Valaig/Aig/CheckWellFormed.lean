@@ -1,11 +1,7 @@
 module
 
-public import Valaig.Aig.Basic
-public import Valaig.Aig.Lemmas.Basic
-public import Valaig.Aig.Lemmas.Iter
-public import Valaig.Aig.Lemmas.WellFormed
-import all Valaig.Aig.Lemmas.WellFormed
-public import Valaig.Data.DetIter
+public import Valaig.Aig.Core
+import Valaig.Data.DetIter
 
 public section
 namespace Valaig.Aig

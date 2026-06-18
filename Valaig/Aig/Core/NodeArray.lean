@@ -1,6 +1,6 @@
 module
 
-public import Valaig.Refs
+public import Valaig.Data.Refs
 
 public section
 namespace Valaig.Aig

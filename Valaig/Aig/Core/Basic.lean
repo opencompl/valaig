@@ -1,12 +1,12 @@
 module
 
-public import Valaig.Aig.NodeArray
-import Valaig.Aig.TwoLevelSimp
+public import Valaig.Aig.Core.NodeArray
+public import Valaig.Data.Refs
 public import Valaig.Data.Pool
 public import Valaig.Data.AbsMap
-public import Valaig.Refs
-import Valaig.ForLean.Iter
 public import Valaig.ForLean.Panic
+import Valaig.Aig.Core.TwoLevelSimp
+import Valaig.ForLean.Iter
 
 public section
 open Valaig.Data (AbsMap Pool)

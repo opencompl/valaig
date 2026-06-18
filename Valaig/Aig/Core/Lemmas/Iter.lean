@@ -1,9 +1,9 @@
 module
 
-import all Valaig.Aig.Basic
-public import Valaig.Aig.Basic
-import Valaig.Aig.Lemmas.Monotone
-import Valaig.Aig.Lemmas.Basic
+public import Valaig.Aig.Core.Basic
+import all Valaig.Aig.Core.Basic
+import Valaig.Aig.Core.Lemmas.Basic
+import Valaig.Aig.Core.Lemmas.Monotone
 import Valaig.ForLean.Iter
 import Init.Data.Iterators.Lemmas.Basic
 

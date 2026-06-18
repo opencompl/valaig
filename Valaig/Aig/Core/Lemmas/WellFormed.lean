@@ -1,9 +1,10 @@
 module
 
-public import Valaig.Aig.Lemmas.Basic
-import Valaig.Aig.Lemmas.Modify
-import all Valaig.Aig.Lemmas.Modify
-import Valaig.Aig.Lemmas.Monotone
+public import Valaig.Aig.Core.Basic
+import Valaig.Aig.Core.Lemmas.Basic
+import Valaig.Aig.Core.Lemmas.Modify
+import all Valaig.Aig.Core.Lemmas.Modify
+import Valaig.Aig.Core.Lemmas.Monotone
 
 public section
 namespace Valaig.Aig

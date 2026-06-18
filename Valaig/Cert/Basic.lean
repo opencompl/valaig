@@ -3,6 +3,7 @@ module
 public import Valaig.Aig
 public import Valaig.Aiger
 import Valaig.Data.VarCache
+import Valaig.Data.DetIter
 import Std.Data.HashMap.IteratorLemmas
 
 public section
