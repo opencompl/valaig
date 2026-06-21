@@ -203,6 +203,10 @@ theorem getElem_false_iff_constant {var : Var} valid :
     aig.nodes[var]'valid = .false ↔ var = .constant := by
   grind [NodeData.toNode]
 
+theorem idx_eq_zero_iff_getElem_false {var : Var} valid :
+    var.idx = 0 ↔ (aig.nodes[var]'valid = .false) := by
+  grind [NodeData.toNode]
+
 @[simp, grind =]
 theorem getElem?_eq {var : Var} :
     aig[var]? = if h : var.validIn aig then some aig[var] else none := by

@@ -4,6 +4,7 @@ public import Valaig.Aig
 public import Std.Sat.AIG.Basic
 import Std.Sat.AIG.CachedLemmas
 import Std.Sat.AIG.Cached
+import all Std.Sat.AIG.Cached
 
 public section
 namespace Valaig.Sat
@@ -12,16 +13,41 @@ variable {aig : Aig}
 
 namespace toStd
 
-attribute [local grind! .] Std.Sat.AIG.mkAtom_le_size Std.Sat.AIG.mkGateCached_le_size
+open Std.Sat AIG
+
+variable {aig : AIG LeafIdx}
+
+private theorem size_empty_le :
+    (empty : AIG LeafIdx).decls.size ≤ 1 := by
+  unfold AIG.empty
+  grind
+
+local grind_pattern size_empty_le => empty.decls.size
+
+private theorem size_mkAtomCached_le {leaf : LeafIdx} :
+    (aig.mkAtomCached leaf).aig.decls.size ≤ aig.decls.size + 1 := by
+  unfold mkAtomCached
+  grind
+
+local grind_pattern size_mkAtomCached_le => (aig.mkAtomCached leaf).aig.decls.size
+local grind_pattern mkAtomCached_le_size => (aig.mkAtomCached var).aig.decls.size
+
+private theorem size_mkGateCached_le {input : aig.BinaryInput} :
+    (aig.mkGateCached input).aig.decls.size ≤ aig.decls.size + 1 := by
+  unfold mkGateCached mkGateCached.go
+  grind
+
+local grind_pattern size_mkGateCached_le => (aig.mkGateCached input).aig.decls.size
+local grind_pattern mkGateCached_le_size => (aig.mkGateCached input).aig.decls.size
 
 @[simp, grind! .]
-private theorem gate_le_decls_size (entrypoint : Std.Sat.AIG.Entrypoint LeafIdx) :
+private theorem gate_le_decls_size (entrypoint : Entrypoint LeafIdx) :
     entrypoint.ref.gate < entrypoint.aig.decls.size :=
   entrypoint.ref.hgate
 
 @[always_inline]
-private def walker (aig : WFAig) (reset : Bool) : aig.CachingForwardsWalker (Std.Sat.AIG LeafIdx) Lit where
-  stateMotive std size le := True
+private def walker (aig : WFAig) (reset : Bool) : aig.CachingForwardsWalker (AIG LeafIdx) Lit where
+  stateMotive std size le := std.decls.size ≤ max 1 size
   cacheMotive std size le sm var lt lit :=
     lit.var.idx < std.decls.size
 
@@ -32,22 +58,22 @@ private def walker (aig : WFAig) (reset : Bool) : aig.CachingForwardsWalker (Std
     let map (lit : Lit) (valid : lit.var < var := by grind) :=
       cache.mapLit lit |>.toRef std
 
-    let res : Std.Sat.AIG.Entrypoint LeafIdx :=
+    let res : Entrypoint LeafIdx :=
       match _ : aig[var] with
       | .false => .mk std (std.mkConstCached .false)
       | .and lhs rhs => std.mkGateCached <| .mk (map lhs) (map rhs)
-      | .input idx => std.mkAtom idx
+      | .input idx => std.mkAtomCached idx
       | .latch idx =>
         if reset then
           match _ : idx.getReset aig with
-          | none => std.mkAtom idx
+          | none => std.mkAtomCached idx
           | some lit => .mk std (map lit)
         else
-          std.mkAtom idx
+          std.mkAtomCached idx
 
     (res.aig, .ofRef res.ref)
 
-  stepState := by grind
+  stepState :=  by intros; (repeat' split) <;> grind [idx_eq_zero_iff_getElem_false]
   stepCache := by intros; (repeat' split) <;> grind
   stepCacheNew := by grind
 
