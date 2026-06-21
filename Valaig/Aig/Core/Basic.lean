@@ -3,6 +3,7 @@ module
 public import Valaig.Aig.Core.NodeArray
 public import Valaig.Data.Refs
 public import Valaig.Data.Pool
+public import Valaig.Data.Nullable
 public import Valaig.Data.AbsMap
 public import Valaig.ForLean.Panic
 import Valaig.Aig.Core.TwoLevelSimp
@@ -1233,5 +1234,29 @@ def latchesIter (aig : Aig) :=
 @[inline]
 def leaves (aig : Aig) :=
   aig.inputsIter.map LeafIdx.input |>.append <| aig.latchesIter.map LeafIdx.latch
+
+/--
+  An instance of `Nullable` for variables that uses `aig.nextVar` as the null element, and the
+  inverse of `validIn` as `isNull`.
+
+  Note that this holds a reference to the Aig, so shouldn't be used where the Aig is modified.
+-/
+@[inline, reducible]
+def instNullableVar (aig : Aig) : Data.Nullable Var where
+  null := aig.nextVar
+  isNull := (¬·.validIn aig)
+  legal := by simp [nextVar, Var.validIn, size, nodes]
+
+/--
+  An instance of `Nullable` for literals that uses `aig.nextVar.toLit` as the null element, and the
+  inverse of `validIn` as `isNull`.
+
+  Note that this holds a reference to the Aig, so shouldn't be used where the Aig is modified.
+-/
+@[inline, reducible]
+def instNullableLit (aig : Aig) : Data.Nullable Lit where
+  null := aig.nextVar
+  isNull := (¬·.validIn aig)
+  legal := by simp [nextVar, Var.validIn, size, nodes]
 
 end Valaig.Aig
