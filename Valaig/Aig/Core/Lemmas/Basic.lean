@@ -582,24 +582,28 @@ theorem rewriteAnd!_some {var : Var} {lhs rhs : Lit} {aig' : Aig}
     aig' = aig.rewriteAnd var lhs rhs (isAnd := by simp at ok; grind) := by
   simp at ok; grind
 
-@[simp, grind =]
+@[simp]
 theorem null_instNullableVar :
     aig.instNullableVar.null = aig.nextVar := by
-  rfl
+  unfold instNullableVar
+  grind
 
-@[simp, grind =]
+@[simp]
 theorem isNull_instNullableVar (var : Var) :
     aig.instNullableVar.isNull var ↔ ¬var.validIn aig := by
+  unfold instNullableVar
   grind
 
-@[simp, grind =]
+@[simp]
 theorem null_instNullableLit :
     aig.instNullableLit.null = aig.nextVar := by
+  unfold instNullableLit
   grind
 
-@[simp, grind =]
+@[simp]
 theorem isNull_instNullableLit (lit : Lit) :
     aig.instNullableLit.isNull lit ↔ ¬lit.validIn aig := by
+  unfold instNullableLit
   grind
 
 end Valaig.Aig

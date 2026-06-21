@@ -1241,7 +1241,7 @@ def leaves (aig : Aig) :=
 
   Note that this holds a reference to the Aig, so shouldn't be used where the Aig is modified.
 -/
-@[inline, reducible]
+@[inline, implicit_reducible]
 def instNullableVar (aig : Aig) : Data.Nullable Var where
   null := aig.nextVar
   isNull := (¬·.validIn aig)
@@ -1253,7 +1253,7 @@ def instNullableVar (aig : Aig) : Data.Nullable Var where
 
   Note that this holds a reference to the Aig, so shouldn't be used where the Aig is modified.
 -/
-@[inline, reducible]
+@[inline, implicit_reducible]
 def instNullableLit (aig : Aig) : Data.Nullable Lit where
   null := aig.nextVar
   isNull := (¬·.validIn aig)
