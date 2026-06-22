@@ -1,8 +1,6 @@
 module
 
 public import Valaig.Data.Refs
-import Std.Tactic.Do
-import Std.Do
 
 public section
 namespace Valaig.Aig
@@ -30,10 +28,6 @@ def denote (assign : Lit -> Bool) : SimplifiedAnd -> Bool
 
 end SimplifiedAnd
 
--- Used for mvcgen proofs
-open Std.Do
-set_option mvcgen.warning false
-
 @[inline]
 def constFoldLeft (lhs rhs : Lit) : Option Lit := do
   if ¬lhs.isConstant then
@@ -49,21 +43,17 @@ def constFoldLeft (lhs rhs : Lit) : Option Lit := do
 include assignConst in
 theorem denote_constFoldLeft {lhs rhs out : Lit} (heq : constFoldLeft lhs rhs = some out) :
     assign out = (assign lhs && assign rhs) := by
-  revert heq
-  generalize h : constFoldLeft lhs rhs = res
-  apply Option.of_wp_eq h
-  unfold constFoldLeft
-  mvcgen with (cbv; grind)
+  fun_cases constFoldLeft
+  <;> unfold constFoldLeft at heq
+  <;> grind
 
 theorem var_constFoldLeft {lhs rhs out : Lit} (motive : Var -> Prop)
     (heq : constFoldLeft lhs rhs = some out)
     (hconst : motive .constant) (hrhs : motive rhs.var) :
     motive out.var := by
-  revert heq
-  generalize h : constFoldLeft lhs rhs = res
-  apply Option.of_wp_eq h
-  unfold constFoldLeft
-  mvcgen with (cbv; grind)
+  fun_cases constFoldLeft
+  <;> unfold constFoldLeft at heq
+  <;> grind
 
 @[inline]
 def constFold (lhs rhs : Lit) : Option Lit := do
@@ -79,26 +69,20 @@ include assignConst in
 theorem denote_constFold {lhs rhs out : Lit} (heq : constFold lhs rhs = some out) :
     assign out = (assign lhs && assign rhs) := by
   revert heq
-  generalize h : constFold lhs rhs = res
-  apply Option.of_wp_eq h
-  unfold constFold
-  mvcgen
-  next heq => grind [denote_constFoldLeft assign (heq := heq)]
-  next heq => grind [denote_constFoldLeft assign (heq := heq)]
-  next => cbv; grind
+  fun_cases constFold with
+  | case1 _ heq => grind [denote_constFoldLeft assign heq]
+  | case2 _ heq => grind [denote_constFoldLeft assign heq]
+  | case3 => grind
 
 theorem var_constFold {lhs rhs out : Lit} (motive : Var -> Prop)
     (heq : constFold lhs rhs = some out)
     (hconst : motive .constant) (hlhs : motive lhs.var) (hrhs : motive rhs.var) :
     motive out.var := by
   revert heq
-  generalize h : constFold lhs rhs = res
-  apply Option.of_wp_eq h
-  unfold constFold
-  mvcgen
-  next heq => grind [var_constFoldLeft motive heq]
-  next heq => grind [var_constFoldLeft motive heq]
-  next => cbv; grind
+  fun_cases constFold with
+  | case1 _ heq => grind [var_constFoldLeft motive heq]
+  | case2 _ heq => grind [var_constFoldLeft motive heq]
+  | case3 => grind
 
 @[inline]
 def twoInput (lhs rhs : Lit) : Option Lit := do
@@ -119,24 +103,14 @@ include assignInv assignConst in
 theorem denote_twoInput {lhs rhs out : Lit} (heq : twoInput lhs rhs = some out) :
     assign out = (assign lhs && assign rhs) := by
   revert heq
-  generalize h : twoInput lhs rhs = res
-  apply Option.of_wp_eq h
-  unfold twoInput
-  mvcgen
-  next heq => grind [denote_constFold assign (heq := heq)]
-  next heq => grind
-  next heq => grind
-  next => cbv; grind
+  fun_cases twoInput <;> grind [denote_constFold assign]
 
 theorem var_twoInput {lhs rhs out : Lit} (motive : Var -> Prop)
     (heq : twoInput lhs rhs = some out)
     (hconst : motive .constant) (hlhs : motive lhs.var) (hrhs : motive rhs.var) :
     motive out.var := by
   revert heq
-  generalize h : twoInput lhs rhs = res
-  apply Option.of_wp_eq h
-  unfold twoInput
-  mvcgen with (cbv; grind [var_constFold motive])
+  fun_cases twoInput <;> grind [var_constFold motive]
 
 @[inline]
 def threeInputLeftNeg (rhs l0 l1 : Lit) : Option SimplifiedAnd := do
@@ -159,30 +133,21 @@ theorem denote_threeInputLeftNeg {rhs l0 l1 : Lit} {out : SimplifiedAnd}
     (heq : threeInputLeftNeg rhs l0 l1 = some out) :
     out.denote assign = (!(assign l0 && assign l1) && assign rhs) := by
   revert heq
-  generalize h : threeInputLeftNeg rhs l0 l1 = res
-  apply Option.of_wp_eq h
-  unfold threeInputLeftNeg
-  mvcgen with (cbv; grind)
+  fun_cases threeInputLeftNeg <;> grind
 
 theorem var_threeInputLeftNeg_lit {rhs l0 l1 out : Lit} (motive : Var -> Prop)
     (heq : threeInputLeftNeg rhs l0 l1 = some (.lit out))
     (hrhs : motive rhs.var) :
     motive out.var := by
   revert heq
-  generalize h : threeInputLeftNeg rhs l0 l1 = res
-  apply Option.of_wp_eq h
-  unfold threeInputLeftNeg
-  mvcgen with (cbv; grind)
+  fun_cases threeInputLeftNeg <;> grind
 
 theorem var_threeInputLeftNeg_and {rhs l0 l1 o0 o1 : Lit} (motive : Var -> Prop)
     (heq : threeInputLeftNeg rhs l0 l1 = some (.and o0 o1))
     (hl0 : motive l0.var) (hl1 : motive l1.var) :
     motive o0.var ∧ motive o1.var := by
   revert heq
-  generalize h : threeInputLeftNeg rhs l0 l1 = res
-  apply Option.of_wp_eq h
-  unfold threeInputLeftNeg
-  mvcgen with (cbv; grind)
+  fun_cases threeInputLeftNeg <;> grind
 
 @[inline]
 def threeInputLeftPos (lhs rhs l0 l1 : Lit) : Option Lit := do
@@ -202,20 +167,14 @@ theorem denote_threeInputLeftPos {lhs rhs l0 l1 : Lit} {out : Lit}
     (hl : assign lhs = (assign l0 && assign l1)) :
     assign out = (assign lhs && assign rhs) := by
   revert heq
-  generalize h : threeInputLeftPos lhs rhs l0 l1 = res
-  apply Option.of_wp_eq h
-  unfold threeInputLeftPos
-  mvcgen with (cbv; grind)
+  fun_cases threeInputLeftPos <;> grind
 
 theorem var_threeInputLeftPos {lhs rhs l0 l1 out : Lit} (motive : Var -> Prop)
     (heq : threeInputLeftPos lhs rhs l0 l1 = some out)
     (hconst : motive .constant) (hlhs : motive lhs.var) :
     motive out.var := by
   revert heq
-  generalize h : threeInputLeftPos lhs rhs l0 l1 = res
-  apply Option.of_wp_eq h
-  unfold threeInputLeftPos
-  mvcgen with (cbv; grind)
+  fun_cases threeInputLeftPos <;> grind
 
 @[inline]
 def threeInputLeft (lhs rhs l0 l1 : Lit) : Option SimplifiedAnd := do
@@ -234,30 +193,24 @@ theorem denote_threeInputLeft {lhs rhs l0 l1 : Lit} {out : SimplifiedAnd}
     (hl : assign lhs = ((decide lhs.inverted) ^^ (assign l0 && assign l1))) :
     out.denote assign = (assign lhs && assign rhs) := by
   revert heq
-  generalize h : threeInputLeft lhs rhs l0 l1 = res
-  apply Option.of_wp_eq h
-  unfold threeInputLeft
-  mvcgen
-  next heq => grind [denote_threeInputLeftNeg assign (heq := heq)]
-  next => cbv; grind
-  next h _ heq =>
-    simp [h]at hl
-    grind [denote_threeInputLeftPos assign (heq := heq)]
-  next => cbv; grind
+  fun_cases threeInputLeft with
+  | case1 _ _ heq => grind [denote_threeInputLeftNeg assign heq]
+  | case2 => grind
+  | case3 h _ heq =>
+    simp [h] at hl
+    grind [denote_threeInputLeftPos assign heq]
+  | case4 => grind
 
 theorem var_threeInputLeft_lit {lhs rhs l0 l1 out : Lit} (motive : Var -> Prop)
     (heq : threeInputLeft lhs rhs l0 l1 = some (.lit out))
     (hconst : motive .constant) (hlhs : motive lhs.var) (hrhs : motive rhs.var) :
     motive out.var := by
   revert heq
-  generalize h : threeInputLeft lhs rhs l0 l1 = res
-  apply Option.of_wp_eq h
-  unfold threeInputLeft
-  mvcgen
-  next heq => grind [var_threeInputLeftNeg_lit motive]
-  next => cbv; grind
-  next h _ heq => grind [var_threeInputLeftPos motive]
-  next => cbv; grind
+  fun_cases threeInputLeft with
+  | case1 => grind [var_threeInputLeftNeg_lit motive]
+  | case2 => grind
+  | case3 => grind [var_threeInputLeftPos motive]
+  | case4 => grind
 
 theorem var_threeInputLeft_and {lhs rhs l0 l1 o0 o1 : Lit} (motive : Var -> Prop)
     (heq : threeInputLeft lhs rhs l0 l1 = some (.and o0 o1))
@@ -290,30 +243,21 @@ theorem denote_fourInputPosPos {lhs l0 l1 r0 r1 : Lit} {out : SimplifiedAnd}
     (hl : assign lhs = (assign l0 && assign l1)) :
     out.denote assign = (assign lhs && (assign r0 && assign r1)) := by
   revert heq
-  generalize h : fourInputPosPos lhs l0 l1 r0 r1 = res
-  apply Option.of_wp_eq h
-  unfold fourInputPosPos
-  mvcgen with (cbv; grind)
+  fun_cases fourInputPosPos <;> grind
 
 theorem var_fourInputPosPos_lit {lhs l0 l1 r0 r1 out : Lit} (motive : Var -> Prop)
     (heq : fourInputPosPos lhs l0 l1 r0 r1 = some (.lit out))
     (hconst : motive .constant) :
     motive out.var := by
   revert heq
-  generalize h : fourInputPosPos lhs l0 l1 r0 r1 = res
-  apply Option.of_wp_eq h
-  unfold fourInputPosPos
-  mvcgen with (cbv; grind)
+  fun_cases fourInputPosPos <;> grind
 
 theorem var_fourInputPosPos_and {lhs l0 l1 r0 r1 o0 o1 : Lit} (motive : Var -> Prop)
     (heq : fourInputPosPos lhs l0 l1 r0 r1 = some (.and o0 o1))
     (hlhs : motive lhs.var) (hr0 : motive r0.var) (hr1 : motive r1.var) :
     motive o0.var ∧ motive o1.var := by
   revert heq
-  generalize h : fourInputPosPos lhs l0 l1 r0 r1 = res
-  apply Option.of_wp_eq h
-  unfold fourInputPosPos
-  mvcgen with (cbv; grind)
+  fun_cases fourInputPosPos <;> grind
 
 @[inline]
 def fourInputPosNeg (lhs l0 l1 r0 r1 : Lit) : Option SimplifiedAnd := do
@@ -337,30 +281,21 @@ theorem denote_fourInputPosNeg {lhs l0 l1 r0 r1 : Lit} {out : SimplifiedAnd}
     (hl : assign lhs = (assign l0 && assign l1)) :
     out.denote assign = (assign lhs && !(assign r0 && assign r1)) := by
   revert heq
-  generalize h : fourInputPosNeg lhs l0 l1 r0 r1 = res
-  apply Option.of_wp_eq h
-  unfold fourInputPosNeg
-  mvcgen with (cbv; grind)
+  fun_cases fourInputPosNeg <;> grind
 
 theorem var_fourInputPosNeg_lit {lhs l0 l1 r0 r1 out : Lit} (motive : Var -> Prop)
     (heq : fourInputPosNeg lhs l0 l1 r0 r1 = some (.lit out))
     (hlhs : motive lhs.var) :
     motive out.var := by
   revert heq
-  generalize h : fourInputPosNeg lhs l0 l1 r0 r1 = res
-  apply Option.of_wp_eq h
-  unfold fourInputPosNeg
-  mvcgen with (cbv; grind)
+  fun_cases fourInputPosNeg <;> grind
 
 theorem var_fourInputPosNeg_and {lhs l0 l1 r0 r1 o0 o1 : Lit} (motive : Var -> Prop)
     (heq : fourInputPosNeg lhs l0 l1 r0 r1 = some (.and o0 o1))
     (hlhs : motive lhs.var) (hr0 : motive r0.var) (hr1 : motive r1.var) :
     motive o0.var ∧ motive o1.var := by
   revert heq
-  generalize h : fourInputPosNeg lhs l0 l1 r0 r1 = res
-  apply Option.of_wp_eq h
-  unfold fourInputPosNeg
-  mvcgen with (cbv; grind)
+  fun_cases fourInputPosNeg <;> grind
 
 @[inline]
 def fourInputNegNeg (l0 l1 r0 r1 : Lit) : Option Lit := do
@@ -387,26 +322,19 @@ theorem denote_fourInputNegNeg {l0 l1 r0 r1 : Lit} {out : Lit}
     (heq : fourInputNegNeg l0 l1 r0 r1 = some out) :
     assign out = (!(assign l0 && assign l1) && !(assign r0 && assign r1)) := by
   revert heq
-  generalize h : fourInputNegNeg l0 l1 r0 r1 = res
-  apply Option.of_wp_eq h
-  unfold fourInputNegNeg
-  mvcgen
-  next h => simp only [Option.some.injEq]; intro h; cbv; grind only
-  next h => simp only [Option.some.injEq]; intro h; cbv; grind only
-  next h => simp only [Option.some.injEq]; intro h; cbv; grind only
-  next h => simp only [Option.some.injEq]; intro h; cbv; grind only
-  · cbv; grind
-
+  fun_cases fourInputNegNeg
+  · simp only [Option.pure_def, Option.some.injEq]; intro h; cbv; grind
+  · simp only [Option.pure_def, Option.some.injEq]; intro h; cbv; grind
+  · simp only [Option.pure_def, Option.some.injEq]; intro h; cbv; grind
+  · simp only [Option.pure_def, Option.some.injEq]; intro h; cbv; grind
+  · grind
 
 theorem var_fourInputNegNeg {l0 l1 r0 r1 out : Lit} (motive : Var -> Prop)
     (heq : fourInputNegNeg l0 l1 r0 r1 = some out)
     (hl0 : motive l0.var) (hl1 : motive l1.var) :
     motive out.var := by
   revert heq
-  generalize h : fourInputNegNeg l0 l1 r0 r1 = res
-  apply Option.of_wp_eq h
-  unfold fourInputNegNeg
-  mvcgen with (cbv; grind)
+  fun_cases fourInputNegNeg <;> grind
 
 @[inline]
 def fourInput (lhs rhs l0 l1 r0 r1 : Lit) : Option SimplifiedAnd :=
@@ -422,19 +350,15 @@ theorem denote_fourInput {lhs rhs l0 l1 r0 r1 : Lit} {out : SimplifiedAnd}
     (hl : assign lhs = ((decide lhs.inverted) ^^ (assign l0 && assign l1)))
     (hr : assign rhs = ((decide rhs.inverted) ^^ (assign r0 && assign r1))) :
     out.denote assign = (assign lhs && assign rhs) := by
-  simp only [fourInput] at heq
-  split at heq
-  · rw [denote_fourInputPosPos assign heq (by simp_all)] <;> grind
-  · rw [denote_fourInputPosNeg assign heq (by simp_all)] <;> grind
-  · rw [denote_fourInputPosNeg assign heq (by simp_all)] <;> grind
-  · simp only [Option.map_eq_some_iff] at heq
-    rcases heq with ⟨res, ⟨heq, hlit⟩⟩
-    simp only [SimplifiedAnd.denote]
-    split
-    · simp only [SimplifiedAnd.lit.injEq] at hlit
-      rw [←hlit, denote_fourInputNegNeg assign heq]
-      <;> grind
-    · grind
+  revert heq
+  fun_cases fourInput with
+  | case1 => intro heq; grind [denote_fourInputPosPos assign heq (by simp_all)]
+  | case2 => intro heq; grind [denote_fourInputPosNeg assign heq (by simp_all)]
+  | case3 => intro heq; grind [denote_fourInputPosNeg assign heq (by simp_all)]
+  | case4 =>
+    simp only [Option.map_eq_some_iff, forall_exists_index, and_imp]
+    intro x heq
+    grind [denote_fourInputNegNeg assign heq]
 
 theorem var_fourInput_lit {lhs rhs l0 l1 r0 r1 out : Lit} (motive : Var -> Prop)
     (heq : fourInput lhs rhs l0 l1 r0 r1 = some (.lit out))
@@ -442,13 +366,12 @@ theorem var_fourInput_lit {lhs rhs l0 l1 r0 r1 out : Lit} (motive : Var -> Prop)
     (hlhs : motive lhs.var) (hrhs : motive rhs.var)
     (hl0 : motive l0.var) (hl1 : motive l1.var) :
     motive out.var := by
-  simp only [fourInput] at heq
-  split at heq
-  · grind [var_fourInputPosPos_lit motive]
-  · grind [var_fourInputPosNeg_lit motive]
-  · grind [var_fourInputPosNeg_lit motive]
-  · grind [var_fourInputNegNeg motive, Option.map_eq_some_iff]
-
+  revert heq
+  fun_cases fourInput with
+  | case1 => grind [var_fourInputPosPos_lit motive]
+  | case2 => grind [var_fourInputPosNeg_lit motive]
+  | case3 => grind [var_fourInputPosNeg_lit motive]
+  | case4 => grind [var_fourInputNegNeg motive, Option.map_eq_some_iff]
 
 theorem var_fourInput_and {lhs rhs l0 l1 r0 r1 o0 o1 : Lit} (motive : Var -> Prop)
     (heq : fourInput lhs rhs l0 l1 r0 r1 = some (.and o0 o1))
@@ -456,32 +379,33 @@ theorem var_fourInput_and {lhs rhs l0 l1 r0 r1 o0 o1 : Lit} (motive : Var -> Pro
     (hl0 : motive l0.var) (hl1 : motive l1.var)
     (hr0 : motive r0.var) (hr1 : motive r1.var) :
     motive o0.var ∧ motive o1.var := by
-  simp only [fourInput] at heq
-  split at heq
-  · grind [var_fourInputPosPos_and motive]
-  · grind [var_fourInputPosNeg_and motive]
-  · grind [var_fourInputPosNeg_and motive]
-  · grind [Option.map_eq_some_iff]
+  revert heq
+  fun_cases fourInput with
+  | case1 => grind [var_fourInputPosPos_and motive]
+  | case2 => grind [var_fourInputPosNeg_and motive]
+  | case3 => grind [var_fourInputPosNeg_and motive]
+  | case4 => grind [Option.map_eq_some_iff]
 
 @[inline]
-def simplifyAnd (lhs rhs : Lit) (lin rin : Option (Lit × Lit)) : SimplifiedAnd := Id.run do
-  if let some lit := twoInput lhs rhs then
-    return .lit lit
+def simplifyAnd (lhs rhs : Lit) (lin rin : Option (Lit × Lit)) : SimplifiedAnd :=
+  match twoInput lhs rhs with
+  | some lit => .lit lit
+  | _ =>
 
-  if let some (l0, l1) := lin then
-    if let some new := threeInputLeft lhs rhs l0 l1 then
-      return new
+  match lin >>= (fun l => threeInputLeft lhs rhs l.fst l.snd) with
+  | some new => new
+  | _ =>
 
-  if let some (r0, r1) := rin then
-    if let some new := threeInputLeft rhs lhs r0 r1 then
-      return new
+  match rin >>= (fun r => threeInputLeft rhs lhs r.fst r.snd) with
+  | some new => new
+  | _ =>
 
-  if let some (l0, l1) := lin then
-    if let some (r0, r1) := rin then
-      if let some new := fourInput lhs rhs l0 l1 r0 r1 then
-        return new
-
-  return .and lhs rhs
+  match lin, rin with
+  | some (l0, l1), some (r0, r1) =>
+    match fourInput lhs rhs l0 l1 r0 r1 with
+    | some new => new
+    | _ => .and lhs rhs
+  | _, _ => .and lhs rhs
 
 include assignInv assignConst in
 theorem denote_simplifyAnd {lhs rhs : Lit} {lin rin : Option (Lit × Lit)} {out : SimplifiedAnd}
@@ -489,20 +413,31 @@ theorem denote_simplifyAnd {lhs rhs : Lit} {lin rin : Option (Lit × Lit)} {out 
     (hl : ∀ {l0 l1}, lin = some (l0, l1) → assign lhs = (lhs.inverted ^^ (assign l0 && assign l1)))
     (hr : ∀ {r0 r1}, rin = some (r0, r1) → assign rhs = (rhs.inverted ^^ (assign r0 && assign r1))) :
     out.denote assign = (assign lhs && assign rhs) := by
-  have : .and lhs rhs = out → out.denote assign = (assign lhs && assign rhs) := by grind
   revert heq
-  generalize h : simplifyAnd lhs rhs lin rin = res
-  apply Id.of_wp_run_eq h
-  mvcgen
-  <;> (intro h; rw [←h])
-  next heq => apply denote_twoInput assign heq <;> grind
-  next heq => apply denote_threeInputLeft assign heq <;> grind
-  next heq => rw [Bool.and_comm]; apply denote_threeInputLeft assign heq <;> grind
-  next heq => apply denote_fourInput assign heq <;> grind
-  next heq => apply denote_fourInput assign heq <;> grind
-  next heq => rw [Bool.and_comm]; apply denote_threeInputLeft assign heq <;> grind
-  next heq => apply denote_fourInput assign heq <;> grind
-  next => grind
+  fun_cases simplifyAnd with
+  | case1 =>
+    intro h
+    subst h
+    rename_i heq
+    apply denote_twoInput assign heq <;> grind
+  | case2 =>
+    intro h
+    subst h
+    rename_i heq
+    simp only [Option.bind_eq_bind, Option.bind_eq_some_iff] at heq
+    rcases heq with ⟨_, _, heq⟩
+    apply denote_threeInputLeft assign heq <;> grind
+  | case3 =>
+    intro h
+    subst h
+    rename_i heq
+    simp only [Option.bind_eq_bind, Option.bind_eq_some_iff] at heq
+    rw [Bool.and_comm]
+    rcases heq with ⟨_, _, heq⟩
+    apply denote_threeInputLeft assign heq <;> grind
+  | case4 _ _ _ _ _ heq => intro h; subst h; apply denote_fourInput assign heq <;> grind
+  | case5 => grind
+  | case6 => grind
 
 theorem var_simplifyAnd_lit {lhs rhs : Lit} {lin rin : Option (Lit × Lit)} {out : Lit} (motive : Var -> Prop)
     (heq : simplifyAnd lhs rhs lin rin = .lit out)
@@ -510,20 +445,30 @@ theorem var_simplifyAnd_lit {lhs rhs : Lit} {lin rin : Option (Lit × Lit)} {out
     (hl : ∀ {l0 l1}, lin = some (l0, l1) → motive l0.var ∧ motive l1.var) :
     motive out.var := by
   revert heq
-  generalize h : simplifyAnd lhs rhs lin rin = res
-  apply Id.of_wp_run_eq h
-  have {lhs rhs} : SimplifiedAnd.and lhs rhs = .lit out → motive out.var := by grind only
-  mvcgen
-  <;> (try apply this)
-  <;> intro h
-  next heq => simp only [SimplifiedAnd.lit.injEq] at h; rw [←h]; apply var_twoInput motive heq <;> grind
-  next heq => rw [h] at heq; apply var_threeInputLeft_lit motive heq <;> grind
-  next heq => rw [h] at heq; apply var_threeInputLeft_lit motive heq <;> grind
-  next heq => rw [h] at heq; apply var_fourInput_lit motive heq <;> grind
-  next heq => rw [h] at heq; apply var_fourInput_lit motive heq <;> grind
-  next heq => rw [h] at heq; apply var_threeInputLeft_lit motive heq <;> grind
-  next heq => rw [h] at heq; apply var_fourInput_lit motive heq <;> grind
-  next => grind
+  fun_cases simplifyAnd with
+  | case1 =>
+    intro h
+    simp only [SimplifiedAnd.lit.injEq] at h
+    subst h
+    rename_i heq
+    apply var_twoInput motive heq <;> grind
+  | case2 =>
+    intro h
+    subst h
+    rename_i heq
+    simp only [Option.bind_eq_bind, Option.bind_eq_some_iff] at heq
+    rcases heq with ⟨_, _, heq⟩
+    apply var_threeInputLeft_lit motive heq <;> grind
+  | case3 =>
+    intro h
+    subst h
+    rename_i heq
+    simp only [Option.bind_eq_bind, Option.bind_eq_some_iff] at heq
+    rcases heq with ⟨_, _, heq⟩
+    apply var_threeInputLeft_lit motive heq <;> grind
+  | case4 _ _ _ _ _ heq => intro h; subst h; apply var_fourInput_lit motive heq <;> grind
+  | case5 => grind
+  | case6 => grind
 
 theorem var_simplifyAnd_and {lhs rhs o0 o1 : Lit} {lin rin : Option (Lit × Lit)} (motive : Var -> Prop)
     (heq : simplifyAnd lhs rhs lin rin = .and o0 o1)
@@ -532,18 +477,25 @@ theorem var_simplifyAnd_and {lhs rhs o0 o1 : Lit} {lin rin : Option (Lit × Lit)
     (hr : ∀ {r0 r1}, rin = some (r0, r1) → motive r0.var ∧ motive r1.var) :
     motive o0.var ∧ motive o1.var := by
   revert heq
-  generalize h : simplifyAnd lhs rhs lin rin = res
-  apply Id.of_wp_run_eq h
-  have : SimplifiedAnd.and lhs rhs = .and o0 o1 → motive o0.var ∧ motive o1.var := by grind only
-  mvcgen
-  <;> (intro h; try simp at h)
-  next heq => rw [h] at heq; apply var_threeInputLeft_and motive heq <;> grind
-  next heq => rw [h] at heq; apply var_threeInputLeft_and motive heq <;> grind
-  next heq => rw [h] at heq; apply var_fourInput_and motive heq <;> grind
-  next heq => rw [h] at heq; apply var_fourInput_and motive heq <;> grind
-  next heq => rw [h] at heq; apply var_threeInputLeft_and motive heq <;> grind
-  next heq => rw [h] at heq; apply var_fourInput_and motive heq <;> grind
-  next => grind
+  fun_cases simplifyAnd with
+  | case1 => grind
+  | case2 =>
+    intro h
+    subst h
+    rename_i heq
+    simp only [Option.bind_eq_bind, Option.bind_eq_some_iff] at heq
+    rcases heq with ⟨_, _, heq⟩
+    apply var_threeInputLeft_and motive heq <;> grind
+  | case3 =>
+    intro h
+    subst h
+    rename_i heq
+    simp only [Option.bind_eq_bind, Option.bind_eq_some_iff] at heq
+    rcases heq with ⟨_, _, heq⟩
+    apply var_threeInputLeft_and motive heq <;> grind
+  | case4 _ _ _ _ _ heq => intro h; subst h; apply var_fourInput_and motive heq <;> grind
+  | case5 => grind
+  | case6 => grind
 
 theorem var_simplifyAnd {lhs rhs : Lit} {lin rin : Option (Lit × Lit)} {out : SimplifiedAnd}
     (motive : Var -> Prop)
