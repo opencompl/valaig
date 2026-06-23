@@ -244,7 +244,7 @@ theorem cacheMotive_walk var lt :
 
 end CachingForwardsWalker
 
-structure COIWalker (aig : WFAig) (σ α : Type) [Data.Nullable α] where
+structure COIWalker (aig : WFAig) (σ α : Type) (null : Data.Nullable α := by infer_instance) where
   stateMotive : (state : σ) -> (idx : Nat) -> idx ≤ aig.size -> Prop
   cacheMotive :
     (state : σ) -> (idx : Nat) -> (le : idx ≤ aig.size) -> stateMotive state idx le ->
@@ -256,7 +256,7 @@ structure COIWalker (aig : WFAig) (σ α : Type) [Data.Nullable α] where
 
   step :
     (idx : Nat) -> (var : Var) -> (state : σ) -> (cache : VarCache α) ->
-    (valid : var.validIn aig) -> (le : idx < aig.size) ->
+    (valid : var.validIn aig) -> (lt : idx < aig.size) ->
     (cacheAnds : ∀ {lhs rhs}, aig[var] = .and lhs rhs -> lhs.var ∈ cache ∧ rhs.var ∈ cache) ->
     (cacheValid :
       ∀ {var' : Var} {lhs rhs} (valid : var'.validIn aig),
@@ -266,17 +266,17 @@ structure COIWalker (aig : WFAig) (σ α : Type) [Data.Nullable α] where
       cacheMotive state idx (by grind) sm var' valid cache[var']) ->
     σ × { elem : α // Data.Nullable.isSome elem }
 
-  stepState idx var state cache valid le cacheAnds cacheValid sm cm :
-    stateMotive (step idx var state cache valid le cacheAnds cacheValid sm cm).fst (idx + 1) (by grind)
+  stepState idx var state cache valid lt cacheAnds cacheValid sm cm :
+    stateMotive (step idx var state cache valid lt cacheAnds cacheValid sm cm).fst (idx + 1) (by grind)
 
-  stepCache idx var state cache valid le cacheAnds cacheValid sm cm :
+  stepCache idx var state cache valid lt cacheAnds cacheValid sm cm :
     ∀ {var'} (valid' : var'.validIn aig) (mem : var' ∈ cache),
-      cacheMotive (step idx var state cache valid le cacheAnds cacheValid sm cm).fst (idx + 1) (by grind)
+      cacheMotive (step idx var state cache valid lt cacheAnds cacheValid sm cm).fst (idx + 1) (by grind)
         (by apply stepState) var' valid' cache[var']
 
-  stepCacheNew idx var state cache valid le cacheAnds cacheValid sm cm :
-    cacheMotive (step idx var state cache valid le cacheAnds cacheValid sm cm).fst (idx + 1) (by grind)
-      (by apply stepState) var valid (step idx var state cache valid le cacheAnds cacheValid sm cm).snd.val
+  stepCacheNew idx var state cache valid lt cacheAnds cacheValid sm cm :
+    cacheMotive (step idx var state cache valid lt cacheAnds cacheValid sm cm).fst (idx + 1) (by grind)
+      (by apply stepState) var valid (step idx var state cache valid lt cacheAnds cacheValid sm cm).snd.val
 
 namespace COIWalker
 variable {aig : WFAig} {σ α : Type} [null : Data.Nullable α]
@@ -294,7 +294,7 @@ structure State (walker : COIWalker aig σ α) where
     ∀ {var' : Var} {lhs rhs} (valid : var'.validIn aig),
       var' ∈ cache -> aig[var'] = .and lhs rhs -> lhs.var ∈ cache ∧ rhs.var ∈ cache
 
-  sm : walker.stateMotive state idx le
+  sm : walker.stateMotive state idx (by grind)
   cm :
     ∀ {var'} (valid : var'.validIn aig), var' ∈ cache ->
       walker.cacheMotive state idx (by grind [cache.fillSlow_le_size]) sm var' valid cache[var']
