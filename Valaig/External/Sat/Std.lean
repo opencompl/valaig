@@ -46,36 +46,50 @@ private theorem gate_le_decls_size (entrypoint : Entrypoint LeafIdx) :
   entrypoint.ref.hgate
 
 @[always_inline]
-private def walker (aig : WFAig) (reset : Bool) : aig.CachingForwardsWalker (AIG LeafIdx) Lit where
+private def walker (aig : WFAig) (reset : Bool) : COIWalker aig (Std.Sat.AIG LeafIdx) Lit aig.instNullableLit where
   stateMotive std size le := std.decls.size ≤ max 1 size
-  cacheMotive std size le sm var lt lit :=
+  cacheMotive std idx le sm var valid lit :=
     lit.var.idx < std.decls.size
+
+  reset := reset
 
   init := .empty
   initState := by grind
 
-  step var std cache valid size sm cm :=
-    let map (lit : Lit) (valid : lit.var < var := by grind) :=
+  step idx var std cache valid lt cacheAnds cacheResets cacheValid sm cm :=
+    have := aig.instNullableLit
+
+    let map (lit : Lit) (valid : lit.validIn aig := by grind)
+        (mem : (@Data.VarCache.instMembership Lit aig.instNullableLit).mem cache lit.var := by grind) :=
       cache.mapLit lit |>.toRef std
 
     let res : Entrypoint LeafIdx :=
       match _ : aig[var] with
       | .false => .mk std (std.mkConstCached .false)
-      | .and lhs rhs => std.mkGateCached <| .mk (map lhs) (map rhs)
+      | .and lhs rhs =>
+        std.mkGateCached <| .mk (map lhs) (map rhs)
       | .input idx => std.mkAtomCached idx
       | .latch idx =>
-        if reset then
+        if _ : reset then
           match _ : idx.getReset aig with
           | none => std.mkAtomCached idx
           | some lit => .mk std (map lit)
         else
           std.mkAtomCached idx
 
-    (res.aig, .ofRef res.ref)
+    -- TODO: Fix proofs
+    -- have : res.aig.decls.size ≤ std.decls.size + 1 := by sorry
 
-  stepState :=  by intros; (repeat' split) <;> grind [idx_eq_zero_iff_getElem_false]
-  stepCache := by intros; (repeat' split) <;> grind
-  stepCacheNew := by grind
+    let lit := .ofRef res.ref
+    let property := by sorry
+    (res.aig, ⟨lit, property⟩)
+
+  stepState := sorry
+  stepCache := sorry
+  stepCacheNew := sorry
+  -- stepState :=  by intros; (repeat' split) <;> grind [idx_eq_zero_iff_getElem_false]
+  -- stepCache := by intros; (repeat' split) <;> grind
+  -- stepCacheNew := by grind
 
 end toStd
 
@@ -83,7 +97,7 @@ def toStd (aig : WFAig) (reset : Bool) : (aig' : Std.Sat.AIG LeafIdx) × (Lit.In
   let walker := toStd.walker aig reset
   let res := walker.walk
 
-  have := walker.cacheMotive_walk
-  ⟨res.fst, fun lit => (res.snd.mapLit lit.val).toRef res.fst (by grind [toStd.walker])⟩
+  -- have := walker.cacheMotive_walk
+  ⟨res.fst, fun lit => (res.snd.mapLit lit.val sorry).toRef res.fst sorry⟩
 
 end Valaig.Sat

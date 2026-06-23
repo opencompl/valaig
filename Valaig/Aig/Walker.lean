@@ -500,7 +500,7 @@ end State
   TODO: Support reusing the cache for further entrypoints.
 -/
 @[inline, specialize walker]
-def walk [Data.Nullable α] (walker : COIWalker aig σ α) : σ × VarCache α :=
+def walk {null} (walker : COIWalker aig σ α null) : σ × VarCache α :=
   let res := (State.new walker).walk
   (res.state, res.cache)
 

@@ -590,7 +590,7 @@ theorem null_instNullableVar :
 
 @[simp]
 theorem isNull_instNullableVar (var : Var) :
-    aig.instNullableVar.isNull var ↔ ¬var.validIn aig := by
+    aig.instNullableVar.isNull var = decide (¬var.validIn aig) := by
   unfold instNullableVar
   grind
 
@@ -602,7 +602,7 @@ theorem null_instNullableLit :
 
 @[simp]
 theorem isNull_instNullableLit (lit : Lit) :
-    aig.instNullableLit.isNull lit ↔ ¬lit.validIn aig := by
+    aig.instNullableLit.isNull lit = decide (¬lit.validIn aig) := by
   unfold instNullableLit
   grind
 
