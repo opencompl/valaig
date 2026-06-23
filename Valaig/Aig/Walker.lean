@@ -2,6 +2,8 @@ module
 
 public import Valaig.Aig.Core
 public import Valaig.Data.VarCache
+public import Valaig.Data.Nullable
+import Valaig.ForLean.Array
 
 public section
 namespace Valaig.Aig
@@ -241,5 +243,240 @@ theorem cacheMotive_walk var lt :
   · grind [walker.stepCacheNew]
 
 end CachingForwardsWalker
+
+structure COIWalker (aig : WFAig) (σ α : Type) [Data.Nullable α] where
+  stateMotive : (state : σ) -> (idx : Nat) -> idx ≤ aig.size -> Prop
+  cacheMotive :
+    (state : σ) -> (idx : Nat) -> (le : idx ≤ aig.size) -> stateMotive state idx le ->
+    (var : Var) -> var.validIn aig -> α -> Prop
+
+  init : σ
+
+  initState : stateMotive init 0 (by omega)
+
+  step :
+    (idx : Nat) -> (var : Var) -> (state : σ) -> (cache : VarCache α) ->
+    (valid : var.validIn aig) -> (le : idx < aig.size) ->
+    (cacheAnds : ∀ {lhs rhs}, aig[var] = .and lhs rhs -> lhs.var ∈ cache ∧ rhs.var ∈ cache) ->
+    (cacheValid :
+      ∀ {var' : Var} {lhs rhs} (valid : var'.validIn aig),
+        var' ∈ cache -> aig[var'] = .and lhs rhs -> lhs.var ∈ cache ∧ rhs.var ∈ cache) ->
+    (sm : stateMotive state idx (by grind)) ->
+    (cm : ∀ {var'} (valid : var'.validIn aig) (mem : var' ∈ cache),
+      cacheMotive state idx (by grind) sm var' valid cache[var']) ->
+    σ × { elem : α // Data.Nullable.isSome elem }
+
+  stepState idx var state cache valid le cacheAnds cacheValid sm cm :
+    stateMotive (step idx var state cache valid le cacheAnds cacheValid sm cm).fst (idx + 1) (by grind)
+
+  stepCache idx var state cache valid le cacheAnds cacheValid sm cm :
+    ∀ {var'} (valid' : var'.validIn aig) (mem : var' ∈ cache),
+      cacheMotive (step idx var state cache valid le cacheAnds cacheValid sm cm).fst (idx + 1) (by grind)
+        (by apply stepState) var' valid' cache[var']
+
+  stepCacheNew idx var state cache valid le cacheAnds cacheValid sm cm :
+    cacheMotive (step idx var state cache valid le cacheAnds cacheValid sm cm).fst (idx + 1) (by grind)
+      (by apply stepState) var valid (step idx var state cache valid le cacheAnds cacheValid sm cm).snd.val
+
+namespace COIWalker
+variable {aig : WFAig} {σ α : Type} [null : Data.Nullable α]
+
+structure State (walker : COIWalker aig σ α) where
+  idx : Nat
+  state : σ
+  cache : VarCache α
+  stack : Array Var
+
+  idx_eq : idx = cache.fillSlow
+  size_cache : cache.size = aig.size
+
+  cacheValid :
+    ∀ {var' : Var} {lhs rhs} (valid : var'.validIn aig),
+      var' ∈ cache -> aig[var'] = .and lhs rhs -> lhs.var ∈ cache ∧ rhs.var ∈ cache
+
+  sm : walker.stateMotive state idx le
+  cm :
+    ∀ {var'} (valid : var'.validIn aig), var' ∈ cache ->
+      walker.cacheMotive state idx (by grind [cache.fillSlow_le_size]) sm var' valid cache[var']
+
+  stackValid : ∀ var ∈ stack, var.validIn aig
+  stackUncached : ∀ var ∈ stack, var ∉ cache
+  stackOrdered : ∀ i j (hi : i < stack.size) (hj : j < stack.size), i < j → stack[i] > stack[j]
+
+namespace State
+variable {walker : COIWalker aig σ α} {s : State walker}
+
+/--
+  TODO: Investigate not requiring cache to be aig size (maybe it could be sparse, maybe it could
+  only be as large as the output var).
+-/
+@[always_inline]
+def new (walker : COIWalker aig σ α) : State walker where
+  idx := 0
+  state := walker.init
+  cache := .replicate aig.size null.null
+  stack := #[]
+
+  idx_eq := by grind
+  size_cache := by grind
+
+  cacheValid := by grind
+
+  sm := walker.initState
+  cm := by grind
+
+  stackValid := by grind
+  stackUncached := by grind
+  stackOrdered := by grind
+
+@[simp]
+theorem idx_le_size : 
+    s.idx ≤ aig.size := by
+  grind [s.idx_eq, s.size_cache]
+
+grind_pattern idx_le_size => s.idx, aig.size
+
+def measure (s : State walker) : Nat × Var :=
+  (aig.size - s.idx, s.stack.back?.getD .constant)
+
+@[always_inline]
+def stepWalker (s : State walker) (var : Var)
+    (h : 0 < s.stack.size := by grind)
+    (var_eq : var = s.stack.back := by grind)
+    (cacheAnds : ∀ {lhs rhs},
+      aig[var]'(by grind [s.stackValid]) = .and lhs rhs -> lhs.var ∈ s.cache ∧ rhs.var ∈ s.cache := by grind) :
+    State walker :=
+  have := s.stackValid var (by grind)
+
+  have : s.idx < aig.size := by
+    simp only [VarCache.fillSlow, s.idx_eq, ←s.size_cache, VarCache.size]
+    rw [Array.countP_eq_size_filter, Array.size_filter_lt_size_iff_exists]
+    exists s.cache[var]'(by grind [s.size_cache])
+    constructor
+    · simp +instances [VarCache.instGetElem]
+    · grind [s.stackUncached var (by grind)]
+
+  let res := walker.step s.idx var s.state s.cache (by grind) (by grind) (by grind) s.cacheValid s.sm s.cm
+  {
+    idx := s.idx + 1
+    state := res.fst
+    cache := s.cache.set var res.snd.val
+    stack := s.stack.pop
+
+    idx_eq := by grind [s.idx_eq, s.stackUncached]
+    size_cache := by grind [s.size_cache]
+    cacheValid := by grind [s.cacheValid]
+    sm := by intros; apply walker.stepState
+    cm := by grind [s.cm, walker.stepCache, walker.stepCacheNew]
+
+    stackValid := by grind [s.stackValid]
+    stackUncached := by
+      intro var mem
+      rw [Array.mem_pop_iff_getElem] at mem
+      rcases mem with ⟨i, h, mem⟩
+      have := s.stackUncached var
+      have := s.stackOrdered i (s.stack.size - 1)
+      grind
+    stackOrdered := by grind [s.stackOrdered]
+  }
+
+@[simp, grind =]
+theorem idx_stepWalker var h var_eq cacheAnds :
+    (s.stepWalker var h var_eq cacheAnds).idx = s.idx + 1 := by
+  rfl
+
+@[simp]
+theorem measure_lt_stepWalker var h var_eq cacheAnds :
+    (s.stepWalker var h var_eq cacheAnds).measure.lexLt s.measure := by
+  grind [Prod.lexLt_def, measure]
+
+grind_pattern measure_lt_stepWalker => (s.stepWalker var h var_eq cacheAnds).measure, s.measure
+
+@[always_inline]
+def enqueueVar (s : State walker) (var : Var)
+  (sized : 0 < s.stack.size := by grind)
+  (valid : var.validIn aig := by grind)
+  (uncached : var ∉ s.cache := by grind)
+  (ordered : var < s.stack.back := by grind) : State walker :=
+  { s with
+    stack := s.stack.push var
+
+    stackValid := by grind [s.stackValid]
+    stackUncached := by grind [s.stackUncached]
+    stackOrdered := by
+      intro i j hi hj ord
+      rw [Array.getElem_push]
+      split
+      · rw [Array.getElem_push]
+        split
+        · grind [s.stackOrdered]
+        · by_cases i = s.stack.size - 1
+          · grind
+          · suffices s.stack[i] > s.stack.back by grind
+            grind [s.stackOrdered]
+      · rw [Array.getElem_push_lt] <;> grind
+  }
+
+@[simp]
+theorem measure_lt_enqueueVar var sized valid uncached ordered :
+    (s.enqueueVar var sized valid uncached ordered).measure.lexLt s.measure := by
+  grind [Prod.lexLt_def, measure, enqueueVar]
+
+grind_pattern measure_lt_enqueueVar => (s.enqueueVar var sized valid uncached ordered).measure, s.measure
+
+@[always_inline]
+def step (s : State walker) (h : 0 < s.stack.size := by grind) : State walker :=
+  let var := s.stack.back
+  have : var.validIn aig := by grind [s.stackValid]
+
+  match _ : aig[var] with
+  | .false | .input _ | .latch _ => s.stepWalker var
+  | .and lhs rhs =>
+    have := s.size_cache
+
+    let lhsVal := s.cache[lhs.var]
+    if _ : null.isNull lhsVal then
+      s.enqueueVar lhs.var
+    else
+
+    let rhsVal := s.cache[rhs.var]
+    if _ : null.isNull rhsVal then
+      s.enqueueVar rhs.var
+    else
+
+    s.stepWalker var
+
+@[simp]
+theorem step_lt_enqueueVar h :
+    (s.step h).measure.lexLt s.measure := by
+  fun_cases step <;> grind
+
+/-
+  TODO: Try unboxing recursive args.
+-/
+@[always_inline]
+def walk (s : State walker) : State walker :=
+  if _ : s.stack.size = 0 then
+    s
+  else
+    walk s.step
+termination_by s.measure
+decreasing_by
+  rw [Prod.lex_def]
+  apply step_lt_enqueueVar
+
+end State
+
+/--
+  Iterate over all variables in the COI of an node in topological order.
+
+  TODO: Support reusing the cache for further entrypoints.
+-/
+@[inline, specialize walker]
+def walk [Data.Nullable α] (walker : COIWalker aig σ α) : σ × VarCache α :=
+  let res := (State.new walker).walk
+  (res.state, res.cache)
+
+end COIWalker
 
 end Valaig.Aig

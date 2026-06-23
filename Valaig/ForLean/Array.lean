@@ -212,4 +212,16 @@ private theorem getElem_resize {idx : Nat} (mem : idx < (xs.resize size elem).si
 
 end resize
 
+@[simp, grind→]
+theorem mem_of_mem_pop {xs : Array α} {a : α} (h : a ∈ xs.pop) :
+    a ∈ xs := by
+  rw [Array.mem_iff_getElem] at *
+  grind
+
+@[simp, grind =]
+theorem mem_pop_iff_getElem {xs : Array α} {a : α} :
+    a ∈ xs.pop ↔ ∃ (i : Nat) (h : i < xs.size - 1), xs[i] = a := by
+  rw [Array.mem_iff_getElem]
+  grind
+
 end Array

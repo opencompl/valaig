@@ -18,7 +18,7 @@ deriving DecidableEq, Inhabited, Repr
 namespace VarCache
 variable {α : Type} {cache : VarCache α} {var : Var}
 
-@[inline, local simp, local grind]
+@[inline, expose, local simp, local grind]
 def size (cache : VarCache α) : Nat :=
   cache.cache.size
 
@@ -29,6 +29,13 @@ def size (cache : VarCache α) : Nat :=
 @[expose, local simp, local grind]
 def fillSlow [Nullable α] (cache : VarCache α) :=
   cache.cache.countP Nullable.isSome
+
+@[simp]
+theorem fillSlow_le_size [Nullable α] :
+    cache.fillSlow ≤ cache.size := by
+  grind [Array.countP_le_size]
+
+grind_pattern fillSlow_le_size => cache.fillSlow, cache.size
 
 @[always_inline]
 instance instGetElem : GetElem (VarCache α) Var α (fun cache var => var.idx < cache.size) where
@@ -55,10 +62,15 @@ instance : LawfulGetElem (VarCache α) Var α (fun cache var => var.idx < cache.
 instance instMembership [Nullable α] : Membership Var (VarCache α) where
   mem cache var := ∃ (h : var.idx < cache.size), Nullable.isSome (cache[var]'h)
 
-@[local simp, local grind =]
+@[local simp, grind =]
 theorem mem_iff [Nullable α] :
     var ∈ cache ↔ ∃ (h : var.idx < cache.size), Nullable.isSome (cache[var]'h) := by
   rfl
+
+@[grind →]
+theorem size_lt_mem [Nullable α] :
+    var ∈ cache → var.idx < cache.size := by
+  grind
 
 @[always_inline]
 instance [Nullable α] : Decidable (var ∈ cache) := by
@@ -373,6 +385,31 @@ theorem getElem_erase {var' : Var} (lt : var'.idx < (cache.erase var).size) :
   grind
 
 end erase
+
+@[inline]
+def replicate (n : Nat) (val : α) : VarCache α where
+  cache := .replicate n val
+
+section replicate
+variable {n : Nat} {val : α}
+attribute [local simp, local grind] replicate
+
+@[simp, grind =]
+theorem size_replicate :
+    (replicate n val).size = n := by
+  grind
+
+@[simp, grind =]
+theorem fillSlow_replicate [Nullable α] :
+    (replicate n val).fillSlow = if Nullable.isNull val then 0 else n := by
+  grind [Array.countP_replicate]
+
+@[simp, grind =]
+theorem getElem_replicate {var : Var} (lt : var.idx < (replicate n val).size) :
+    (replicate n val)[var] = val := by
+  grind
+
+end replicate
 
 @[inline]
 def mapLit (cache : VarCache Lit) (lit : Lit) (lt : lit.var.idx < cache.size := by grind [Var.lt_idx]) : Lit :=
