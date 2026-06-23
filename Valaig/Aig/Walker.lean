@@ -315,11 +315,11 @@ variable {walker : COIWalker aig σ α} {s : State walker}
   only be as large as the output var).
 -/
 @[always_inline]
-def new (walker : COIWalker aig σ α) : State walker where
+def new (walker : COIWalker aig σ α) (var : Var) (valid : var.validIn aig := by grind) : State walker where
   idx := 0
   state := walker.init
   cache := .replicate aig.size null.null
-  stack := #[]
+  stack := #[var]
 
   idx_eq := by grind
   size_cache := by grind
@@ -500,8 +500,8 @@ end State
   TODO: Support reusing the cache for further entrypoints.
 -/
 @[inline, specialize walker]
-def walk {null} (walker : COIWalker aig σ α null) : σ × VarCache α :=
-  let res := (State.new walker).walk
+def walk {null} (walker : COIWalker aig σ α null) (var : Var) (valid : var.validIn aig := by grind) : σ × VarCache α :=
+  let res := (State.new walker var).walk
   (res.state, res.cache)
 
 end COIWalker

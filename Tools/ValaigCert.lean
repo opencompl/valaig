@@ -20,7 +20,7 @@ def liftCoreM (action : Lean.CoreM α) : IO α := do
   action.toIO' ctx state
 
 def checkUnsat (aig : WFAig) (lit : Lit) (reset : Bool) (valid : lit.validIn aig := by grind) : IO (Except String Unit) := do
-  let res := Sat.toStd aig reset
+  let res := Sat.toStd aig reset lit.var
   IO.print s!"({res.fst.decls.size} nodes) "
   let entry : Std.Sat.AIG.Entrypoint Aig.LeafIdx := .mk res.fst (res.snd ⟨lit, valid⟩)
   -- let relabelled := entry.relabelNat

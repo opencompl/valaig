@@ -93,9 +93,9 @@ private def walker (aig : WFAig) (reset : Bool) : COIWalker aig (Std.Sat.AIG Lea
 
 end toStd
 
-def toStd (aig : WFAig) (reset : Bool) : (aig' : Std.Sat.AIG LeafIdx) × (Lit.In aig -> aig'.Ref) :=
+def toStd (aig : WFAig) (reset : Bool) (entry : Var) (valid : entry.validIn aig := by grind) : (aig' : Std.Sat.AIG LeafIdx) × (Lit.In aig -> aig'.Ref) :=
   let walker := toStd.walker aig reset
-  let res := walker.walk
+  let res := walker.walk entry
 
   -- have := walker.cacheMotive_walk
   ⟨res.fst, fun lit => (res.snd.mapLit lit.val sorry).toRef res.fst sorry⟩
