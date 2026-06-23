@@ -250,6 +250,8 @@ structure COIWalker (aig : WFAig) (σ α : Type) (null : Data.Nullable α := by 
     (state : σ) -> (idx : Nat) -> (le : idx ≤ aig.size) -> stateMotive state idx le ->
     (var : Var) -> var.validIn aig -> α -> Prop
 
+  reset : Bool
+
   init : σ
 
   initState : stateMotive init 0 (by omega)
@@ -258,6 +260,8 @@ structure COIWalker (aig : WFAig) (σ α : Type) (null : Data.Nullable α := by 
     (idx : Nat) -> (var : Var) -> (state : σ) -> (cache : VarCache α) ->
     (valid : var.validIn aig) -> (lt : idx < aig.size) ->
     (cacheAnds : ∀ {lhs rhs}, aig[var] = .and lhs rhs -> lhs.var ∈ cache ∧ rhs.var ∈ cache) ->
+    (cacheResets : reset ->
+      ∀ {idx rst} (h : aig[var] = .latch idx), idx.getReset aig = some rst -> rst.var ∈ cache) ->
     (cacheValid :
       ∀ {var' : Var} {lhs rhs} (valid : var'.validIn aig),
         var' ∈ cache -> aig[var'] = .and lhs rhs -> lhs.var ∈ cache ∧ rhs.var ∈ cache) ->
@@ -266,17 +270,17 @@ structure COIWalker (aig : WFAig) (σ α : Type) (null : Data.Nullable α := by 
       cacheMotive state idx (by grind) sm var' valid cache[var']) ->
     σ × { elem : α // Data.Nullable.isSome elem }
 
-  stepState idx var state cache valid lt cacheAnds cacheValid sm cm :
-    stateMotive (step idx var state cache valid lt cacheAnds cacheValid sm cm).fst (idx + 1) (by grind)
+  stepState idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm :
+    stateMotive (step idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm).fst (idx + 1) (by grind)
 
-  stepCache idx var state cache valid lt cacheAnds cacheValid sm cm :
+  stepCache idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm :
     ∀ {var'} (valid' : var'.validIn aig) (mem : var' ∈ cache),
-      cacheMotive (step idx var state cache valid lt cacheAnds cacheValid sm cm).fst (idx + 1) (by grind)
+      cacheMotive (step idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm).fst (idx + 1) (by grind)
         (by apply stepState) var' valid' cache[var']
 
-  stepCacheNew idx var state cache valid lt cacheAnds cacheValid sm cm :
-    cacheMotive (step idx var state cache valid lt cacheAnds cacheValid sm cm).fst (idx + 1) (by grind)
-      (by apply stepState) var valid (step idx var state cache valid lt cacheAnds cacheValid sm cm).snd.val
+  stepCacheNew idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm :
+    cacheMotive (step idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm).fst (idx + 1) (by grind)
+      (by apply stepState) var valid (step idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm).snd.val
 
 namespace COIWalker
 variable {aig : WFAig} {σ α : Type} [null : Data.Nullable α]
@@ -344,7 +348,9 @@ def stepWalker (s : State walker) (var : Var)
     (h : 0 < s.stack.size := by grind)
     (var_eq : var = s.stack.back := by grind)
     (cacheAnds : ∀ {lhs rhs},
-      aig[var]'(by grind [s.stackValid]) = .and lhs rhs -> lhs.var ∈ s.cache ∧ rhs.var ∈ s.cache := by grind) :
+      aig[var]'(by grind [s.stackValid]) = .and lhs rhs -> lhs.var ∈ s.cache ∧ rhs.var ∈ s.cache := by grind)
+    (cacheResets : walker.reset ->
+      ∀ {idx rst} (h : aig[var]'(by grind [s.stackValid]) = .latch idx), idx.getReset aig = some rst -> rst.var ∈ s.cache := by grind) :
     State walker :=
   have := s.stackValid var (by grind)
 
@@ -356,7 +362,8 @@ def stepWalker (s : State walker) (var : Var)
     · simp +instances [VarCache.instGetElem]
     · grind [s.stackUncached var (by grind)]
 
-  let res := walker.step s.idx var s.state s.cache (by grind) (by grind) (by grind) s.cacheValid s.sm s.cm
+  let res := walker.step s.idx var s.state s.cache
+    (by grind) (by grind) (by grind) (by grind) s.cacheValid s.sm s.cm
   {
     idx := s.idx + 1
     state := res.fst
@@ -367,7 +374,15 @@ def stepWalker (s : State walker) (var : Var)
     size_cache := by grind [s.size_cache]
     cacheValid := by grind [s.cacheValid]
     sm := by intros; apply walker.stepState
-    cm := by grind [s.cm, walker.stepCache, walker.stepCacheNew]
+    cm := by
+      intros
+      simp
+      split
+      next heq =>
+        subst heq
+        apply walker.stepCacheNew
+      · apply walker.stepCache
+        · grind only [= VarCache.mem_set]
 
     stackValid := by grind [s.stackValid]
     stackUncached := by
@@ -381,16 +396,16 @@ def stepWalker (s : State walker) (var : Var)
   }
 
 @[simp, grind =]
-theorem idx_stepWalker var h var_eq cacheAnds :
-    (s.stepWalker var h var_eq cacheAnds).idx = s.idx + 1 := by
+theorem idx_stepWalker var h var_eq cacheAnds cacheResets :
+    (s.stepWalker var h var_eq cacheAnds cacheResets).idx = s.idx + 1 := by
   rfl
 
 @[simp]
-theorem measure_lt_stepWalker var h var_eq cacheAnds :
-    (s.stepWalker var h var_eq cacheAnds).measure.lexLt s.measure := by
+theorem measure_lt_stepWalker var h var_eq cacheAnds cacheResets :
+    (s.stepWalker var h var_eq cacheAnds cacheResets).measure.lexLt s.measure := by
   grind [Prod.lexLt_def, measure]
 
-grind_pattern measure_lt_stepWalker => (s.stepWalker var h var_eq cacheAnds).measure, s.measure
+grind_pattern measure_lt_stepWalker => (s.stepWalker var h var_eq cacheAnds cacheResets).measure, s.measure
 
 @[always_inline]
 def enqueueVar (s : State walker) (var : Var)
@@ -429,11 +444,23 @@ def step (s : State walker) (h : 0 < s.stack.size := by grind) : State walker :=
   let var := s.stack.back
   have : var.validIn aig := by grind [s.stackValid]
 
-  match _ : aig[var] with
-  | .false | .input _ | .latch _ => s.stepWalker var
-  | .and lhs rhs =>
-    have := s.size_cache
+  have := s.size_cache
 
+  match _ : aig[var] with
+  | .false | .input _ => s.stepWalker var
+  | .latch idx =>
+    if _ : !walker.reset then
+      s.stepWalker var
+    else
+      match _ : idx.getReset aig with
+      | none => s.stepWalker var
+      | some rst =>
+        let rstVal := s.cache[rst.var]
+        if _ : null.isNull rstVal then
+          s.enqueueVar rst.var
+        else
+          s.stepWalker var
+  | .and lhs rhs =>
     let lhsVal := s.cache[lhs.var]
     if _ : null.isNull lhsVal then
       s.enqueueVar lhs.var
