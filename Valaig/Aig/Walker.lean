@@ -283,9 +283,9 @@ structure COIWalker (aig : WFAig) (σ α : Type) (null : Data.Nullable α := by 
       (by apply stepState) var valid (step idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm).snd.val
 
 namespace COIWalker
-variable {aig : WFAig} {σ α : Type} [null : Data.Nullable α]
+variable {aig : WFAig} {σ α : Type} {null : Data.Nullable α}
 
-structure State (walker : COIWalker aig σ α) where
+structure State (walker : COIWalker aig σ α null) where
   idx : Nat
   state : σ
   cache : VarCache α
@@ -308,7 +308,7 @@ structure State (walker : COIWalker aig σ α) where
   stackOrdered : ∀ i j (hi : i < stack.size) (hj : j < stack.size), i < j → stack[i] > stack[j]
 
 namespace State
-variable {walker : COIWalker aig σ α} {s : State walker}
+variable {walker : COIWalker aig σ α null} {s : State walker}
 
 /--
   TODO: Investigate not requiring cache to be aig size (maybe it could be sparse, maybe it could
@@ -407,6 +407,22 @@ theorem measure_lt_stepWalker var h var_eq cacheAnds cacheResets :
 
 grind_pattern measure_lt_stepWalker => (s.stepWalker var h var_eq cacheAnds cacheResets).measure, s.measure
 
+@[simp, grind .]
+theorem mem_cache_stepWalker var h var_eq cacheAnds cacheResets {var' : Var} (mem : var' ∈ s.cache) :
+    var' ∈ (s.stepWalker var h var_eq cacheAnds cacheResets).cache := by
+  unfold stepWalker
+  grind
+
+@[simp, grind .]
+theorem mem_stack_stepWalker var h var_eq cacheAnds cacheResets {var' : Var} (mem : var' ∈ s.stack) :
+    var' ∈ (s.stepWalker var h var_eq cacheAnds cacheResets).stack ∨
+    var' ∈ (s.stepWalker var h var_eq cacheAnds cacheResets).cache := by
+  unfold stepWalker
+  by_cases h : var' = s.stack.back
+  · grind
+  · rw [Array.mem_iff_getElem] at mem
+    grind
+
 @[always_inline]
 def enqueueVar (s : State walker) (var : Var)
   (sized : 0 < s.stack.size := by grind)
@@ -438,6 +454,16 @@ theorem measure_lt_enqueueVar var sized valid uncached ordered :
   grind [Prod.lexLt_def, measure, enqueueVar]
 
 grind_pattern measure_lt_enqueueVar => (s.enqueueVar var sized valid uncached ordered).measure, s.measure
+
+@[simp, grind =]
+theorem cache_enqueueVar var sized valid uncached ordered :
+    (s.enqueueVar var sized valid uncached ordered).cache = s.cache := by
+  grind [enqueueVar]
+
+@[simp, grind .]
+theorem mem_stack_enqueueVar var sized valid uncached ordered {var'} (mem : var' ∈ s.stack) :
+    var' ∈ (s.enqueueVar var sized valid uncached ordered).stack := by
+  grind [enqueueVar]
 
 @[always_inline]
 def step (s : State walker) (h : 0 < s.stack.size := by grind) : State walker :=
@@ -478,6 +504,16 @@ theorem step_lt_enqueueVar h :
     (s.step h).measure.lexLt s.measure := by
   fun_cases step <;> grind
 
+@[simp, grind .]
+theorem mem_cache_step {var : Var} (mem : var ∈ s.cache) h :
+    var ∈ (s.step h).cache := by
+  fun_cases step <;> grind
+
+@[simp, grind .]
+theorem mem_stack_step {var : Var} (mem : var ∈ s.stack) :
+    var ∈ s.step.stack ∨ var ∈ s.step.cache := by
+  fun_cases step <;> grind
+
 /-
   TODO: Try unboxing recursive args.
 -/
@@ -492,6 +528,16 @@ decreasing_by
   rw [Prod.lex_def]
   apply step_lt_enqueueVar
 
+@[simp, grind .]
+theorem mem_cache_walk {var : Var} (mem : var ∈ s.cache) :
+    var ∈ s.walk.cache := by
+  fun_induction walk <;> grind
+
+@[simp, grind .]
+theorem mem_cache_walk_of_mem_stack {var : Var} (mem : var ∈ s.stack) :
+    var ∈ s.walk.cache := by
+  fun_induction walk <;> grind
+
 end State
 
 /--
@@ -503,6 +549,12 @@ end State
 def walk {null} (walker : COIWalker aig σ α null) (var : Var) (valid : var.validIn aig := by grind) : σ × VarCache α :=
   let res := (State.new walker var).walk
   (res.state, res.cache)
+
+@[simp, grind .]
+theorem mem_cache_walk {walker : COIWalker aig σ α null} {var valid} :
+    var ∈ (walker.walk var valid).snd := by
+  apply State.mem_cache_walk_of_mem_stack
+  grind [State.new]
 
 end COIWalker
 
