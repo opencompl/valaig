@@ -67,7 +67,7 @@ private def walker (aig : WFAig) (reset : Bool) : COIWalker aig (Std.Sat.AIG Lea
       match _ : aig[var] with
       | .false => .mk std (std.mkConstCached .false)
       | .and lhs rhs =>
-        std.mkGateCached <| .mk (map lhs) (map rhs)
+        std.mkGate <| .mk (map lhs) (map rhs)
       | .input idx => std.mkAtomCached idx
       | .latch idx =>
         if _ : reset then
