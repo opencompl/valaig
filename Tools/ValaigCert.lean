@@ -39,8 +39,8 @@ def run (model cert : String) : IO Unit := do
   let cert ← IO.FS.Handle.mk cert .read
   let (_, cert) ← IO.ofExcept <| Valaig.Aiger.parse <| ← cert.readBinToEnd
 
-  let modelaig := Transform.twoLevelSimp (model.aig.toWF sorry)
-  let model := { model with aig := modelaig }
+  -- let modelaig := Transform.twoLevelSimp (model.aig.toWF sorry)
+  -- let model := { model with aig := modelaig }
 
   IO.println "Constructing product circuit"
   let (product, invbad) ← IO.ofExcept <| Valaig.Cert.appendCert model cert

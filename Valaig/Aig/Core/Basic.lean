@@ -895,9 +895,10 @@ def addAndRaw (aig : Aig) (lhs rhs : Lit) : Aig × Var :=
   or internal invariants are broken.
 -/
 def addAnd (aig : Aig) (lhs rhs : @&Lit) : Aig × Lit :=
-  match TwoLevelSimp.simplifyAnd lhs rhs (aig.asAnd? lhs.var) (aig.asAnd? rhs.var) with
-  | .lit lit => (aig, lit)
-  | .and l r => let (aig, var) := aig.addAndRaw l r; (aig, var)
+  let (aig, var) := aig.addAndRaw lhs rhs; (aig, var)
+  -- match TwoLevelSimp.simplifyAnd lhs rhs (aig.asAnd? lhs.var) (aig.asAnd? rhs.var) with
+  -- | .lit lit => (aig, lit)
+  -- | .and l r => let (aig, var) := aig.addAndRaw l r; (aig, var)
 
 /--
   Convert an input into a new latch that defines the same variable, deleting the input.
