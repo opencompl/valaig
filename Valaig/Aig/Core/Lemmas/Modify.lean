@@ -484,7 +484,7 @@ end addAnd
 -/
 section inputToLatch
 variable {idx : InputIdx} {next : Lit} {reset : Option Lit}
-variable (valid : idx.validIn aig) (varValid : (idx.getVar aig).validIn aig)
+variable (valid : idx.validIn aig) (varValid : (idx.getVar aig valid).validIn aig)
 attribute [local simp, local grind] inputToLatch
 
 @[simp, grind =]
@@ -518,7 +518,7 @@ end inputToLatch
 -/
 section inputToAnd
 variable {idx : InputIdx} {lhs rhs : Lit}
-variable (valid : idx.validIn aig) (varValid : (idx.getVar aig).validIn aig)
+variable (valid : idx.validIn aig) (varValid : (idx.getVar aig valid).validIn aig)
 attribute [local simp, local grind] inputToAnd
 
 
@@ -545,7 +545,7 @@ end inputToAnd
 -/
 section changeInputIdx
 variable {old new : InputIdx}
-variable (valid : old.validIn aig) (varValid : (old.getVar aig).validIn aig) (unused : ¬new.validIn aig ∨ old = new)
+variable (valid : old.validIn aig) (varValid : (old.getVar aig valid).validIn aig) (unused : ¬new.validIn aig ∨ old = new)
 attribute [local simp, local grind] changeInputIdx
 
 @[simp, grind =]
@@ -586,7 +586,7 @@ end changeInputIdx
  `latchToInput`.
 -/
 section latchToInput
-variable {idx : LatchIdx} (valid : idx.validIn aig) (varValid : (idx.getVar aig).validIn aig)
+variable {idx : LatchIdx} (valid : idx.validIn aig) (varValid : (idx.getVar aig valid).validIn aig)
 attribute [local simp, local grind] latchToInput
 
 @[simp, grind =]
@@ -618,7 +618,7 @@ end latchToInput
 -/
 section latchToAnd
 variable {idx : LatchIdx} {lhs rhs : Lit}
-variable (valid : idx.validIn aig) (varValid : (idx.getVar aig).validIn aig)
+variable (valid : idx.validIn aig) (varValid : (idx.getVar aig valid).validIn aig)
 attribute [local simp, local grind] latchToAnd
 
 
@@ -645,7 +645,7 @@ end latchToAnd
 -/
 section changeLatchIdx
 variable {old new : LatchIdx}
-variable (valid : old.validIn aig) (varValid : (old.getVar aig).validIn aig) (unused : ¬new.validIn aig ∨ old = new)
+variable (valid : old.validIn aig) (varValid : (old.getVar aig valid).validIn aig) (unused : ¬new.validIn aig ∨ old = new)
 attribute [local simp, local grind] changeLatchIdx
 
 @[simp, grind =]
