@@ -4,6 +4,7 @@ public import Valaig.Aig.Core
 public import Valaig.Data.VarCache
 public import Valaig.Data.Nullable
 import Valaig.ForLean.Array
+import Valaig.ForLean.Function
 
 public section
 namespace Valaig.Aig
@@ -244,6 +245,7 @@ theorem cacheMotive_walk var lt :
 
 end CachingForwardsWalker
 
+@[ext]
 structure COIWalker (aig : WFAig) (σ α : Type) (null : Data.Nullable α := by infer_instance) where
   stateMotive : (state : σ) -> (idx : Nat) -> idx ≤ aig.size -> Prop
   cacheMotive :
@@ -285,6 +287,7 @@ structure COIWalker (aig : WFAig) (σ α : Type) (null : Data.Nullable α := by 
 namespace COIWalker
 variable {aig : WFAig} {σ α : Type} {null : Data.Nullable α}
 
+@[ext]
 structure State (walker : COIWalker aig σ α null) where
   idx : Nat
   state : σ
@@ -465,7 +468,7 @@ theorem mem_stack_enqueueVar var sized valid uncached ordered {var'} (mem : var'
     var' ∈ (s.enqueueVar var sized valid uncached ordered).stack := by
   grind [enqueueVar]
 
-@[always_inline]
+@[always_inline, specialize walker]
 def step (s : State walker) (h : 0 < s.stack.size := by grind) : State walker :=
   let var := s.stack.back
   have : var.validIn aig := by grind [s.stackValid]
@@ -514,29 +517,145 @@ theorem mem_stack_step {var : Var} (mem : var ∈ s.stack) :
     var ∈ s.step.stack ∨ var ∈ s.step.cache := by
   fun_cases step <;> grind
 
-/-
-  TODO: Try unboxing recursive args.
+@[always_inline, specialize walker reset step]
+private def walk.rebuildWalker (walker : COIWalker aig σ α null)
+    (reset : Bool) step
+    (hreset : walker.reset = reset := by grind)
+    (hstep : walker.step = step := by grind) :
+    COIWalker aig σ α null := by
+  let step' idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm :=
+    step idx var state cache valid lt cacheAnds (by rw [hreset]; exact cacheResets) cacheValid sm cm
+
+  apply COIWalker.mk walker.stateMotive walker.cacheMotive
+    reset walker.init walker.initState step'
+  · simp only [step', ←hreset, ←hstep]
+    exact walker.stepCache
+  · simp only [step', ←hreset, ←hstep]
+    exact walker.stepCacheNew
+  · simp only [step', ←hreset, ←hstep]
+    exact walker.stepState
+
+@[simp, grind =]
+private theorem walk.rebuildWalker_eq reset step hreset hstep :
+    rebuildWalker walker reset step hreset hstep = walker := by
+  fun_cases rebuildWalker
+  apply COIWalker.ext (by rfl) (by rfl) (by simp [hreset]) (by rfl)
+  repeat' (
+    apply hfunext
+    · simp only [←hreset]
+    focus
+      try simp only [←hreset]
+      intro _ _ heq
+      subst heq
+  )
+  grind
+
+@[always_inline, specialize walker]
+private def walk.rebuildState (s : State walker)
+    (idx : Nat) (state : σ) (cache : VarCache α) (stack : Array Var)
+    (hidx : s.idx = idx := by grind)
+    (hstate : s.state = state := by grind)
+    (hcache : s.cache = cache := by grind)
+    (hstack : s.stack = stack := by grind) :
+    State walker := by
+  apply State.mk idx state cache stack
+  <;> simp only [←hidx, ←hstate, ←hcache, ←hstack]
+  · refine s.cacheValid
+  · refine s.cm
+  · refine s.stackValid
+  · refine s.stackUncached
+  · refine s.stackOrdered
+  · refine s.idx_eq
+  · refine s.size_cache
+  · refine s.sm
+
+@[simp, grind =]
+private theorem walk.rebuildState_eq (s : State walker) idx state cache stack hidx hstate hcache hstack :
+    rebuildState s idx state cache stack hidx hstate hcache hstack = s := by
+  fun_cases rebuildState
+  grind only [State]
+
+private def walk.castState {walker'} (s : State walker) (h : walker = walker' := by grind) : State walker' :=
+  cast (by simp only [h]) s
+
+@[simp, grind =]
+private theorem walk.castState_heq {walker'} (s : State walker) (h : walker = walker') :
+    castState s h ≍ s := by
+  fun_cases castState
+  grind only
+
+private theorem walk.castState_motive {walker' β} (s : State walker) (h : walker = walker')
+    (motive : (walker : COIWalker aig σ α null) → (s : State walker) → β) :
+    motive walker' (castState s h) = motive walker s := by
+  grind
+
+@[simp, grind =]
+private theorem walk.castState_step {walker'} (s : State walker) (h : walker = walker') h0 :
+    (castState s h).step h0 = castState (s.step (by grind)) h  := by
+  grind
+
+open walk in
+/--
+  We optimize the performance by unboxing the arguments and repopulating them into
+  the walker/state with each call.
 -/
+@[always_inline, specialize walker]
+def walk (s : State walker) :=
+  go s walker.reset walker.step s.idx s.state s.cache s.stack
+where
+  @[specialize walker reset step]
+  go (s : State walker)
+    (reset : Bool) step
+    (idx : Nat) (state : σ) (cache : VarCache α) (stack : Array Var)
+    (hreset : walker.reset = reset := by grind)
+    (hstep : walker.step = step := by grind)
+    (hidx : s.idx = idx := by grind)
+    (hstate : s.state = state := by grind)
+    (hcache : s.cache = cache := by grind)
+    (hstack : s.stack = stack := by grind) :
+    State walker :=
+  if _ : stack.size = 0 then
+    rebuildState s idx state cache stack
+  else
+    let walker' := rebuildWalker walker reset step
+    let s' : State walker' := castState (rebuildState s idx state cache stack)
+    let s' : State walker := castState (s'.step)
+    go s' reset step s'.idx s'.state s'.cache s'.stack
+  termination_by s.measure
+  decreasing_by
+    simp only [Prod.lex_def, rebuildState_eq, castState_step, walk.castState_motive]
+    apply step_lt_enqueueVar
+
 @[always_inline]
-def walk (s : State walker) : State walker :=
+def walkSlow (s : State walker) : State walker :=
   if _ : s.stack.size = 0 then
     s
   else
-    walk s.step
+    walkSlow s.step
 termination_by s.measure
 decreasing_by
   rw [Prod.lex_def]
   apply step_lt_enqueueVar
 
+@[simp, grind =, grind =_]
+theorem walk_eq_walkSlow {s : State walker} :
+    s.walk = s.walkSlow := by
+  unfold walk
+  fun_induction walkSlow
+  <;> unfold walk.go
+  <;> grind
+
 @[simp, grind .]
 theorem mem_cache_walk {var : Var} (mem : var ∈ s.cache) :
     var ∈ s.walk.cache := by
-  fun_induction walk <;> grind
+  rw [walk_eq_walkSlow]
+  fun_induction walkSlow <;> grind
 
 @[simp, grind .]
 theorem mem_cache_walk_of_mem_stack {var : Var} (mem : var ∈ s.stack) :
     var ∈ s.walk.cache := by
-  fun_induction walk <;> grind
+  rw [walk_eq_walkSlow]
+  fun_induction walkSlow <;> grind
 
 end State
 

@@ -2,6 +2,7 @@ module
 
 public import Valaig.ForLean.Prelude
 public import Valaig.Data.Pool
+import Valaig.ForLean.Function
 
 public section
 namespace Valaig.Data
@@ -33,14 +34,6 @@ attribute [simp, grind =] AsNat.ofNat_toNat AsNat.toNat_ofNat
 attribute [simp] AsNat.toNat AsNat.ofNat
 
 variable [DecidableEq α] {β : Type} {map : AbsMap α β} {key : α} {value : β}
-
-private theorem hfunext {α α' : Sort u} {β : α → Sort v} {β' : α' → Sort v} {f : ∀ a, β a} {f' : ∀ a, β' a}
-    (hα : α = α') (h : ∀ a a', a ≍ a' → f a ≍ f' a') : f ≍ f' := by
-  subst hα
-  have : ∀ a, f a ≍ f' a := fun a ↦ h a a (HEq.refl a)
-  have : β = β' := by funext a; exact type_eq_of_heq (this a)
-  subst this
-  grind
 
 theorem ext' (a b : AbsMap α β)
     (valid : ∀ key, a.valid key = b.valid key)
