@@ -548,7 +548,7 @@ private theorem walk.rebuildWalker_eq reset step hreset hstep :
       intro _ _ heq
       subst heq
   )
-  grind
+  grind only
 
 @[always_inline, specialize walker]
 private def walk.rebuildState (s : State walker)
@@ -587,12 +587,12 @@ private theorem walk.castState_heq {walker'} (s : State walker) (h : walker = wa
 private theorem walk.castState_motive {walker' β} (s : State walker) (h : walker = walker')
     (motive : (walker : COIWalker aig σ α null) → (s : State walker) → β) :
     motive walker' (castState s h) = motive walker s := by
-  grind
+  grind only [= castState_heq]
 
 @[simp, grind =]
 private theorem walk.castState_step {walker'} (s : State walker) (h : walker = walker') h0 :
     (castState s h).step h0 = castState (s.step (by grind)) h  := by
-  grind
+  grind only [= castState_heq]
 
 open walk in
 /--
@@ -637,7 +637,7 @@ decreasing_by
   rw [Prod.lex_def]
   apply step_lt_enqueueVar
 
-@[simp, grind =, grind =_]
+@[simp, grind =]
 theorem walk_eq_walkSlow {s : State walker} :
     s.walk = s.walkSlow := by
   unfold walk
@@ -646,16 +646,16 @@ theorem walk_eq_walkSlow {s : State walker} :
   <;> grind
 
 @[simp, grind .]
-theorem mem_cache_walk {var : Var} (mem : var ∈ s.cache) :
-    var ∈ s.walk.cache := by
-  rw [walk_eq_walkSlow]
-  fun_induction walkSlow <;> grind
+theorem mem_cache_walkSlow {var : Var} (mem : var ∈ s.cache) :
+    var ∈ s.walkSlow.cache := by
+  fun_induction walkSlow
+  <;> grind
 
 @[simp, grind .]
 theorem mem_cache_walk_of_mem_stack {var : Var} (mem : var ∈ s.stack) :
-    var ∈ s.walk.cache := by
-  rw [walk_eq_walkSlow]
-  fun_induction walkSlow <;> grind
+    var ∈ s.walkSlow.cache := by
+  fun_induction walkSlow
+  <;> grind
 
 end State
 
@@ -672,6 +672,7 @@ def walk {null} (walker : COIWalker aig σ α null) (var : Var) (valid : var.val
 @[simp, grind .]
 theorem mem_cache_walk {walker : COIWalker aig σ α null} {var valid} :
     var ∈ (walker.walk var valid).snd := by
+  rw [walk, State.walk_eq_walkSlow]
   apply State.mem_cache_walk_of_mem_stack
   grind [State.new]
 
