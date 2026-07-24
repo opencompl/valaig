@@ -575,6 +575,10 @@ namespace InputIdx
 def getVar (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
   aig._inputs[idx.idx].val.var
 
+@[inline, inherit_doc getVar]
+def getVar? (idx : InputIdx) (aig : Aig) : Option Var :=
+  aig._inputs[idx.idx]?.map (·.val.var)
+
 /--
   Lookup the variable (PI) defined by this input in the Aig.
 
@@ -583,9 +587,7 @@ def getVar (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : 
 -/
 @[always_inline]
 def getVar! (idx : InputIdx) (aig : Aig) : Option Var :=
-  match aig._inputs[idx.idx]? with
-  | none       => panicAt "Valaig.Aig.InputIdx.getVar!" "`idx` not valid in `aig`"
-  | some input => input.val.var
+  idx.getVar? aig <|> panicAt "Valaig.Aig.InputIdx.getVar!" "`idx` not valid in `aig`"
 
 /--
   Lookup the variable defined by this input in the Aig and cast it to an uninverted literal.
@@ -594,6 +596,10 @@ def getVar! (idx : InputIdx) (aig : Aig) : Option Var :=
 def getLit (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
   idx.getVar aig valid |>.toLit
 
+@[inline, inherit_doc getLit]
+def getLit? (idx : InputIdx) (aig : Aig) : Option Lit :=
+  idx.getVar? aig |>.map (·.toLit)
+
 /--
   Lookup the variable defined by this input in the Aig and cast it to an uninverted literal.
 
@@ -601,9 +607,7 @@ def getLit (idx : InputIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : 
 -/
 @[always_inline]
 def getLit! (idx : InputIdx) (aig : Aig) : Option Lit :=
-  match aig._inputs[idx.idx]? with
-  | none       => panicAt "Valaig.Aig.InputIdx.getLit!" "`idx` not valid in `aig`"
-  | some input => input.val.var.toLit
+  idx.getLit? aig <|> panicAt "Valaig.Aig.InputIdx.getLit!" "`idx` not valid in `aig`"
 
 end InputIdx
 
@@ -619,6 +623,10 @@ namespace LatchIdx
 def getVar (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Var :=
   aig._latches[idx.idx].val.var
 
+@[inline, inherit_doc getVar]
+def getVar? (idx : LatchIdx) (aig : Aig) : Option Var :=
+  aig._latches[idx.idx]?.map (·.val.var)
+
 /--
   Lookup the variable (CI) defined by this latch in the Aig.
 
@@ -626,9 +634,7 @@ def getVar (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : 
 -/
 @[always_inline]
 def getVar! (idx : LatchIdx) (aig : Aig) : Option Var :=
-  match aig._latches[idx.idx]? with
-  | none       => panicAt "Valaig.Aig.LatchIdx.getVar!" "`idx` not valid in `aig`"
-  | some latch => latch.val.var
+  idx.getVar? aig <|> panicAt "Valaig.Aig.LatchIdx.getVar!" "`idx` not valid in `aig`"
 
 /--
   Lookup the variable defined by this latch in the Aig and cast it to an uninverted literal.
@@ -637,6 +643,10 @@ def getVar! (idx : LatchIdx) (aig : Aig) : Option Var :=
 def getLit (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
   idx.getVar aig valid |>.toLit
 
+@[inline, inherit_doc getLit]
+def getLit? (idx : LatchIdx) (aig : Aig) : Option Lit :=
+  idx.getVar? aig |>.map (·.toLit)
+
 /--
   Lookup the variable defined by this latch in the Aig and cast it to an uninverted literal.
 
@@ -644,9 +654,7 @@ def getLit (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : 
 -/
 @[always_inline]
 def getLit! (idx : LatchIdx) (aig : Aig) : Option Lit :=
-  match aig._latches[idx.idx]? with
-  | none       => panicAt "Valaig.Aig.LatchIdx.getLit!" "`idx` not valid in `aig`"
-  | some latch => latch.val.var.toLit
+  idx.getLit? aig <|> panicAt "Valaig.Aig.LatchIdx.getLit!" "`idx` not valid in `aig`"
 
 /--
   Lookup the next state function defined for this latch in the Aig.
@@ -655,6 +663,10 @@ def getLit! (idx : LatchIdx) (aig : Aig) : Option Lit :=
 def getNext (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
   aig._latches[idx.idx].val.next
 
+@[inline, inherit_doc getNext]
+def getNext? (idx : LatchIdx) (aig : Aig) : Option Lit :=
+  aig._latches[idx.idx]?.map (·.val.next)
+
 /--
   Lookup the next state function defined for this latch in the Aig.
 
@@ -662,9 +674,7 @@ def getNext (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) :
 -/
 @[always_inline]
 def getNext! (idx : LatchIdx) (aig : Aig) : Option Lit :=
-  match aig._latches[idx.idx]? with
-  | none       => panicAt "Valaig.Aig.LatchIdx.getNext!" "`idx` not valid in `aig`"
-  | some latch => latch.val.next
+  idx.getNext? aig <|> panicAt "Valaig.Aig.LatchIdx.getNext!" "`idx` not valid in `aig`"
 
 /--
   Lookup the optional reset function defined for this latch in the Aig.
@@ -673,6 +683,10 @@ def getNext! (idx : LatchIdx) (aig : Aig) : Option Lit :=
 def getReset (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Option Lit :=
   aig._latches[idx.idx].val.reset
 
+@[inline, inherit_doc getReset]
+def getReset? (idx : LatchIdx) (aig : Aig) : Option (Option Lit) :=
+  aig._latches[idx.idx]?.map (·.val.reset)
+
 /--
   Lookup the optional reset function defined for this latch in the Aig.
 
@@ -680,10 +694,7 @@ def getReset (idx : LatchIdx) (aig : Aig) (valid : idx.validIn aig := by grind) 
 -/
 @[always_inline]
 def getReset! (idx : LatchIdx) (aig : Aig) : Option (Option Lit) :=
-  match aig._latches[idx.idx]? with
-  | none       => panicAt "Valaig.Aig.LatchIdx.getReset!" "`idx` not valid in `aig`"
-  | some latch => return latch.val.reset
-
+  idx.getReset? aig <|> panicAt "Valaig.Aig.LatchIdx.getReset!" "`idx` not valid in `aig`"
 
 end LatchIdx
 
@@ -775,6 +786,12 @@ def getVar (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : V
   | .input idx
   | .latch idx => idx.getVar aig
 
+@[always_inline, inherit_doc getVar]
+def getVar? (idx : LeafIdx) (aig : Aig) : Option Var :=
+  match idx with
+  | .input idx
+  | .latch idx => idx.getVar? aig
+
 /--
   Lookup the variable (CI) defined by this leaf in the Aig.
 
@@ -792,6 +809,10 @@ def getVar! (idx : LeafIdx) (aig : Aig) : Option Var :=
 @[always_inline]
 def getLit (idx : LeafIdx) (aig : Aig) (valid : idx.validIn aig := by grind) : Lit :=
   idx.getVar aig valid |>.toLit
+
+@[always_inline, inherit_doc getLit]
+def getLit? (idx : LeafIdx) (aig : Aig) : Option Lit :=
+  idx.getVar? aig |>.map (·.toLit)
 
 /--
   Lookup the variable (CI) defined by this leaf in the Aig and cast it to an uninverted literal.

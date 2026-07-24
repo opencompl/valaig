@@ -16,15 +16,15 @@ attribute [local simp, local grind]
   size numInputs numLatches
   maxVar nextVar newInputIdx newLatchIdx
   numInputs numLatches numGates
-  InputIdx.getVar InputIdx.getVar!
-  InputIdx.getLit InputIdx.getLit!
-  LatchIdx.getVar LatchIdx.getVar!
-  LatchIdx.getLit LatchIdx.getLit!
-  LatchIdx.getNext LatchIdx.getNext! setNext!
-  LatchIdx.getReset LatchIdx.getReset! setReset!
+  InputIdx.getVar InputIdx.getVar? InputIdx.getVar!
+  InputIdx.getLit InputIdx.getLit? InputIdx.getLit!
+  LatchIdx.getVar LatchIdx.getVar? LatchIdx.getVar!
+  LatchIdx.getLit LatchIdx.getLit? LatchIdx.getLit!
+  LatchIdx.getNext LatchIdx.getNext? LatchIdx.getNext! setNext!
+  LatchIdx.getReset LatchIdx.getReset? LatchIdx.getReset! setReset!
   LeafIdx.validIn
-  LeafIdx.getVar LeafIdx.getVar!
-  LeafIdx.getLit LeafIdx.getLit!
+  LeafIdx.getVar LeafIdx.getVar? LeafIdx.getVar!
+  LeafIdx.getLit LeafIdx.getLit? LeafIdx.getLit!
   inputToLatch! inputToAnd! changeInputIdx!
   latchToInput! latchToAnd! changeLatchIdx!
   andToInput! andToLatch! rewriteAnd!
@@ -239,7 +239,7 @@ theorem asAnd?_eq {var : Var} :
 -- they return
 
 /-
-  `InputIdx.getVar`/`InputIdx.getVar!`.
+  `InputIdx.getVar`/`InputIdx.getVar?`/`InputIdx.getVar!`.
 -/
 
 @[simp, grind norm]
@@ -248,17 +248,21 @@ theorem input_getVar_eq {idx : InputIdx} valid :
   grind
 
 @[simp, grind =]
-theorem input_getVar!_eq {idx : InputIdx} valid :
-    idx.getVar! aig = idx.getVar aig valid := by
+theorem input_getVar?_eq {idx : InputIdx} :
+    idx.getVar? aig =
+      if h : idx.validIn aig then
+        some (idx.getVar aig h)
+      else
+        none := by
   grind
 
-@[grind →]
-theorem input_getVar!_some {idx : InputIdx} {var : Var} (ok : idx.getVar! aig = var) :
-    var = idx.getVar aig := by
+@[simp, grind norm]
+theorem input_getVar!_eq {idx : InputIdx} :
+    idx.getVar! aig = idx.getVar? aig := by
   grind
 
 /-
-  `InputIdx.getLit`/`InputIdx.getLit!`.
+  `InputIdx.getLit`/`InputIdx.getLit?`/`InputIdx.getLit!`.
 -/
 
 @[simp, grind norm]
@@ -267,17 +271,21 @@ theorem input_getLit_eq {idx : InputIdx} valid :
   grind
 
 @[simp, grind =]
-theorem input_getLit!_eq {idx : InputIdx}  valid :
-    idx.getLit! aig = idx.getLit aig valid := by
+theorem input_getLit?_eq {idx : InputIdx} :
+    idx.getLit? aig = 
+      if h : idx.validIn aig then
+        some (idx.getVar aig h)
+      else
+        none := by
   grind
 
-@[grind →]
-theorem input_getLit!_some {idx : InputIdx} {lit : Lit} (ok : idx.getLit! aig = lit) :
-    lit = idx.getLit aig := by
+@[simp, grind norm]
+theorem input_getLit!_eq {idx : InputIdx} :
+    idx.getLit! aig = idx.getLit? aig := by
   grind
 
 /-
-  `LatchIdx.getLit`/`LatchIdx.getLit!`.
+  `LatchIdx.getVar`/`LatchIdx.getVar?`/`LatchIdx.getVar!`.
 -/
 
 @[simp, grind norm]
@@ -286,32 +294,40 @@ theorem latch_getVar_eq {idx : LatchIdx} valid :
   grind
 
 @[simp, grind =]
-theorem latch_getVar!_eq {idx : LatchIdx} valid :
-    idx.getVar! aig = idx.getVar aig valid := by
+theorem latch_getVar?_eq {idx : LatchIdx} :
+    idx.getVar? aig =
+      if h : idx.validIn aig then
+        some (idx.getVar aig h)
+      else
+        none := by
   grind
 
-@[grind →]
-theorem latch_getVar!_some {idx : LatchIdx} {var : Var} (ok : idx.getVar! aig = var) :
-    var = idx.getVar aig := by
+@[simp, grind norm]
+theorem latch_getVar!_eq {idx : LatchIdx} :
+    idx.getVar! aig = idx.getVar? aig := by
   grind
 
 /-
-  `LatchIdx.getVar`/`LatchIdx.getVar!`.
--/
+  `LatchIdx.getLit`/`LatchIdx.getLit?`/`LatchIdx.getLit!`.
 
+-/
 @[simp, grind norm]
 theorem latch_getLit_eq {idx : LatchIdx} valid :
     idx.getLit aig valid = aig.latches[idx].var.toLit := by
   grind
 
 @[simp, grind =]
-theorem latch_getLit!_eq {idx : LatchIdx} valid :
-    idx.getLit! aig = idx.getLit aig valid := by
+theorem latch_getLit?_eq {idx : LatchIdx} :
+    idx.getLit? aig =
+      if h : idx.validIn aig then
+        some (idx.getLit aig h)
+      else
+        none := by
   grind
 
-@[grind →]
-theorem latch_getLit!_some {idx : LatchIdx} {lit : Lit} (ok : idx.getLit! aig = lit) :
-    lit = idx.getLit aig := by
+@[simp, grind norm]
+theorem latch_getLit!_eq {idx : LatchIdx} :
+    idx.getLit! aig = idx.getLit? aig := by
   grind
 
 /-
@@ -324,13 +340,17 @@ theorem getNext_eq {idx : LatchIdx} valid :
   grind
 
 @[simp, grind =]
-theorem getNext!_eq {idx : LatchIdx} valid :
-    idx.getNext! aig = idx.getNext aig valid := by
+theorem latch_getNext?_eq {idx : LatchIdx} :
+    idx.getNext? aig =
+      if h : idx.validIn aig then
+        some (idx.getNext aig h)
+      else
+        none := by
   grind
 
-@[grind →]
-theorem getNext!_some {idx : LatchIdx} {lit : Lit} (ok : idx.getNext! aig = lit) :
-    lit = idx.getNext aig := by
+@[simp, grind norm]
+theorem latch_getNext!_eq {idx : LatchIdx} :
+    idx.getNext! aig = idx.getNext? aig := by
   grind
 
 /-
@@ -343,13 +363,17 @@ theorem getReset_eq {idx : LatchIdx} valid :
   grind
 
 @[simp, grind =]
-theorem getReset!_eq {idx : LatchIdx} valid :
-    idx.getReset! aig = some (idx.getReset aig valid) := by
+theorem latch_getReset?_eq {idx : LatchIdx} :
+    idx.getReset? aig =
+      if h : idx.validIn aig then
+        some (idx.getReset aig h)
+      else
+        none := by
   grind
 
-@[grind →]
-theorem getReset!_some {idx : LatchIdx} {lit : Lit} (ok : idx.getReset! aig = lit) :
-    lit = idx.getReset aig := by
+@[simp, grind norm]
+theorem latch_getReset!_eq {idx : LatchIdx} :
+    idx.getReset! aig = idx.getReset? aig := by
   grind
 
 /-
@@ -401,7 +425,7 @@ theorem validIn_iff {idx : LeafIdx} :
   grind
 
 /-
-  `LeafIdx.getVar`/`LeafIdx.getVar!`.
+  `LeafIdx.getVar`/`LeafIdx.getVar?`/`LeafIdx.getVar!`.
 -/
 
 @[simp, grind =]
@@ -413,13 +437,17 @@ theorem getVar_eq {idx : LeafIdx} valid :
   grind
 
 @[simp, grind =]
-theorem getVar!_eq {idx : LeafIdx} valid :
-    idx.getVar! aig = idx.getVar aig valid := by
+theorem getVar?_eq {idx : LeafIdx} :
+    idx.getVar? aig =
+      if h : idx.validIn aig then
+        some (idx.getVar aig h)
+      else
+        none := by
   grind
 
-@[grind →]
-theorem getVar!_some {idx : LeafIdx} {var : Var} (ok : idx.getVar! aig = var) :
-    var = idx.getVar aig := by
+@[simp, grind norm]
+theorem getVar!_eq {idx : LeafIdx} :
+    idx.getVar! aig = idx.getVar? aig := by
   grind
 
 /-
@@ -435,13 +463,17 @@ theorem getLit_eq {idx : LeafIdx} valid :
   grind
 
 @[simp, grind =]
-theorem getLit!_eq {idx : LeafIdx} valid :
-    idx.getLit! aig = idx.getLit aig valid := by
+theorem getLit?_eq {idx : LeafIdx} :
+    idx.getLit? aig =
+      if h : idx.validIn aig then
+        some (idx.getLit aig h)
+      else
+        none := by
   grind
 
-@[grind →]
-theorem getLit!_some {idx : LeafIdx} {lit : Lit} (ok : idx.getLit! aig = lit) :
-    lit = idx.getLit aig := by
+@[simp, grind norm]
+theorem getLit!_eq {idx : LeafIdx} :
+    idx.getLit! aig = idx.getLit? aig := by
   grind
 
 end LeafIdx
