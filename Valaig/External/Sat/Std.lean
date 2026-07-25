@@ -46,7 +46,7 @@ private theorem gate_le_decls_size (entrypoint : Entrypoint LeafIdx) :
   entrypoint.ref.hgate
 
 @[always_inline]
-private def walker (aig : WFAig) (reset : Bool) : COIWalker aig (Std.Sat.AIG LeafIdx) Lit aig.instNullableLit where
+private def walker (aig : WFAig) (reset : Bool) : TFIWalker aig (Std.Sat.AIG LeafIdx) Lit aig.instNullableLit where
   stateMotive std size le := std.decls.size ≤ max 1 size
   cacheMotive std idx le sm var valid lit :=
     lit.var.idx < std.decls.size
@@ -56,11 +56,10 @@ private def walker (aig : WFAig) (reset : Bool) : COIWalker aig (Std.Sat.AIG Lea
   init := .empty
   initState := by grind
 
-  step idx var std cache valid lt cacheAnds cacheResets cacheValid sm cm :=
+  step idx var std cache valid lt sm cm :=
     have := aig.instNullableLit
 
-    let map (lit : Lit) (valid : lit.validIn aig := by grind)
-        (mem : (@Data.VarCache.instMembership Lit aig.instNullableLit).mem cache lit.var := by grind) :=
+    let map (lit : Lit) (valid : lit.var ∈ aig.TFI var reset := by grind) :=
       cache.mapLit lit |>.toRef std
 
     let res : Entrypoint LeafIdx :=

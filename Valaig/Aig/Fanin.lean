@@ -6,7 +6,7 @@ public import Valaig.ForLean.Set
 public section
 namespace Valaig.Aig
 
-variable {aig : Aig} {root var : Var} {reset : Bool}
+variable {aig : Aig} {root var : Var} {reset : Bool} {valid : root.validIn aig}
 
 /--
   Direct fan-in of a variable.
@@ -80,30 +80,51 @@ attribute [local simp, local grind =] Set.mem_iff
   FI.
 -/
 
+section FI
+
+@[local grind =]
+theorem mem_fi_iff :
+  var ∈ aig.FI root reset ↔
+    match aig[root]? with
+    | some (.and lhs rhs) => var = lhs.var ∨ var = rhs.var
+    | some (.latch idx) =>
+      match idx.getReset? aig with
+      | some (some lit) => reset ∧ var = lit.var
+      | _ => False
+    | _ => False := by
+  constructor
+  · intro h
+    induction h <;> grind
+  · grind [FI]
+
 @[simp, grind =>]
 theorem mem_fi_left (hand : aig[root]'valid = .and lhs rhs) :
     lhs.var ∈ aig.FI root reset := by
-  grind [FI.left]
+  grind
 
 @[simp, grind =>]
 theorem mem_fi_right (hand : aig[root]'valid = .and lhs rhs) :
     rhs.var ∈ aig.FI root reset := by
-  grind [FI.right]
+  grind
 
-@[simp, grind →]
+@[simp]
 theorem mem_rfi_reset (hand : aig[root]'valid = .latch idx) (hreset : idx.getReset aig idxValid = some lit) :
     lit.var ∈ aig.RFI root := by
-  grind [FI.reset]
+  grind
+
+grind_pattern mem_rfi_reset => aig[root]'valid, Node.latch idx, idx.getReset aig idxValid, some lit, _ ∈ aig.RFI root
 
 @[simp, grind .]
 theorem mem_rfi_of_mem_fi (mem : var ∈ aig.FI root reset) :
     var ∈ aig.RFI root := by
-  induction mem <;> grind [FI]
+  grind
 
 @[simp, grind =>]
 theorem mem_fi_of_mem_fi_false (mem : var ∈ aig.FI root false) :
     var ∈ aig.FI root reset := by
-  cases reset <;> grind
+  grind
+
+end FI
 
 /-
   TFI.
@@ -119,10 +140,12 @@ theorem mem_tfi_right (hand : aig[root]'valid = .and lhs rhs) :
     rhs.var ∈ aig.TFI root reset := by
   grind [TFI.fanin]
 
-@[simp, grind →]
+@[simp]
 theorem mem_rtfi_reset (hand : aig[root]'valid = .latch idx) (hreset : idx.getReset aig idxValid = some lit) :
     lit.var ∈ aig.RTFI root := by
   grind [TFI.fanin]
+
+grind_pattern mem_rtfi_reset => aig[root]'valid, Node.latch idx, idx.getReset aig idxValid, some lit, _ ∈ aig.RTFI root
 
 @[simp, grind .]
 theorem mem_tfi_of_mem_fi (mem : var ∈ aig.FI root reset) :
@@ -161,7 +184,27 @@ theorem mem_tfi_of_mem_tfi_false (mem : var ∈ aig.TFI root false) :
 /-
   SFI.
 -/
+section SFI
 
+@[local grind =]
+theorem mem_sfi_iff :
+    var ∈ aig.SFI root reset ↔
+      match aig[root]? with
+      | some (.and lhs rhs) => var = lhs.var ∨ var = rhs.var
+      | some (.latch idx) =>
+        (match idx.getNext? aig with
+        | some lit => var = lit.var
+        | _ => False) ∨
+        (match idx.getReset? aig with
+        | some (some lit) => reset ∧ var = lit.var
+        | _ => False)
+      | _ => False := by
+  constructor
+  · intro h
+    induction h
+    · grind [mem_fi_iff]
+    · grind
+  · grind [SFI]
 
 @[simp, grind .]
 theorem mem_sfi_of_mem_fi (mem : var ∈ aig.FI root reset) :
@@ -171,17 +214,19 @@ theorem mem_sfi_of_mem_fi (mem : var ∈ aig.FI root reset) :
 @[simp, grind =>]
 theorem mem_sfi_next (hand : aig[root]'valid = .latch idx) (hnext : idx.getNext aig idxValid = lit) :
     lit.var ∈ aig.SFI root reset := by
-  grind [SFI.next]
+  grind
 
 @[simp, grind .]
 theorem mem_reset_sfi_of_mem_sfi (mem : var ∈ aig.SFI root reset) :
     var ∈ aig.SFI root true := by
-  induction mem <;> grind
+  grind
 
 @[simp, grind =>]
 theorem mem_sfi_of_mem_sfi_false (mem : var ∈ aig.SFI root false) :
     var ∈ aig.SFI root reset := by
-  cases reset <;> grind
+  grind
+
+end SFI
 
 /-
   COI.
@@ -197,10 +242,12 @@ theorem mem_coi_right (hand : aig[root]'valid = .and lhs rhs) :
     rhs.var ∈ aig.COI root reset := by
   grind [COI.fanin]
 
-@[simp, grind →]
+@[simp]
 theorem mem_coi_reset (hand : aig[root]'valid = .latch idx) (hreset : idx.getReset aig idxValid = some lit) :
     lit.var ∈ aig.COI root := by
   grind [COI.fanin]
+
+grind_pattern mem_coi_reset => aig[root]'valid, Node.latch idx, idx.getReset aig idxValid, some lit, _ ∈ aig.COI root
 
 @[simp, grind =>]
 theorem mem_coi_next (hand : aig[root]'valid = .latch idx) (hnext : idx.getNext aig idxValid = lit) :
@@ -214,8 +261,8 @@ theorem mem_coi_of_mem_sfi (mem : var ∈ aig.SFI root reset) :
 
 @[simp, grind .]
 theorem mem_coi_of_mem_fi (mem : var ∈ aig.FI root reset) :
-    var ∈ aig.COI root reset := by
-  grind
+    var ∈ aig.COI root reset :=
+  mem_coi_of_mem_sfi (mem_sfi_of_mem_fi mem)
 
 @[simp, grind .]
 theorem mem_coi_of_mem_tfi (mem : var ∈ aig.TFI root reset) :
@@ -272,6 +319,213 @@ theorem mem_coi_of_mem_ccoi (mem : var ∈ aig.CCOI root) :
 theorem mem_coi_true_of_mem_coi (mem : var ∈ aig.COI root reset) :
     var ∈ aig.COI root true := by
   cases reset <;> grind
+
+/-
+  WellFormed.
+-/
+section WellFormed
+variable {wf : aig.WF}
+include wf
+
+@[simp]
+theorem validIn_of_mem_fi_WF (mem : var ∈ aig.FI root reset) :
+    var.validIn aig := by
+  induction mem <;> grind
+
+grind_pattern validIn_of_mem_fi_WF => var ∈ aig.FI root reset, var.validIn aig, aig.WF
+
+@[simp]
+theorem validIn_of_mem_tfi_WF (mem : var ∈ aig.TFI root reset) :
+    var.validIn aig := by
+  induction mem <;> grind
+
+grind_pattern validIn_of_mem_tfi_WF => var ∈ aig.TFI root reset, var.validIn aig, aig.WF
+
+@[simp]
+theorem validIn_of_mem_sfi_WF (mem : var ∈ aig.SFI root reset) :
+    var.validIn aig := by
+  induction mem <;> grind
+
+grind_pattern validIn_of_mem_sfi_WF => var ∈ aig.SFI root reset, var.validIn aig, aig.WF
+
+@[simp]
+theorem validIn_of_mem_coi_WF (mem : var ∈ aig.COI root reset) :
+    var.validIn aig := by
+  induction mem <;> grind
+
+grind_pattern validIn_of_mem_coi_WF => var ∈ aig.COI root reset, var.validIn aig, aig.WF
+
+end WellFormed
+
+/-
+  Node types.
+-/
+section nodes
+
+@[simp]
+theorem not_mem_fi_of_getElem_false (heq : aig[root]'valid = .false) :
+    var ∉ aig.FI root reset := by
+  false_or_by_contra
+  next h => induction h <;> grind
+
+grind_pattern not_mem_fi_of_getElem_false => aig[root]'valid, Node.false, var ∈ aig.FI root reset
+
+@[simp]
+theorem not_mem_tfi_of_getElem_false (heq : aig[root]'valid = .false) :
+    var ∉ aig.TFI root reset := by
+  false_or_by_contra
+  next h => induction h <;> grind
+
+grind_pattern not_mem_tfi_of_getElem_false => aig[root]'valid, Node.false, var ∈ aig.TFI root reset
+
+@[simp]
+theorem not_mem_sfi_of_getElem_false (heq : aig[root]'valid = .false) :
+    var ∉ aig.SFI root reset := by
+  false_or_by_contra
+  next h => induction h <;> grind
+
+grind_pattern not_mem_sfi_of_getElem_false => aig[root]'valid, Node.false, var ∈ aig.SFI root reset
+
+@[simp]
+theorem not_mem_coi_of_getElem_false (heq : aig[root]'valid = .false) :
+    var ∉ aig.COI root reset := by
+  false_or_by_contra
+  next h => induction h <;> grind
+
+grind_pattern not_mem_coi_of_getElem_false => aig[root]'valid, Node.false, var ∈ aig.COI root reset
+
+section input
+variable {idx : InputIdx}
+
+@[simp]
+theorem not_mem_fi_of_getElem_input (heq : aig[root]'valid = .input idx) :
+    var ∉ aig.FI root reset := by
+  false_or_by_contra
+  next h => induction h <;> grind
+
+grind_pattern not_mem_fi_of_getElem_input => aig[root]'valid, Node.input idx, var ∈ aig.FI root reset
+
+@[simp]
+theorem not_mem_tfi_of_getElem_input (heq : aig[root]'valid = .input idx) :
+    var ∉ aig.TFI root reset := by
+  false_or_by_contra
+  next h => induction h <;> grind
+
+grind_pattern not_mem_tfi_of_getElem_input => aig[root]'valid, Node.input idx, var ∈ aig.TFI root reset
+
+@[simp]
+theorem not_mem_sfi_of_getElem_input (heq : aig[root]'valid = .input idx) :
+    var ∉ aig.SFI root reset := by
+  false_or_by_contra
+  next h => induction h <;> grind
+
+grind_pattern not_mem_sfi_of_getElem_input => aig[root]'valid, Node.input idx, var ∈ aig.SFI root reset
+
+@[simp]
+theorem not_mem_coi_of_getElem_input (heq : aig[root]'valid = .input idx) :
+    var ∉ aig.COI root reset := by
+  false_or_by_contra
+  next h => induction h <;> grind
+
+grind_pattern not_mem_coi_of_getElem_input => aig[root]'valid, Node.input idx, var ∈ aig.COI root reset
+
+end input
+
+section latch
+variable {idx : LatchIdx}
+
+@[simp]
+theorem mem_fi_of_getElem_latch_iff (heq : aig[root]'valid = .latch idx) :
+    var ∈ aig.FI root reset ↔
+      reset ∧ ∃ lit, ∃ (_ : idx.getReset? aig = some (some lit)), var = lit.var := by
+  grind [mem_fi_iff]
+
+grind_pattern mem_fi_of_getElem_latch_iff => aig[root]'valid, Node.latch idx, var ∈ aig.FI root reset
+
+@[simp]
+theorem mem_tfi_of_getElem_latch_iff (heq : aig[root]'valid = .latch idx) :
+    var ∈ aig.TFI root reset ↔
+      reset ∧ ∃ lit, ∃ (_ : idx.getReset? aig = some (some lit)), var = lit.var ∨ var ∈ aig.TFI lit.var reset := by
+  constructor
+  · intro h
+    induction h <;> grind
+  · grind
+
+grind_pattern mem_tfi_of_getElem_latch_iff => aig[root]'valid, Node.latch idx, var ∈ aig.TFI root reset
+
+@[simp]
+theorem mem_sfi_of_getElem_latch_iff (heq : aig[root]'valid = .latch idx) :
+    var ∈ aig.SFI root reset ↔
+      (reset ∧ ∃ lit, ∃ (_ : idx.getReset? aig = some (some lit)), var = lit.var) ∨
+      (∃ lit, ∃ (_ : idx.getNext? aig = some lit), var = lit.var) := by
+  grind [mem_sfi_iff]
+
+grind_pattern mem_sfi_of_getElem_latch_iff => aig[root]'valid, Node.latch idx, var ∈ aig.SFI root reset
+
+@[simp]
+theorem mem_coi_of_getElem_latch_iff (heq : aig[root]'valid = .latch idx) :
+    var ∈ aig.COI root reset ↔
+      (reset ∧ ∃ lit, ∃ (_ : idx.getReset? aig = some (some lit)), var = lit.var ∨ var ∈ aig.COI lit.var reset) ∨
+      (∃ lit, ∃ (_ : idx.getNext? aig = some lit), var = lit.var ∨ var ∈ aig.COI lit.var reset) := by
+  constructor
+  · intro h
+    induction h <;> grind
+  · grind [coi_trans]
+
+grind_pattern mem_coi_of_getElem_latch_iff => aig[root]'valid, Node.latch idx, var ∈ aig.COI root reset
+
+end latch
+
+section and
+variable {lhs rhs : Lit}
+
+@[simp]
+theorem mem_fi_of_getElem_and_iff (heq : aig[root]'valid = .and lhs rhs) :
+    var ∈ aig.FI root reset ↔ var = lhs.var ∨ var = rhs.var := by
+  grind [mem_fi_iff]
+
+grind_pattern mem_fi_of_getElem_and_iff => aig[root]'valid, Node.and lhs rhs, var ∈ aig.FI root reset
+
+@[simp]
+theorem mem_tfi_of_getElem_and_iff (heq : aig[root]'valid = .and lhs rhs) :
+    var ∈ aig.TFI root reset ↔
+      var ∈ aig.FI root reset ∨ var ∈ aig.TFI lhs.var reset ∨ var ∈ aig.TFI rhs.var reset := by
+  constructor
+  · intro h
+    induction h <;> grind
+  · intro h
+    rcases h with h | h | h
+    · grind
+    · grind [tfi_trans_fi_right h]
+    · grind [tfi_trans_fi_right h]
+
+grind_pattern mem_tfi_of_getElem_and_iff => aig[root]'valid, Node.and lhs rhs, var ∈ aig.TFI root reset
+
+@[simp]
+theorem mem_sfi_of_getElem_and_iff (heq : aig[root]'valid = .and lhs rhs) :
+    var ∈ aig.SFI root reset ↔ var = lhs.var ∨ var = rhs.var := by
+  grind [mem_sfi_iff]
+
+grind_pattern mem_sfi_of_getElem_and_iff => aig[root]'valid, Node.and lhs rhs, var ∈ aig.SFI root reset
+
+@[simp]
+theorem mem_coi_of_getElem_and_iff (heq : aig[root]'valid = .and lhs rhs) :
+    var ∈ aig.COI root reset ↔
+      var ∈ aig.FI root reset ∨ var ∈ aig.COI lhs.var reset ∨ var ∈ aig.COI rhs.var reset := by
+  constructor
+  · intro h
+    induction h <;> grind [mem_sfi_iff]
+  · intro h
+    rcases h with h | h | h
+    · grind
+    · grind [coi_trans_fi_right h]
+    · grind [coi_trans_fi_right h]
+
+grind_pattern mem_coi_of_getElem_and_iff => aig[root]'valid, Node.and lhs rhs, var ∈ aig.COI root reset
+
+end and
+
+end nodes
 
 end Valaig.Aig
 

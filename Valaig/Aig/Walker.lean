@@ -1,6 +1,7 @@
 module
 
 public import Valaig.Aig.Core
+public import Valaig.Aig.Fanin
 public import Valaig.Data.VarCache
 public import Valaig.Data.Nullable
 import Valaig.ForLean.Array
@@ -246,7 +247,7 @@ theorem cacheMotive_walk var lt :
 end CachingForwardsWalker
 
 @[ext]
-structure COIWalker (aig : WFAig) (σ α : Type) (null : Data.Nullable α := by infer_instance) where
+structure TFIWalker (aig : WFAig) (σ α : Type) (null : Data.Nullable α := by infer_instance) where
   stateMotive : (state : σ) -> (idx : Nat) -> idx ≤ aig.size -> Prop
   cacheMotive :
     (state : σ) -> (idx : Nat) -> (le : idx ≤ aig.size) -> stateMotive state idx le ->
@@ -261,34 +262,29 @@ structure COIWalker (aig : WFAig) (σ α : Type) (null : Data.Nullable α := by 
   step :
     (idx : Nat) -> (var : Var) -> (state : σ) -> (cache : VarCache α) ->
     (valid : var.validIn aig) -> (lt : idx < aig.size) ->
-    (cacheAnds : ∀ {lhs rhs}, aig[var] = .and lhs rhs -> lhs.var ∈ cache ∧ rhs.var ∈ cache) ->
-    (cacheResets : reset ->
-      ∀ {idx rst} (h : aig[var] = .latch idx), idx.getReset aig = some rst -> rst.var ∈ cache) ->
-    (cacheValid :
-      ∀ {var' : Var} {lhs rhs} (valid : var'.validIn aig),
-        var' ∈ cache -> aig[var'] = .and lhs rhs -> lhs.var ∈ cache ∧ rhs.var ∈ cache) ->
     (sm : stateMotive state idx (by grind)) ->
-    (cm : ∀ {var'} (valid : var'.validIn aig) (mem : var' ∈ cache),
-      cacheMotive state idx (by grind) sm var' valid cache[var']) ->
+    (cm :
+      ∀ var' ∈ aig.TFI var reset, ∃ valid mem,
+        cacheMotive state idx (by grind) sm var' valid (cache[var']'mem)) ->
     σ × { elem : α // Data.Nullable.isSome elem }
 
-  stepState idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm :
-    stateMotive (step idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm).fst (idx + 1) (by grind)
+  stepState idx var state cache valid lt sm cm :
+    stateMotive (step idx var state cache valid lt sm cm).fst (idx + 1) (by grind)
 
-  stepCache idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm :
+  stepCache idx var state cache valid lt sm cm :
     ∀ {var'} (valid' : var'.validIn aig) (mem : var' ∈ cache),
-      cacheMotive (step idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm).fst (idx + 1) (by grind)
+      cacheMotive (step idx var state cache valid lt sm cm).fst (idx + 1) (by grind)
         (by apply stepState) var' valid' cache[var']
 
-  stepCacheNew idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm :
-    cacheMotive (step idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm).fst (idx + 1) (by grind)
-      (by apply stepState) var valid (step idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm).snd.val
+  stepCacheNew idx var state cache valid lt sm cm :
+    cacheMotive (step idx var state cache valid lt sm cm).fst (idx + 1) (by grind)
+      (by apply stepState) var valid (step idx var state cache valid lt sm cm).snd.val
 
-namespace COIWalker
+namespace TFIWalker
 variable {aig : WFAig} {σ α : Type} {null : Data.Nullable α}
 
 @[ext]
-structure State (walker : COIWalker aig σ α null) where
+structure State (walker : TFIWalker aig σ α null) where
   idx : Nat
   state : σ
   cache : VarCache α
@@ -297,28 +293,26 @@ structure State (walker : COIWalker aig σ α null) where
   idx_eq : idx = cache.fillSlow
   size_cache : cache.size = aig.size
 
-  cacheValid :
-    ∀ {var' : Var} {lhs rhs} (valid : var'.validIn aig),
-      var' ∈ cache -> aig[var'] = .and lhs rhs -> lhs.var ∈ cache ∧ rhs.var ∈ cache
-
   sm : walker.stateMotive state idx (by grind)
   cm :
-    ∀ {var'} (valid : var'.validIn aig), var' ∈ cache ->
-      walker.cacheMotive state idx (by grind [cache.fillSlow_le_size]) sm var' valid cache[var']
+    ∀ {var} (valid : var.validIn aig), var ∈ cache ->
+      walker.cacheMotive state idx (by grind [cache.fillSlow_le_size]) sm var valid cache[var]
+
+  cacheTFI : ∀ var ∈ cache, ∀ var' ∈ aig.TFI var walker.reset, var' ∈ cache
 
   stackValid : ∀ var ∈ stack, var.validIn aig
   stackUncached : ∀ var ∈ stack, var ∉ cache
   stackOrdered : ∀ i j (hi : i < stack.size) (hj : j < stack.size), i < j → stack[i] > stack[j]
 
 namespace State
-variable {walker : COIWalker aig σ α null} {s : State walker}
+variable {walker : TFIWalker aig σ α null} {s : State walker}
 
 /--
   TODO: Investigate not requiring cache to be aig size (maybe it could be sparse, maybe it could
   only be as large as the output var).
 -/
 @[always_inline]
-def new (walker : COIWalker aig σ α) (var : Var) (valid : var.validIn aig := by grind) : State walker where
+def new (walker : TFIWalker aig σ α) (var : Var) (valid : var.validIn aig := by grind) : State walker where
   idx := 0
   state := walker.init
   cache := .replicate aig.size null.null
@@ -327,10 +321,10 @@ def new (walker : COIWalker aig σ α) (var : Var) (valid : var.validIn aig := b
   idx_eq := by grind
   size_cache := by grind
 
-  cacheValid := by grind
-
   sm := walker.initState
   cm := by grind
+
+  cacheTFI := by grind
 
   stackValid := by grind
   stackUncached := by grind
@@ -350,10 +344,7 @@ def measure (s : State walker) : Nat × Var :=
 def stepWalker (s : State walker) (var : Var)
     (h : 0 < s.stack.size := by grind)
     (var_eq : var = s.stack.back := by grind)
-    (cacheAnds : ∀ {lhs rhs},
-      aig[var]'(by grind [s.stackValid]) = .and lhs rhs -> lhs.var ∈ s.cache ∧ rhs.var ∈ s.cache := by grind)
-    (cacheResets : walker.reset ->
-      ∀ {idx rst} (h : aig[var]'(by grind [s.stackValid]) = .latch idx), idx.getReset aig = some rst -> rst.var ∈ s.cache := by grind) :
+    (tfiCached : ∀ var' ∈ aig.TFI var walker.reset, var' ∈ s.cache := by grind) :
     State walker :=
   have := s.stackValid var (by grind)
 
@@ -365,17 +356,21 @@ def stepWalker (s : State walker) (var : Var)
     · simp +instances [VarCache.instGetElem]
     · grind [s.stackUncached var (by grind)]
 
-  let res := walker.step s.idx var s.state s.cache
-    (by grind) (by grind) (by grind) (by grind) s.cacheValid s.sm s.cm
+  let res := walker.step s.idx var s.state s.cache (by grind) (by grind) s.sm <| by
+    intros
+    exists by grind
+    exists by grind
+    apply s.cm
+    grind [s.cacheTFI]
+
   {
     idx := s.idx + 1
     state := res.fst
-    cache := s.cache.set var res.snd.val
+    cache := s.cache.set var res.snd.val (lt := by grind [s.size_cache])
     stack := s.stack.pop
 
     idx_eq := by grind [s.idx_eq, s.stackUncached]
     size_cache := by grind [s.size_cache]
-    cacheValid := by grind [s.cacheValid]
     sm := by intros; apply walker.stepState
     cm := by
       intros
@@ -386,6 +381,8 @@ def stepWalker (s : State walker) (var : Var)
         apply walker.stepCacheNew
       · apply walker.stepCache
         · grind only [= VarCache.mem_set]
+
+    cacheTFI := by grind [s.cacheTFI]
 
     stackValid := by grind [s.stackValid]
     stackUncached := by
@@ -399,27 +396,27 @@ def stepWalker (s : State walker) (var : Var)
   }
 
 @[simp, grind =]
-theorem idx_stepWalker var h var_eq cacheAnds cacheResets :
-    (s.stepWalker var h var_eq cacheAnds cacheResets).idx = s.idx + 1 := by
+theorem idx_stepWalker var h var_eq tfiCached :
+    (s.stepWalker var h var_eq tfiCached).idx = s.idx + 1 := by
   rfl
 
 @[simp]
-theorem measure_lt_stepWalker var h var_eq cacheAnds cacheResets :
-    (s.stepWalker var h var_eq cacheAnds cacheResets).measure.lexLt s.measure := by
+theorem measure_lt_stepWalker var h var_eq tfiCached :
+    (s.stepWalker var h var_eq tfiCached).measure.lexLt s.measure := by
   grind [Prod.lexLt_def, measure]
 
-grind_pattern measure_lt_stepWalker => (s.stepWalker var h var_eq cacheAnds cacheResets).measure, s.measure
+grind_pattern measure_lt_stepWalker => (s.stepWalker var h var_eq tfiCached).measure, s.measure
 
 @[simp, grind .]
-theorem mem_cache_stepWalker var h var_eq cacheAnds cacheResets {var' : Var} (mem : var' ∈ s.cache) :
-    var' ∈ (s.stepWalker var h var_eq cacheAnds cacheResets).cache := by
+theorem mem_cache_stepWalker var h var_eq tfiCached {var' : Var} (mem : var' ∈ s.cache) :
+    var' ∈ (s.stepWalker var h var_eq tfiCached).cache := by
   unfold stepWalker
   grind
 
 @[simp, grind .]
-theorem mem_stack_stepWalker var h var_eq cacheAnds cacheResets {var' : Var} (mem : var' ∈ s.stack) :
-    var' ∈ (s.stepWalker var h var_eq cacheAnds cacheResets).stack ∨
-    var' ∈ (s.stepWalker var h var_eq cacheAnds cacheResets).cache := by
+theorem mem_stack_stepWalker var h var_eq tfiCached {var' : Var} (mem : var' ∈ s.stack) :
+    var' ∈ (s.stepWalker var h var_eq tfiCached).stack ∨
+    var' ∈ (s.stepWalker var h var_eq tfiCached).cache := by
   unfold stepWalker
   by_cases h : var' = s.stack.back
   · grind
@@ -488,6 +485,7 @@ def step (s : State walker) (h : 0 < s.stack.size := by grind) : State walker :=
         if _ : null.isNull rstVal then
           s.enqueueVar rst.var
         else
+          have := s.cacheTFI rst.var
           s.stepWalker var
   | .and lhs rhs =>
     let lhsVal := s.cache[lhs.var]
@@ -500,6 +498,8 @@ def step (s : State walker) (h : 0 < s.stack.size := by grind) : State walker :=
       s.enqueueVar rhs.var
     else
 
+    have := s.cacheTFI lhs.var
+    have := s.cacheTFI rhs.var
     s.stepWalker var
 
 @[simp]
@@ -518,16 +518,15 @@ theorem mem_stack_step {var : Var} (mem : var ∈ s.stack) :
   fun_cases step <;> grind
 
 @[always_inline, specialize walker reset step]
-private def walk.rebuildWalker (walker : COIWalker aig σ α null)
+private def walk.rebuildWalker (walker : TFIWalker aig σ α null)
     (reset : Bool) step
     (hreset : walker.reset = reset := by grind)
     (hstep : walker.step = step := by grind) :
-    COIWalker aig σ α null := by
-  let step' idx var state cache valid lt cacheAnds cacheResets cacheValid sm cm :=
-    step idx var state cache valid lt cacheAnds (by rw [hreset]; exact cacheResets) cacheValid sm cm
+    TFIWalker aig σ α null := by
+  let step' idx var state cache valid lt sm cm :=
+    step idx var state cache valid lt sm (by rw [hreset]; exact cm)
 
-  apply COIWalker.mk walker.stateMotive walker.cacheMotive
-    reset walker.init walker.initState step'
+  apply TFIWalker.mk walker.stateMotive walker.cacheMotive reset walker.init walker.initState step'
   · simp only [step', ←hreset, ←hstep]
     exact walker.stepCache
   · simp only [step', ←hreset, ←hstep]
@@ -539,7 +538,7 @@ private def walk.rebuildWalker (walker : COIWalker aig σ α null)
 private theorem walk.rebuildWalker_eq reset step hreset hstep :
     rebuildWalker walker reset step hreset hstep = walker := by
   fun_cases rebuildWalker
-  apply COIWalker.ext (by rfl) (by rfl) (by simp [hreset]) (by rfl)
+  apply TFIWalker.ext (by rfl) (by rfl) (by simp [hreset]) (by rfl)
   repeat' (
     apply hfunext
     · simp only [←hreset]
@@ -560,8 +559,8 @@ private def walk.rebuildState (s : State walker)
     State walker := by
   apply State.mk idx state cache stack
   <;> simp only [←hidx, ←hstate, ←hcache, ←hstack]
-  · refine s.cacheValid
   · refine s.cm
+  · refine s.cacheTFI
   · refine s.stackValid
   · refine s.stackUncached
   · refine s.stackOrdered
@@ -585,7 +584,7 @@ private theorem walk.castState_heq {walker'} (s : State walker) (h : walker = wa
   grind only
 
 private theorem walk.castState_motive {walker' β} (s : State walker) (h : walker = walker')
-    (motive : (walker : COIWalker aig σ α null) → (s : State walker) → β) :
+    (motive : (walker : TFIWalker aig σ α null) → (s : State walker) → β) :
     motive walker' (castState s h) = motive walker s := by
   grind only [= castState_heq]
 
@@ -660,22 +659,22 @@ theorem mem_cache_walk_of_mem_stack {var : Var} (mem : var ∈ s.stack) :
 end State
 
 /--
-  Iterate over all variables in the COI of an node in topological order.
+  Iterate over all variables in the TFI of an node in topological order.
 
   TODO: Support reusing the cache for further entrypoints.
 -/
 @[inline, specialize walker]
-def walk {null} (walker : COIWalker aig σ α null) (var : Var) (valid : var.validIn aig := by grind) : σ × VarCache α :=
+def walk {null} (walker : TFIWalker aig σ α null) (var : Var) (valid : var.validIn aig := by grind) : σ × VarCache α :=
   let res := (State.new walker var).walk
   (res.state, res.cache)
 
 @[simp, grind .]
-theorem mem_cache_walk {walker : COIWalker aig σ α null} {var valid} :
+theorem mem_cache_walk {walker : TFIWalker aig σ α null} {var valid} :
     var ∈ (walker.walk var valid).snd := by
   rw [walk, State.walk_eq_walkSlow]
   apply State.mem_cache_walk_of_mem_stack
   grind [State.new]
 
-end COIWalker
+end TFIWalker
 
 end Valaig.Aig
