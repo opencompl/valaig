@@ -651,7 +651,7 @@ theorem mem_cache_walkSlow {var : Var} (mem : var ∈ s.cache) :
   <;> grind
 
 @[simp, grind .]
-theorem mem_cache_walk_of_mem_stack {var : Var} (mem : var ∈ s.stack) :
+theorem mem_cache_walkSlow_of_mem_stack {var : Var} (mem : var ∈ s.stack) :
     var ∈ s.walkSlow.cache := by
   fun_induction walkSlow
   <;> grind
@@ -669,11 +669,19 @@ def walk {null} (walker : TFIWalker aig σ α null) (var : Var) (valid : var.val
   (res.state, res.cache)
 
 @[simp, grind .]
-theorem mem_cache_walk {walker : TFIWalker aig σ α null} {var valid} :
+theorem mem_cache_walk {walker : TFIWalker aig σ α null} {var} valid :
     var ∈ (walker.walk var valid).snd := by
   rw [walk, State.walk_eq_walkSlow]
-  apply State.mem_cache_walk_of_mem_stack
+  apply State.mem_cache_walkSlow_of_mem_stack
   grind [State.new]
+
+@[simp, grind →]
+theorem mem_cache_walk_of_mem_tfi {walker : TFIWalker aig σ α null} {var valid var'}
+    (mem : var' ∈ aig.TFI var walker.reset) :
+    var' ∈ (walker.walk var valid).snd := by
+  apply State.cacheTFI
+  · exact mem_cache_walk valid
+  · exact mem
 
 end TFIWalker
 
