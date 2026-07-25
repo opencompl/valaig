@@ -614,28 +614,41 @@ theorem rewriteAnd!_some {var : Var} {lhs rhs : Lit} {aig' : Aig}
     aig' = aig.rewriteAnd var lhs rhs (isAnd := by simp at ok; grind) := by
   simp at ok; grind
 
-@[simp]
-theorem null_instNullableVar :
-    aig.instNullableVar.null = aig.nextVar := by
-  unfold instNullableVar
-  grind
+section nullable
+variable {offset : Nat}
 
 @[simp]
-theorem isNull_instNullableVar (var : Var) :
+theorem null_instNullableVar :
+    (aig.instNullableVar offset).null = aig.nextVar + offset := by
+  rfl
+
+@[simp]
+theorem isNull_instNullableVar_zero (var : Var) :
     aig.instNullableVar.isNull var = decide (¬var.validIn aig) := by
   unfold instNullableVar
   grind
 
 @[simp]
+theorem isNull_instNullableVar (var : Var) :
+    (aig.instNullableVar offset).isNull var = decide (var ≥ aig.nextVar + offset) := by
+  rfl
+
+@[simp]
 theorem null_instNullableLit :
-    aig.instNullableLit.null = aig.nextVar := by
+    (aig.instNullableLit offset).null = aig.nextVar + offset := by
+  rfl
+
+@[simp]
+theorem isNull_instNullableLit_zero (lit : Lit) :
+    aig.instNullableLit.isNull lit = decide (¬lit.validIn aig) := by
   unfold instNullableLit
   grind
 
 @[simp]
 theorem isNull_instNullableLit (lit : Lit) :
-    aig.instNullableLit.isNull lit = decide (¬lit.validIn aig) := by
-  unfold instNullableLit
-  grind
+    (aig.instNullableLit offset).isNull lit = decide (lit.var ≥ aig.nextVar + offset) := by
+  rfl
+
+end nullable
 
 end Valaig.Aig

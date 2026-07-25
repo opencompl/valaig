@@ -46,8 +46,8 @@ private theorem gate_le_decls_size (entrypoint : Entrypoint LeafIdx) :
   entrypoint.ref.hgate
 
 @[always_inline]
-private def walker (aig : WFAig) (reset : Bool) : TFIWalker aig (Std.Sat.AIG LeafIdx) Lit aig.instNullableLit where
-  stateMotive std size le := std.decls.size ≤ max 1 size
+private def walker (aig : WFAig) (reset : Bool) : TFIWalker aig (Std.Sat.AIG LeafIdx) Lit (aig.instNullableLit 1) where
+  stateMotive std idx le := std.decls.size ≤ idx + 1
   cacheMotive std idx le sm var valid lit :=
     lit.var.idx < std.decls.size
 
@@ -57,7 +57,7 @@ private def walker (aig : WFAig) (reset : Bool) : TFIWalker aig (Std.Sat.AIG Lea
   initState := by grind
 
   step idx var std cache valid lt sm cm :=
-    have := aig.instNullableLit
+    have := aig.instNullableLit 1
 
     let map (lit : Lit) (valid : lit.var ∈ aig.TFI var reset := by grind) :=
       cache.mapLit lit |>.toRef std
@@ -76,27 +76,28 @@ private def walker (aig : WFAig) (reset : Bool) : TFIWalker aig (Std.Sat.AIG Lea
         else
           std.mkAtomCached idx
 
-    -- TODO: Fix proofs
-    -- have : res.aig.decls.size ≤ std.decls.size + 1 := by sorry
+    have : res.aig.decls.size ≤ std.decls.size + 1 := by
+      subst res; (repeat' split) <;> grind
 
     let lit := .ofRef res.ref
-    let property := by sorry
+    let property := by
+      simp only [Data.Nullable.isSome_eq, isNull_instNullableLit]
+      grind [res.ref.hgate]
     (res.aig, ⟨lit, property⟩)
 
-  stepState := sorry
-  stepCache := sorry
-  stepCacheNew := sorry
-  -- stepState :=  by intros; (repeat' split) <;> grind [idx_eq_zero_iff_getElem_false]
-  -- stepCache := by intros; (repeat' split) <;> grind
-  -- stepCacheNew := by grind
+  stepState := by simp only; intros; (repeat' split) <;> grind
+  stepCache := by simp only; intros; (repeat' split) <;> grind
+  stepCacheNew := by grind
 
 end toStd
 
-def toStd (aig : WFAig) (reset : Bool) (entry : Var) (valid : entry.validIn aig := by grind) : (aig' : Std.Sat.AIG LeafIdx) × (Lit.In aig -> aig'.Ref) :=
+def toStd (aig : WFAig) (reset : Bool) (entry : Lit) (valid : entry.validIn aig := by grind) : Std.Sat.AIG.Entrypoint LeafIdx :=
   let walker := toStd.walker aig reset
-  let res := walker.walk entry
-
-  -- have := walker.cacheMotive_walk
-  ⟨res.fst, fun lit => (res.snd.mapLit lit.val sorry).toRef res.fst sorry⟩
+  let res := walker.walk entry.var
+  let aig := res.fst.fst
+  let ref := (res.snd.mapLit entry).toRef aig <| by
+    have := walker.cacheMotive_walk (var := entry.var) (var' := entry.var)
+    grind [toStd.walker]
+  ⟨aig, ref⟩
 
 end Valaig.Sat

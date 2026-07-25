@@ -271,7 +271,10 @@ structure TFIWalker (aig : WFAig) (σ α : Type) (null : Data.Nullable α := by 
   stepState idx var state cache valid lt sm cm :
     stateMotive (step idx var state cache valid lt sm cm).fst (idx + 1) (by grind)
 
-  stepCache idx var state cache valid lt sm cm :
+  stepCache idx var state cache valid lt sm cm
+    (cacheValid :
+      ∀ {var} (valid : var.validIn aig) (h : var ∈ cache),
+        cacheMotive state idx (by omega) sm var valid cache[var]) :
     ∀ {var'} (valid' : var'.validIn aig) (mem : var' ∈ cache),
       cacheMotive (step idx var state cache valid lt sm cm).fst (idx + 1) (by grind)
         (by apply stepState) var' valid' cache[var']
@@ -294,10 +297,10 @@ structure State (walker : TFIWalker aig σ α null) where
   size_cache : cache.size = aig.size
 
   sm : walker.stateMotive state idx (by grind)
-  cm :
+
+  cacheValid :
     ∀ {var} (valid : var.validIn aig), var ∈ cache ->
       walker.cacheMotive state idx (by grind [cache.fillSlow_le_size]) sm var valid cache[var]
-
   cacheTFI : ∀ var ∈ cache, ∀ var' ∈ aig.TFI var walker.reset, var' ∈ cache
 
   stackValid : ∀ var ∈ stack, var.validIn aig
@@ -322,8 +325,8 @@ def new (walker : TFIWalker aig σ α) (var : Var) (valid : var.validIn aig := b
   size_cache := by grind
 
   sm := walker.initState
-  cm := by grind
 
+  cacheValid := by grind
   cacheTFI := by grind
 
   stackValid := by grind
@@ -360,7 +363,7 @@ def stepWalker (s : State walker) (var : Var)
     intros
     exists by grind
     exists by grind
-    apply s.cm
+    apply s.cacheValid
     grind [s.cacheTFI]
 
   {
@@ -372,15 +375,15 @@ def stepWalker (s : State walker) (var : Var)
     idx_eq := by grind [s.idx_eq, s.stackUncached]
     size_cache := by grind [s.size_cache]
     sm := by intros; apply walker.stepState
-    cm := by
+    cacheValid := by
       intros
       simp
       split
       next heq =>
         subst heq
         apply walker.stepCacheNew
-      · apply walker.stepCache
-        · grind only [= VarCache.mem_set]
+      · apply walker.stepCache (cacheValid := s.cacheValid)
+        grind only [= VarCache.mem_set]
 
     cacheTFI := by grind [s.cacheTFI]
 
@@ -559,7 +562,7 @@ private def walk.rebuildState (s : State walker)
     State walker := by
   apply State.mk idx state cache stack
   <;> simp only [←hidx, ←hstate, ←hcache, ←hstack]
-  · refine s.cm
+  · refine s.cacheValid
   · refine s.cacheTFI
   · refine s.stackValid
   · refine s.stackUncached
@@ -583,7 +586,7 @@ private theorem walk.castState_heq {walker'} (s : State walker) (h : walker = wa
   fun_cases castState
   grind only
 
-private theorem walk.castState_motive {walker' β} (s : State walker) (h : walker = walker')
+private theorem walk.motive_castState {walker' β} (s : State walker) (h : walker = walker')
     (motive : (walker : TFIWalker aig σ α null) → (s : State walker) → β) :
     motive walker' (castState s h) = motive walker s := by
   grind only [= castState_heq]
@@ -622,7 +625,7 @@ where
     go s' reset step s'.idx s'.state s'.cache s'.stack
   termination_by s.measure
   decreasing_by
-    simp only [Prod.lex_def, rebuildState_eq, castState_step, walk.castState_motive]
+    simp only [Prod.lex_def, rebuildState_eq, castState_step, walk.motive_castState]
     apply step_lt_enqueueVar
 
 @[always_inline]
@@ -664,24 +667,51 @@ end State
   TODO: Support reusing the cache for further entrypoints.
 -/
 @[inline, specialize walker]
-def walk {null} (walker : TFIWalker aig σ α null) (var : Var) (valid : var.validIn aig := by grind) : σ × VarCache α :=
+def walk {null} (walker : TFIWalker aig σ α null) (var : Var) (valid : var.validIn aig := by grind) : (σ × Nat) × VarCache α :=
   let res := (State.new walker var).walk
-  (res.state, res.cache)
+  ((res.state, res.idx), res.cache)
+
+variable {walker : TFIWalker aig σ α null} {var : Var} (valid : var.validIn aig)
 
 @[simp, grind .]
-theorem mem_cache_walk {walker : TFIWalker aig σ α null} {var} valid :
+theorem mem_cache_walk :
     var ∈ (walker.walk var valid).snd := by
   rw [walk, State.walk_eq_walkSlow]
   apply State.mem_cache_walkSlow_of_mem_stack
   grind [State.new]
 
 @[simp, grind →]
-theorem mem_cache_walk_of_mem_tfi {walker : TFIWalker aig σ α null} {var valid var'}
-    (mem : var' ∈ aig.TFI var walker.reset) :
+theorem mem_cache_walk_of_mem_tfi {var'} (mem : var' ∈ aig.TFI var walker.reset) :
     var' ∈ (walker.walk var valid).snd := by
   apply State.cacheTFI
   · exact mem_cache_walk valid
   · exact mem
+
+@[simp]
+theorem idx_walk_le_size :
+    (walker.walk var valid).fst.snd ≤ aig.size := by
+  apply State.idx_le_size
+
+grind_pattern idx_walk_le_size => (walker.walk var valid).fst.snd
+
+@[simp, grind =]
+theorem size_cache_walk :
+    (walker.walk var valid).snd.size = aig.size := by
+  apply State.size_cache
+
+@[simp, grind! .]
+theorem stateMotive_walk :
+    walker.stateMotive (walker.walk var valid).fst.fst (walker.walk var valid).fst.snd (by grind) := by
+  apply State.sm
+
+@[simp]
+theorem cacheMotive_walk {var'} (mem : var' ∈ (walker.walk var valid).snd) valid' :
+    walker.cacheMotive (walker.walk var valid).fst.fst (walker.walk var valid).fst.snd (by grind)
+      (by apply stateMotive_walk) var' valid' (walker.walk var valid).snd[var'] := by
+  apply State.cacheValid
+  apply mem
+
+grind_pattern cacheMotive_walk => (walker.walk var valid).snd[var']
 
 end TFIWalker
 

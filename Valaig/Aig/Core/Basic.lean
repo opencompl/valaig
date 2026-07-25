@@ -1264,10 +1264,10 @@ def leaves (aig : Aig) :=
   Note that this holds a reference to the Aig, so shouldn't be used where the Aig is modified.
 -/
 @[inline, implicit_reducible]
-def instNullableVar (aig : Aig) : Data.Nullable Var where
-  null := aig.nextVar
-  isNull := (¬·.validIn aig)
-  legal := by simp [nextVar, Var.validIn, size, nodes]
+def instNullableVar (aig : Aig) (offset : Nat := 0) : Data.Nullable Var where
+  null := aig.nextVar + offset
+  isNull := (· ≥ aig.nextVar + offset)
+  legal := by simp
 
 /--
   An instance of `Nullable` for literals that uses `aig.nextVar.toLit` as the null element, and the
@@ -1276,9 +1276,9 @@ def instNullableVar (aig : Aig) : Data.Nullable Var where
   Note that this holds a reference to the Aig, so shouldn't be used where the Aig is modified.
 -/
 @[inline, implicit_reducible]
-def instNullableLit (aig : Aig) : Data.Nullable Lit where
-  null := aig.nextVar
-  isNull := (¬·.validIn aig)
-  legal := by simp [nextVar, Var.validIn, size, nodes]
+def instNullableLit (aig : Aig) (offset : Nat := 0) : Data.Nullable Lit where
+  null := aig.nextVar + offset
+  isNull := (·.var ≥ aig.nextVar + offset)
+  legal := by simp [nextVar, size]
 
 end Valaig.Aig
