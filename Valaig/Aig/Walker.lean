@@ -271,12 +271,9 @@ structure TFIWalker (aig : WFAig) (σ α : Type) (null : Data.Nullable α := by 
   stepState idx var state cache valid lt sm cm :
     stateMotive (step idx var state cache valid lt sm cm).fst (idx + 1) (by grind)
 
-  stepCache idx var state cache valid lt sm cm
-    (cacheValid :
-      ∀ {var} (valid : var.validIn aig) (h : var ∈ cache),
-        cacheMotive state idx (by omega) sm var valid cache[var]) :
-    ∀ {var'} (valid' : var'.validIn aig) (mem : var' ∈ cache),
-      cacheMotive (step idx var state cache valid lt sm cm).fst (idx + 1) (by grind)
+  stepCache idx var state cache valid lt sm cm var' valid' mem'
+    (cacheValid : cacheMotive state idx (by omega) sm var' valid' (cache[var']'mem')) :
+    cacheMotive (step idx var state cache valid lt sm cm).fst (idx + 1) (by grind)
         (by apply stepState) var' valid' cache[var']
 
   stepCacheNew idx var state cache valid lt sm cm :
@@ -382,7 +379,8 @@ def stepWalker (s : State walker) (var : Var)
       next heq =>
         subst heq
         apply walker.stepCacheNew
-      · apply walker.stepCache (cacheValid := s.cacheValid)
+      · apply walker.stepCache
+        apply s.cacheValid
         grind only [= VarCache.mem_set]
 
     cacheTFI := by grind [s.cacheTFI]
