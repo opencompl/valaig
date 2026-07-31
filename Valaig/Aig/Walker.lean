@@ -340,6 +340,19 @@ grind_pattern idx_le_size => s.idx, aig.size
 def measure (s : State walker) : Nat × Var :=
   (aig.size - s.idx, s.stack.back?.getD .constant)
 
+@[simp, grind →]
+theorem idx_lt_size_of_stack {s : State walker} (h : 0 < s.stack.size) :
+    s.idx < aig.size := by
+  simp only [VarCache.fillSlow, s.idx_eq, ←s.size_cache, VarCache.size]
+  rw [Array.countP_eq_size_filter, Array.size_filter_lt_size_iff_exists]
+  have := s.stackValid s.stack.back (by grind)
+  have := s.size_cache
+  have := s.stackUncached s.stack.back (by grind)
+  exists s.cache[s.stack.back]
+  constructor
+  · simp +instances [VarCache.instGetElem]
+  · grind
+
 @[always_inline]
 def stepWalker (s : State walker) (var : Var)
     (h : 0 < s.stack.size := by grind)
@@ -347,14 +360,6 @@ def stepWalker (s : State walker) (var : Var)
     (tfiCached : ∀ var' ∈ aig.TFI var walker.reset, var' ∈ s.cache := by grind) :
     State walker :=
   have := s.stackValid var (by grind)
-
-  have : s.idx < aig.size := by
-    simp only [VarCache.fillSlow, s.idx_eq, ←s.size_cache, VarCache.size]
-    rw [Array.countP_eq_size_filter, Array.size_filter_lt_size_iff_exists]
-    exists s.cache[var]'(by grind [s.size_cache])
-    constructor
-    · simp +instances [VarCache.instGetElem]
-    · grind [s.stackUncached var (by grind)]
 
   let res := walker.step s.idx var s.state s.cache (by grind) (by grind) s.sm <| by
     intros
@@ -396,33 +401,50 @@ def stepWalker (s : State walker) (var : Var)
     stackOrdered := by grind [s.stackOrdered]
   }
 
+section stepWalker
+variable {var : Var} {h : 0 < s.stack.size} {var_eq : var = s.stack.back}
+variable {tfiCached : ∀ (var' : Var), var' ∈ aig.TFI var walker.reset → var' ∈ s.cache}
+
 @[simp, grind =]
-theorem idx_stepWalker var h var_eq tfiCached :
+theorem idx_stepWalker :
     (s.stepWalker var h var_eq tfiCached).idx = s.idx + 1 := by
   rfl
 
 @[simp]
-theorem measure_lt_stepWalker var h var_eq tfiCached :
+theorem measure_lt_stepWalker :
     (s.stepWalker var h var_eq tfiCached).measure.lexLt s.measure := by
   grind [Prod.lexLt_def, measure]
 
 grind_pattern measure_lt_stepWalker => (s.stepWalker var h var_eq tfiCached).measure, s.measure
 
 @[simp, grind .]
-theorem mem_cache_stepWalker var h var_eq tfiCached {var' : Var} (mem : var' ∈ s.cache) :
+theorem mem_cache_stepWalker {var' : Var} (mem : var' ∈ s.cache) :
     var' ∈ (s.stepWalker var h var_eq tfiCached).cache := by
   unfold stepWalker
   grind
 
 @[simp, grind .]
-theorem mem_stack_stepWalker var h var_eq tfiCached {var' : Var} (mem : var' ∈ s.stack) :
+theorem mem_stack_stepWalker {var' : Var} (mem : var' ∈ s.stack) :
     var' ∈ (s.stepWalker var h var_eq tfiCached).stack ∨
     var' ∈ (s.stepWalker var h var_eq tfiCached).cache := by
   unfold stepWalker
   by_cases h : var' = s.stack.back
   · grind
-  · rw [Array.mem_iff_getElem] at mem
-    grind
+  · grind [Array.mem_iff_getElem]
+
+@[simp, grind =]
+theorem state_stepWalker :
+    (s.stepWalker var h var_eq tfiCached).state =
+    (walker.step s.idx var s.state s.cache (by grind [s.stackValid var (by grind)]) (by grind) s.sm  <| by
+      intros
+      exists by grind
+      exists by grind
+      apply s.cacheValid
+      grind [s.cacheTFI]
+    ).fst := by
+  rfl
+
+end stepWalker
 
 @[always_inline]
 def enqueueVar (s : State walker) (var : Var)
@@ -449,22 +471,38 @@ def enqueueVar (s : State walker) (var : Var)
       · rw [Array.getElem_push_lt] <;> grind
   }
 
+section enqueueVar
+variable {var : Var} {sized : 0 < s.stack.size} {valid : var.validIn aig}
+variable {uncached : var ∉ s.cache} {ordered : var < s.stack.back}
+
 @[simp]
-theorem measure_lt_enqueueVar var sized valid uncached ordered :
+theorem measure_lt_enqueueVar :
     (s.enqueueVar var sized valid uncached ordered).measure.lexLt s.measure := by
   grind [Prod.lexLt_def, measure, enqueueVar]
 
 grind_pattern measure_lt_enqueueVar => (s.enqueueVar var sized valid uncached ordered).measure, s.measure
 
 @[simp, grind =]
-theorem cache_enqueueVar var sized valid uncached ordered :
+theorem cache_enqueueVar :
     (s.enqueueVar var sized valid uncached ordered).cache = s.cache := by
   grind [enqueueVar]
 
 @[simp, grind .]
-theorem mem_stack_enqueueVar var sized valid uncached ordered {var'} (mem : var' ∈ s.stack) :
+theorem mem_stack_enqueueVar {var'} (mem : var' ∈ s.stack) :
     var' ∈ (s.enqueueVar var sized valid uncached ordered).stack := by
   grind [enqueueVar]
+
+@[simp, grind =]
+theorem state_enqueueVar :
+    (s.enqueueVar var sized valid uncached ordered).state = s.state := by
+  rfl
+
+@[simp, grind =]
+theorem idx_enqueueVar :
+    (s.enqueueVar var sized valid uncached ordered).idx = s.idx := by
+  rfl
+
+end enqueueVar
 
 @[always_inline, specialize walker]
 def step (s : State walker) (h : 0 < s.stack.size := by grind) : State walker :=
@@ -503,20 +541,25 @@ def step (s : State walker) (h : 0 < s.stack.size := by grind) : State walker :=
     have := s.cacheTFI rhs.var
     s.stepWalker var
 
+theorem step_eq (s : State walker) (h := by grind) :
+    (∃ var' valid uncached ordered, (s.step h) = s.enqueueVar var' h valid uncached ordered) ∨
+    (∃ var_eq tfiCached, (s.step h) = s.stepWalker (s.stack.back h) h var_eq tfiCached) := by
+  fun_cases step <;> grind
+
 @[simp]
 theorem step_lt_enqueueVar h :
     (s.step h).measure.lexLt s.measure := by
-  fun_cases step <;> grind
+  cases step_eq s <;> grind
 
 @[simp, grind .]
 theorem mem_cache_step {var : Var} (mem : var ∈ s.cache) h :
     var ∈ (s.step h).cache := by
-  fun_cases step <;> grind
+  cases step_eq s <;> grind
 
 @[simp, grind .]
 theorem mem_stack_step {var : Var} (mem : var ∈ s.stack) :
-    var ∈ s.step.stack ∨ var ∈ s.step.cache := by
-  fun_cases step <;> grind
+    var ∈ (s.step h).stack ∨ var ∈ (s.step h).cache := by
+  cases step_eq s <;> grind
 
 @[always_inline, specialize walker reset step]
 private def walk.rebuildWalker (walker : TFIWalker aig σ α null)
@@ -600,7 +643,7 @@ open walk in
   the walker/state with each call.
 -/
 @[always_inline, specialize walker]
-def walk (s : State walker) :=
+def walk (s : State walker) : State walker :=
   go s walker.reset walker.step s.idx s.state s.cache s.stack
 where
   @[specialize walker reset step]
@@ -657,6 +700,29 @@ theorem mem_cache_walkSlow_of_mem_stack {var : Var} (mem : var ∈ s.stack) :
   fun_induction walkSlow
   <;> grind
 
+theorem walk.stateInduction {s : State walker}
+    {inv : σ -> (idx : Nat) -> idx ≤ aig.size -> Prop}
+    (invInit : inv s.state s.idx s.idx_le_size)
+    (invStep :
+      ∀ (s : State walker) var valid lt le cm,
+        inv s.state s.idx s.idx_le_size →
+        inv (walker.step s.idx var s.state s.cache valid lt s.sm cm).fst (s.idx + 1) le) :
+    inv s.walk.state s.walk.idx s.walk.idx_le_size := by
+  simp only [State.walk_eq_walkSlow]
+  fun_induction State.walkSlow
+  · grind [State.walkSlow]
+  next s h ih =>
+    unfold State.walkSlow
+    simp only [h, ↓reduceDIte]
+    apply ih
+    rcases State.step_eq s with (_ | ⟨_, _, h⟩)
+    · grind
+    · rw [h]
+      simp only [State.state_stepWalker, State.idx_stepWalker]
+      apply invStep
+      apply invInit
+
+
 end State
 
 /--
@@ -710,6 +776,18 @@ theorem cacheMotive_walk {var'} (mem : var' ∈ (walker.walk var valid).snd) val
   apply mem
 
 grind_pattern cacheMotive_walk => (walker.walk var valid).snd[var']
+
+theorem stateInduction
+    {inv : σ -> (idx : Nat) -> idx ≤ aig.size -> Prop}
+    (invInit : inv walker.init 0 (by grind))
+    (invStep :
+      ∀ idx var state cache valid lt sm cm,
+        inv (walker.step idx var state cache valid lt sm cm).fst (idx + 1) (by omega)) :
+    inv (walker.walk var valid).fst.fst (walker.walk var valid).fst.snd (by grind) := by
+  apply State.walk.stateInduction
+  · apply invInit
+  · intros
+    apply invStep
 
 end TFIWalker
 
