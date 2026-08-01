@@ -351,6 +351,7 @@ theorem idx_lt_size_of_stack {s : State walker} (h : 0 < s.stack.size) :
   exists s.cache[s.stack.back]
   constructor
   · simp +instances [VarCache.instGetElem]
+    apply Array.getElem_mem
   · grind
 
 @[always_inline]

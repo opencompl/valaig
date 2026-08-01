@@ -65,7 +65,7 @@ instance {pool : Pool α} {idx : Nat} : Decidable (idx ∈ pool) := by
 @[local simp, local grind =]
 private theorem mem_iff :
     idx ∈ pool ↔ idx < pool.capacity ∧ idx ∉ pool.frees := by
-  simp +instances [instMembership, contains]
+  simp +instances only [instMembership, contains, decide_eq_true_iff]
 
 @[simp, grind =]
 theorem contains_eq_mem :

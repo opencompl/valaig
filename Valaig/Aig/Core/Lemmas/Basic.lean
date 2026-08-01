@@ -29,6 +29,8 @@ attribute [local simp, local grind]
   latchToInput! latchToAnd! changeLatchIdx!
   andToInput! andToLatch! rewriteAnd!
 
+attribute [local simp] Option.bind
+
 @[simp, grind =]
 theorem toNat_Var {var : Var} :
     AbsMap.AsNat.toNat var = var.idx := by

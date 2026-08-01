@@ -241,6 +241,7 @@ theorem size_modify :
 theorem fillSlow_modify [null : Nullable α] :
     (cache.modify var lt f).fillSlow =
     cache.fillSlow - (if var ∈ cache then 1 else 0) + (if null.isSome (f ⟨cache[var], by grind⟩) then 1 else 0) := by
+  simp only [size] at lt
   simp only [modify, fillSlow, Array.countP_modifyMem, Nullable.isSome_eq]
   cases decide (var ∈ cache) <;> cases null.isNull (f ⟨cache[var], by grind⟩)
   <;> grind

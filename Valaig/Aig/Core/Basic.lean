@@ -372,7 +372,7 @@ namespace Var
 /--
   A variable is `validIn` an Aig iff it has a node defined for it.
 -/
-@[expose]
+@[expose, implicit_reducible]
 def validIn (var : Var) (aig : Aig) : Prop :=
   var ∈ aig.nodes
 
@@ -408,7 +408,7 @@ namespace Lit
 /--
   A literal is `validIn` an Aig iff its variable is also.
 -/
-@[always_inline, reducible, expose, simp, grind unfold]
+@[always_inline, implicit_reducible, expose, simp, grind unfold]
 def validIn (lit : Lit) (aig : Aig) : Prop :=
   lit.var.validIn aig
 
