@@ -224,4 +224,12 @@ theorem mem_pop_iff_getElem {xs : Array α} {a : α} :
   rw [Array.mem_iff_getElem]
   grind
 
+@[simp, grind =]
+theorem countP_pop {xs : Array α} {p : α -> Bool} :
+    xs.pop.countP p = xs.countP p - if xs.back?.any p then 1 else 0 := by
+  by_cases xs.size = 0
+  · grind
+  · rw [show xs = xs.pop.push xs.back by grind]
+    simp [Array.countP_push]
+
 end Array
