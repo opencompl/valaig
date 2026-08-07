@@ -418,9 +418,10 @@ theorem measure_lt_stepWalker :
 
 grind_pattern measure_lt_stepWalker => (s.stepWalker var h var_eq tfiCached).measure, s.measure
 
-@[simp, grind .]
-theorem mem_cache_stepWalker {var' : Var} (mem : var' ∈ s.cache) :
-    var' ∈ (s.stepWalker var h var_eq tfiCached).cache := by
+@[simp, grind =]
+theorem mem_cache_stepWalker {var' : Var} :
+    var' ∈ (s.stepWalker var h var_eq tfiCached).cache ↔
+      var' ∈ s.cache ∨ var' = var := by
   unfold stepWalker
   grind
 
@@ -723,6 +724,48 @@ theorem walk.stateInduction {s : State walker}
       apply invStep
       apply invInit
 
+theorem walk.cacheInduction {s : State walker}
+    {inv : (state : σ) -> (idx : Nat) -> (le : idx ≤ aig.size) -> walker.stateMotive state idx le ->
+      (var : Var) -> var.validIn aig -> α -> Prop}
+    (invInit : ∀ var' valid' (mem' : var' ∈ s.cache),
+      inv s.state s.idx s.idx_le_size s.sm var' valid' s.cache[var'])
+    (invStep :
+      ∀ (s : State walker) var valid lt le cm var' valid' (mem' : var' ∈ s.cache),
+        (cacheMotive : walker.cacheMotive s.state s.idx s.idx_le_size s.sm var' valid' s.cache[var']) →
+        (cacheValid : inv s.state s.idx s.idx_le_size s.sm var' valid' s.cache[var']) →
+        inv (walker.step s.idx var s.state s.cache valid lt s.sm cm).fst (s.idx + 1) le
+          (by apply walker.stepState) var' valid' s.cache[var'])
+    (invStepNew :
+      ∀ (s : State walker) var valid lt le cm,
+        (cacheMotive : ∀ var' valid' (mem' : var' ∈ s.cache),
+          walker.cacheMotive s.state s.idx s.idx_le_size s.sm var' valid' s.cache[var']) →
+        (cacheValid : ∀ var' valid' (mem' : var' ∈ s.cache),
+          inv s.state s.idx s.idx_le_size s.sm var' valid' s.cache[var']) →
+        inv (walker.step s.idx var s.state s.cache valid lt s.sm cm).fst (s.idx + 1) le
+          (by apply walker.stepState) var valid
+            (walker.step s.idx var s.state s.cache valid lt s.sm cm).snd)
+    var' valid' (mem' : var' ∈ s.walk.cache) :
+    inv s.walk.state s.walk.idx s.walk.idx_le_size s.walk.sm var' valid' s.walk.cache[var'] := by
+  revert mem'
+  simp only [State.walk_eq_walkSlow]
+  fun_induction State.walkSlow
+  next h =>
+    unfold walkSlow
+    simp only [h]
+    apply invInit
+  next s h ih =>
+    unfold walkSlow
+    simp only [h]
+    apply ih
+    intro var' valid' mem'
+    rcases State.step_eq s with (_ | ⟨_, _, h⟩)
+    · grind
+    · simp only [h, stepWalker, VarCache.getElem_set]
+      split
+      next h =>
+        simp only [h]
+        apply invStepNew <;> grind only [s.cacheValid]
+      · apply invStep <;> grind only [s.cacheValid, = mem_cache_stepWalker]
 
 end State
 
@@ -789,6 +832,32 @@ theorem stateInduction
   · apply invInit
   · intros
     apply invStep
+
+theorem cacheInduction
+    {inv : (state : σ) -> (idx : Nat) -> (le : idx ≤ aig.size) -> walker.stateMotive state idx le ->
+      (var : Var)  -> var.validIn aig -> α -> Prop}
+    (invStep :
+      ∀ idx var state cache valid lt sm cm var' valid' (mem' : var' ∈ cache),
+        (cacheMotive : walker.cacheMotive state idx (by omega) sm var' valid' cache[var']) →
+        (cacheValid : inv state idx (by omega) sm var' valid' cache[var']) →
+        inv (walker.step idx var state cache valid lt sm cm).fst (idx + 1) (by omega)
+          (by apply walker.stepState) var' valid' cache[var'])
+    (invStepNew :
+      ∀ idx var state cache valid lt sm cm,
+        (cacheMotive : ∀ var' valid' (mem' : var' ∈ cache),
+          walker.cacheMotive state idx (by omega) sm var' valid' cache[var']) →
+        (cacheValid : ∀ var' valid' (mem' : var' ∈ cache),
+          inv state idx (by omega) sm var' valid' cache[var']) →
+        inv (walker.step idx var state cache valid lt sm cm).fst (idx + 1) (by omega)
+          (by apply walker.stepState) var valid (walker.step idx var state cache valid lt sm cm).snd.val)
+    var' valid' (mem' : var' ∈ (walker.walk var valid).snd) :
+    inv (walker.walk var valid).fst.fst (walker.walk var valid).fst.snd (by grind) (by grind)
+      var' valid' (walker.walk var valid).snd[var'] := by
+  apply State.walk.cacheInduction
+  · grind [State.new]
+  · intros; apply invStep <;> grind
+  · intros; apply invStepNew <;> grind
+  · exact mem'
 
 end TFIWalker
 
