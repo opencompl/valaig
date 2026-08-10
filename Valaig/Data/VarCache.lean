@@ -430,6 +430,10 @@ theorem inverted_mapLit :
     (cache.mapLit lit lt).inverted = (lit.inverted ≠ cache[lit.var].inverted) := by
   grind
 
+theorem mapLit_eq :
+    (cache.mapLit lit lt) = lit.mapTo cache[lit.var] := by
+  rfl
+
 end mapLit
 
 end VarCache
