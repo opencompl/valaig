@@ -92,4 +92,13 @@ instance : @FinitePartialOrder Nat (· < ·) where
   nodup := by grind
   mem_list := by grind
 
+instance {α : Type _} {rel : α -> α -> Prop} {p : α -> Prop} [DecidablePred p] [fin : FinitePartialOrder rel] :
+    @FinitePartialOrder (Subtype p) (rel ·.val ·.val) where
+  irrefl := by intros; apply fin.irrefl
+  trans := by intro a b c; apply fin.trans
+
+  list x := fin.list x.val |>.filter p |>.attachWith _ (by grind)
+  nodup := sorry
+  mem_list := by grind
+
 end Valaig.Data

@@ -4,6 +4,7 @@ public import Std.Data.HashMap
 public import Valaig.Data.FiniteOrder
 public import Valaig.Data.VarCache
 public import Valaig.ForLean.Prod
+public import Valaig.Data.Refs
 import Valaig.ForLean.Array
 
 public section
@@ -17,7 +18,7 @@ namespace Valaig.Data.Memo
   - μ : user state
   - γ : monad return types
 -/
-variable {α β σ μ γ : Type} {a root : α} {b : β} {usr : μ} {idx : Nat}
+variable {α β σ μ γ : Type} {a root : α} {b : β} {usr : μ}
 
 /--
   An invariant on the user state in the walker.
@@ -94,38 +95,15 @@ namespace ActionState
 variable {action : ActionState hsi ci enq s γ}
 
 @[expose]
-def isPure (action : ActionState hsi ci enq s γ) : Prop :=
-  match action.action with
-  | .pure _ _ => True
-  | _ => False
-
-@[expose]
-def value (action : ActionState hsi ci enq s γ) (h : action.isPure := by grind) : γ :=
+def value? (action : ActionState hsi ci enq s γ) : Option γ :=
   match _ : action.action with
   | .pure val _ => val
-  | .enqueued _ _ _ => by grind [isPure]
+  | .enqueued _ _ _ => none
 
 @[simp, grind .]
-theorem isPure_of_pure {v : γ} {heq} (hact : action.action = .pure v heq) :
-    action.isPure := by
-  grind [isPure]
-
-@[simp, grind .]
-theorem not_isPure_of_enqueued {usr' : μ} {heq h}
-    (hact : action.action = .enqueued usr' heq h) :
-    ¬action.isPure := by
-  grind [isPure]
-
-@[simp, grind .]
-theorem value_of_pure {v : γ} {heq} (hact : action.action = .pure v heq) {h} :
-    action.value h = v := by
-  grind [value]
-
-@[simp, grind =]
-theorem state_of_isPure (h : action.isPure) :
-    action.state = s := by
-  simp only [isPure] at h
-  split at h <;> grind
+theorem value?_of_pure {v : γ} {heq} (hact : action.action = .pure v heq) :
+    action.value? = v := by
+  grind [value?]
 
 end ActionState
 
@@ -144,19 +122,11 @@ instance : Monad (ActionM hsi ci enq) where
 variable {hci : query.respects (ci hsi) s}
 
 @[simp]
-theorem isPure_dite {c : Prop} [Decidable c] {a : c -> ActionM hsi ci enq γ} {b : ¬c -> ActionM hsi ci enq γ} :
-    ((dite c a b) s hci).isPure =
+theorem value?_dite {c : Prop} [Decidable c] {a : c -> ActionM hsi ci enq γ} {b : ¬c -> ActionM hsi ci enq γ} :
+    ((dite c a b) s hci).value? =
       dite c
-        (fun h => (a h s hci).isPure)
-        (fun h => (b h s hci).isPure) := by
-  grind
-
-@[simp]
-theorem value_dite {c : Prop} [Decidable c] {a : c -> ActionM hsi ci enq γ} {b : ¬c -> ActionM hsi ci enq γ} h :
-    ((dite c a b) s hci).value h =
-      dite c
-        (fun h => (a h s hci).value (by grind))
-        (fun h => (b h s hci).value (by grind)) := by
+        (fun h => (a h s hci).value?)
+        (fun h => (b h s hci).value?) := by
   grind
 
 @[local simp, local grind =]
@@ -174,27 +144,15 @@ theorem bind_eq {δ : Type} {a : ActionM hsi ci enq δ} {b : δ -> ActionM hsi c
   grind only
 
 @[simp, grind =]
-theorem value_pure {val : γ} {h} :
-    ((pure val : ActionM hsi ci enq _) s hci).value h = val := by
+theorem value?_pure {val : γ} :
+    ((pure val : ActionM hsi ci enq _) s hci).value? = val := by
   rfl
 
-@[simp, grind .]
-theorem isPure_of_isPure_bind_fst {δ : Type} {a : ActionM hsi ci enq δ} {b : δ -> ActionM hsi ci enq γ}
-    (h : ((a >>= b) s hci).isPure) :
-    (a s hci).isPure := by
-  grind [isPure]
-
-@[simp, grind .]
-theorem isPure_of_isPure_bind_snd {δ : Type} {a : ActionM hsi ci enq δ} {b : δ -> ActionM hsi ci enq γ}
-    (h : ((a >>= b) s hci).isPure) (ha) :
-    (b ((a s hci).value ha) s hci).isPure := by
-  grind [isPure]
-
 @[simp, grind =]
-theorem value_bind {δ : Type} {a : ActionM hsi ci enq δ} {b : δ -> ActionM hsi ci enq γ} {h} :
-    ((a >>= b) s hci).value h =
-      (b ((a s hci).value) s hci).value := by
-  grind
+theorem value?_bind {δ : Type} {a : ActionM hsi ci enq δ} {b : δ -> ActionM hsi ci enq γ} :
+    ((a >>= b) s hci).value? =
+      (a s hci).value? >>= (fun x => (b x s hci).value?) := by
+  grind [value?]
 
 /--
   Try to lookup a single value from the cache, enqueuing it to be processed before returning
@@ -220,11 +178,6 @@ def get2 (a b : α) (ha : lt a root := by grind) (hb : lt b root := by grind) :
     | some _, none => ⟨enq s b, by grind, .enqueued usr rfl .init⟩
     | none, none => ⟨enq (enq s a) b, by grind, .enqueued usr rfl (by subst enq; exact .trans .init)⟩
 
-@[simp, grind .]
-theorem isPure_pure {val : γ} :
-    ((pure val : ActionM hsi ci enq γ) s hci).isPure := by
-  simp [pure]
-
 /--
   Returns a value paired with a user state, using the default user state registered for the action.
 -/
@@ -232,28 +185,18 @@ theorem isPure_pure {val : γ} :
 def just (val : γ) : ActionM hsi ci enq (μ × γ) :=
   return (usr, val)
 
-@[simp, grind .]
-theorem isPure_just {val : γ} :
-    ((just val : ActionM hsi ci enq (μ × γ)) s hci).isPure := by
-  simp [just]
-
 @[simp, grind =]
-theorem value_just {val : γ} {h} :
-    ((just val : ActionM hsi ci enq (μ × γ)) s hci).value h = (usr, val) := by
+theorem value?_just {val : γ} :
+    ((just val : ActionM hsi ci enq (μ × γ)) s hci).value? = (usr, val) := by
   simp [just]
 
 @[always_inline]
 def pair {δ : Type} (a : δ) (b : γ): ActionM hsi ci enq (δ × γ) :=
   return (a, b)
 
-@[simp, grind .]
-theorem isPure_pair {δ : Type} {a : δ} {b : γ} :
-    ((pair a b : ActionM hsi ci enq (δ × γ)) s hci).isPure := by
-  simp [pair]
-
 @[simp, grind =]
-theorem value_pair {δ : Type} {a : δ} {b : γ} {h} :
-    ((pair a b : ActionM hsi ci enq (δ × γ)) s hci).value h = (a, b) := by
+theorem value?_pair {δ : Type} {a : δ} {b : γ} :
+    ((pair a b : ActionM hsi ci enq (δ × γ)) s hci).value? = (a, b) := by
   simp [pair]
 
 end ActionM
@@ -264,9 +207,14 @@ end Action
 -/
 structure VisitorInfo (α : Type) (β : Type := Unit) (μ : Type := Unit) where
   lt : α -> α -> Prop
+  fin : FinitePartialOrder lt := by infer_instance
 
-  stateInv : StateInv μ := fun _ => True
-  cacheInv : CacheInv stateInv α β := fun _ _ _ => True
+  stateInv : μ -> Prop := fun _ => True
+  cacheInv : (s : μ) -> stateInv s -> α -> β -> Prop := fun _ _ _ _ => True
+
+@[simp, grind unfold]
+abbrev VisitorInfo.cacheInv' (info : VisitorInfo α β μ) : CacheInv info.stateInv α β :=
+  fun {s} => info.cacheInv s
 
 variable {info : VisitorInfo α β μ}
 
@@ -279,36 +227,34 @@ def Visitor (info : VisitorInfo α β μ) :=
   {σ : Type} -> (state : μ) -> (root : α) ->
     {hsi : info.stateInv state} ->
     {query : Query σ β info.lt root} -> {enq : Enqueue query} ->
-      ActionM hsi info.cacheInv enq (μ × β)
+      ActionM hsi info.cacheInv' enq (μ × β)
 
 class WFVisitor (visitor : Visitor info) where
   stateInv
     {σ : Type} (state : μ) (root : α)
     {hsi : info.stateInv state}
     {query : Query σ β info.lt root} {enq : Enqueue query}
-    {walk : σ} {hci : query.respects (info.cacheInv hsi) walk} {hpure} :
-      info.stateInv (visitor state root (enq := enq) walk hci |>.value hpure |>.fst)
+    {walk : σ} {hci : query.respects (info.cacheInv state hsi) walk} {hpure} :
+      info.stateInv (visitor state root (enq := enq) walk hci |>.value?.get hpure |>.fst)
 
   cacheInv
     {σ : Type} (state : μ) (root : α)
     {hsi : info.stateInv state}
     {query : Query σ β info.lt root} {enq : Enqueue query}
-    {walk : σ} {hci : query.respects (info.cacheInv hsi) walk} {hpure} :
+    {walk : σ} {hci : query.respects (info.cacheInv state hsi) walk} {hpure} :
     info.cacheInv
-      (s := (visitor state root (enq := enq) walk hci) |>.value hpure |>.fst) (by apply stateInv)
-      root (visitor state root (enq := enq) walk hci |>.value hpure |>.snd)
+      ((visitor state root (enq := enq) walk hci) |>.value?.get hpure |>.fst) (by apply stateInv)
+      root (visitor state root (enq := enq) walk hci |>.value?.get hpure |>.snd)
 
   cachePreservation
     {σ : Type} (state : μ) (root key : α) (value : β)
     {hsi : info.stateInv state}
-    (cacheInv : info.cacheInv hsi key value)
+    (cacheInv : info.cacheInv state hsi key value)
     {query : Query σ β info.lt root} {enq : Enqueue query}
-    {walk : σ} {hci : query.respects (info.cacheInv hsi) walk} {hpure} :
+    {walk : σ} {hci : query.respects (info.cacheInv' hsi) walk} {hpure} :
     info.cacheInv
-      (s := (visitor state root (enq := enq) walk hci) |>.value hpure |>.fst) (by apply stateInv)
+      ((visitor state root (enq := enq) walk hci) |>.value?.get hpure |>.fst) (by apply stateInv)
       key value
-
-  fin : FinitePartialOrder info.lt := by infer_instance
 
 /--
   The walker class defines a generic incremental memoizer walker that runs a `Visitor` at a given
@@ -321,7 +267,9 @@ class Walker (visitor : outParam (Visitor info)) (σ : Type) where
 
 class WFWalker (visitor : outParam (Visitor info)) (σ : Type) extends Walker visitor σ where
   stateInv s : info.stateInv (state s)
-  cacheInv s k : info.cacheInv (stateInv (visit s k).fst) k (visit s k).snd
+  cacheInv s k : info.cacheInv' (stateInv (visit s k).fst) k (visit s k).snd
+
+attribute [grind! .] WFWalker.stateInv WFWalker.cacheInv
 
 class Cache (α β : outParam Type) (σ : Type) [DecidableEq α] where
   empty : σ
@@ -384,7 +332,7 @@ structure DFSWalker (visitor : Visitor info) (cache : Type) [Cache α β cache] 
   cache : cache
   usr : μ
   hsi : info.stateInv usr
-  hci : ∀ k (h : Cache.mem k cache), info.cacheInv hsi k (Cache.get cache k)
+  hci : ∀ k (h : Cache.mem k cache), info.cacheInv' hsi k (Cache.get cache k)
 
 namespace DFSWalker
 variable {visitor : Visitor info} {cache : Type} [Cache α β cache]
@@ -444,17 +392,16 @@ theorem back?_getD_lt_reach {s s'} {root' : α} (h : (enqueue cache lt root).rea
 
 end LookupState
 
-structure State (visitor : Visitor info) (cache' : Type) (root : α)
-    [Cache α β cache'] [wf : WFVisitor visitor]
+structure State (visitor : Visitor info) (cache' : Type) (root : α) [Cache α β cache']
     extends DFSWalker visitor cache' where
   stack : Array α
 
   visitSpec :
     (state : μ) -> (root : α) -> (hsi : info.stateInv state) ->
-      ActionM hsi info.cacheInv (LookupState.enqueue cache' info.lt root) (μ × β)
+      ActionM hsi info.cacheInv' (LookupState.enqueue cache' info.lt root) (μ × β)
 
   hvisit : visitSpec = (visitor · · (hsi := ·))
-  stackOrdered : ∀ x ∈ stack, wf.fin.le x root
+  stackOrdered : ∀ x ∈ stack, info.fin.le x root
 
 namespace State
 variable {s : State visitor cache root}
@@ -470,11 +417,11 @@ def new (walker : DFSWalker visitor cache) (root : α) : State visitor cache roo
 def measure (s : State visitor cache root) : Nat × Nat × Nat :=
   (
     -- The number of values lt the root that are not in the cache yet decreases
-    (wf.fin.le_list root).countP (¬Cache.mem · s.cache),
+    (info.fin.le_list root).countP (¬Cache.mem · s.cache),
     -- The number of values in the stack that are already in the cache decreases
     s.stack.countP (Cache.mem · s.cache),
     -- The back index of the stack decreases
-    wf.fin.measure (s.stack.back?.getD root)
+    info.fin.measure (s.stack.back?.getD root)
   )
 
 @[always_inline, specialize visitor cache]
@@ -492,8 +439,8 @@ def visit (s : State visitor cache root) (n : α)
       hci := by have := s.hci; grind only [→ LookupState.cache_reach]
       hsi := by grind
       stackOrdered := by
-        have : wf.fin.le n root := by grind [s.stackOrdered]
-        grind [s.stackOrdered, wf.fin.trans]
+        have : info.fin.le n root := by grind [s.stackOrdered]
+        grind [s.stackOrdered, info.fin.trans]
     }
   | .pure (usr, val) _ =>
     { s with
@@ -505,23 +452,24 @@ def visit (s : State visitor cache root) (n : α)
         have := s.hci
         have := @wf.cacheInv
         have := @wf.cachePreservation
-        grind only [Query.respects, ActionState.isPure_of_pure, ActionState.value_of_pure,
-          = Option.get_some, !Cache.get?_mem, Cache.get, s.hvisit]
-      hsi := by have := @wf.stateInv; grind [s.hvisit]
+        grind [ActionState.value?, s.hvisit]
+      hsi := by
+        have := @wf.stateInv
+        grind [s.hvisit, ActionState.value?]
       stackOrdered := by grind [s.stackOrdered]
     }
 
 @[simp, grind .]
 theorem measure_visit {n : α} {h} {hmem : ¬Cache.mem n s.cache} :
     Prod.Lex (· < ·) (Prod.Lex (· < ·) (· < ·)) (s.visit n h).measure s.measure := by
-  have : wf.fin.le n root := by grind [s.stackOrdered]
+  have : info.fin.le n root := by grind [s.stackOrdered]
   fun_cases visit
   next hreach _ =>
     apply Prod.Lex.right'
     · grind
     · apply Prod.Lex.right'
       · simp [LookupState.countP_cache_reach hreach]
-      · apply wf.fin.measure_lt
+      · apply info.fin.measure_lt
         grind
   next heq _ =>
     apply Prod.Lex.left

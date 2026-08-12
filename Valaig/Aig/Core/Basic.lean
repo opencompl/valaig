@@ -440,7 +440,7 @@ namespace InputIdx
 /--
   An input is `validIn` an Aig iff it is a member of `aig.inputs`.
 -/
-@[expose]
+@[expose, implicit_reducible]
 def validIn (idx : InputIdx) (aig : Aig) : Prop :=
   idx ∈ aig.inputs
 
@@ -479,7 +479,7 @@ namespace LatchIdx
 /--
   A latch is `validIn` an Aig iff it is a member of `aig.latches`.
 -/
-@[expose]
+@[expose, implicit_reducible]
 def validIn (idx : LatchIdx) (aig : Aig) : Prop :=
   idx ∈ aig.latches
 

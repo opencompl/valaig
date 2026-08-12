@@ -3,13 +3,13 @@ module
 public import Valaig.Aig
 public import Std.Sat.AIG.Basic
 import Std.Sat.AIG.CachedLemmas
-import Std.Sat.AIG.Cached
+public import Std.Sat.AIG.Cached
 import all Std.Sat.AIG.Cached
+public import Valaig.Data.Memo
 
 public section
 namespace Valaig.Sat
 open Aig
-variable {aig : Aig}
 
 namespace toStd
 
@@ -45,59 +45,60 @@ private theorem gate_le_decls_size (entrypoint : Entrypoint LeafIdx) :
     entrypoint.ref.gate < entrypoint.aig.decls.size :=
   entrypoint.ref.hgate
 
+@[simp, grind unfold]
+abbrev walker.info (aig : WFAig) : Data.Memo.VisitorInfo (Var.In aig) Lit (Std.Sat.AIG LeafIdx) where
+  lt := (·.val < ·)
+  cacheInv s _ _ lit := lit.var.idx < s.decls.size
+
+open Data.Memo.ActionM in
 @[always_inline]
-private def walker (aig : WFAig) (reset : Bool) : TFIWalker aig (Std.Sat.AIG LeafIdx) Lit (aig.instNullableLit 1) where
-  stateMotive std idx le := std.decls.size ≤ idx + 1
-  cacheMotive std idx le sm var valid lit :=
-    lit.var.idx < std.decls.size
+def walker (aig : WFAig) (reset : Bool) : Data.Memo.Visitor (walker.info aig) :=
+  fun std var => do
+    let map (lit : Lit) (valid : lit.var < var := by grind) := do
+      let new ← get ⟨lit.var, by grind⟩ valid
+      return lit.mapTo new |>.toRef std
 
-  reset := reset
+    let just (ref : std.Ref) :=
+      .just (.ofRef ref)
 
-  init := .empty
-  initState := by grind
+    let ret (res : Std.Sat.AIG.Entrypoint LeafIdx) :=
+      .pair res.aig (.ofRef res.ref)
 
-  step idx var std cache valid lt sm cm :=
-    have := aig.instNullableLit 1
+    match _ : aig[var.val] with
+    | .false       => just <| std.mkConstCached .false
+    | .and lhs rhs => ret <| std.mkGateCached <| .mk (←map lhs) (←map rhs)
+    | .input idx   => ret <| std.mkAtomCached idx
+    | .latch idx   =>
+      if _ : reset then
+        match _ : idx.getReset aig with
+        | none     => ret <| std.mkAtomCached idx
+        | some lit => just <| ←map lit
+      else
+        ret <| std.mkAtomCached idx
 
-    let map (lit : Lit) (valid : lit.var ∈ aig.TFI var reset := by grind) :=
-      cache.mapLit lit |>.toRef std
-
-    let res : Entrypoint LeafIdx :=
-      match _ : aig[var] with
-      | .false => .mk std (std.mkConstCached .false)
-      | .and lhs rhs =>
-        std.mkGateCached <| .mk (map lhs) (map rhs)
-      | .input idx => std.mkAtomCached idx
-      | .latch idx =>
-        if _ : reset then
-          match _ : idx.getReset aig with
-          | none => std.mkAtomCached idx
-          | some lit => .mk std (map lit)
-        else
-          std.mkAtomCached idx
-
-    have : res.aig.decls.size ≤ std.decls.size + 1 := by
-      subst res; (repeat' split) <;> grind
-
-    let lit := .ofRef res.ref
-    let property := by
-      simp only [Data.Nullable.isSome_eq, isNull_instNullableLit]
-      grind [res.ref.hgate]
-    (res.aig, ⟨lit, property⟩)
-
-  stepState := by simp only; intros; (repeat' split) <;> grind
-  stepCache := by simp only; intros; (repeat' split) <;> grind
-  stepCacheNew := by grind
+variable {reset : Bool}
+instance {aig : WFAig} : Data.Memo.WFVisitor (walker aig reset) where
+  stateInv := by grind
+  cacheInv std var hsi _ _ walk hci := by
+    apply walker.fun_cases_unfolding
+      (motive := fun a => ∀ h, (walker.info aig).cacheInv ((a walk hci).value?.get h).fst hsi var ((a walk hci).value?.get h).snd)
+    <;> simp [Std.Sat.AIG.mkConstCached, std.hzero]
+    <;> grind
+  cachePreservation std root var val hsi _ _ _ walk hci := by
+    intros
+    apply walker.fun_cases_unfolding
+      (motive := fun a => ∀ h, (walker.info aig).cacheInv ((a walk hci).value?.get h).fst hsi var val)
+    <;> simp
+    <;> grind
 
 end toStd
 
+open Data.Memo in
 def toStd (aig : WFAig) (reset : Bool) (entry : Lit) (valid : entry.validIn aig := by grind) : Std.Sat.AIG.Entrypoint LeafIdx :=
-  let walker := toStd.walker aig reset
-  let res := walker.walk entry.var
-  let aig := res.fst.fst
-  let ref := (res.snd.mapLit entry).toRef aig <| by
-    have := walker.cacheMotive_walk (var := entry.var) (var' := entry.var)
-    grind [toStd.walker]
-  ⟨aig, ref⟩
+  let w : WFWalker (toStd.walker aig reset) (DFSWalker (toStd.walker aig reset) (Std.HashMap (Var.In aig) _)) :=
+    DFSWalker.instWalker
+  let s := w.new Std.Sat.AIG.empty
+  let (eq:=_) (s', val) := w.visit s ⟨entry.var, valid⟩
+  ⟨w.state s', (entry.mapTo val).toRef _ (by have := w.cacheInv; grind)⟩
 
 end Valaig.Sat

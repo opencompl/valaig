@@ -2,6 +2,7 @@ module
 
 public import Valaig.ForLean.Prelude
 public import Std.Sat.AIG.Basic
+public import Valaig.Data.FiniteOrder
 
 public section
 namespace Valaig
@@ -88,6 +89,14 @@ instance : Std.LawfulOrderMax Var := by
 -- Hash the inner value directly to avoid a mixHash use
 instance : Hashable Var where hash := (hash ·.idx)
 instance : LawfulHashable Var where hash_eq := by simp
+
+instance : @Data.FinitePartialOrder Var (· < ·) where
+  irrefl := by grind
+  trans := by grind
+
+  list x := (List.range x.idx).map (.ofIdx ·)
+  nodup := sorry
+  mem_list := by grind
 
 @[inline]
 def constant : Var :=
