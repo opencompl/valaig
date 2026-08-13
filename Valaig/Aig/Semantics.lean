@@ -182,13 +182,13 @@ theorem denoteSV_eq : ⟦var⟧sv = ⟦var.toLit⟧s := by grind [denoteSV]
 @[simp] theorem denoteS_not_inverted  (h : ¬lit.inverted) : ⟦lit    ⟧s  =  ⟦lit.var⟧sv := by grind
 @[simp] theorem denoteC_inverted      (h :  lit.inverted) : ⟦lit    ⟧c  = !⟦lit.var⟧cv := by grind
 @[simp] theorem denoteS_inverted      (h :  lit.inverted) : ⟦lit    ⟧s  = !⟦lit.var⟧sv := by grind
-@[simp] theorem denoteCV_not_inverted (h : ¬lit.inverted) : ⟦lit.var⟧cv =  ⟦lit    ⟧c := by grind
-@[simp] theorem denoteSV_not_inverted (h : ¬lit.inverted) : ⟦lit.var⟧sv =  ⟦lit    ⟧s := by grind
-@[simp] theorem denoteCV_inverted     (h :  lit.inverted) : ⟦lit.var⟧cv = !⟦lit    ⟧c := by grind
-@[simp] theorem denoteSV_inverted     (h :  lit.inverted) : ⟦lit.var⟧sv = !⟦lit    ⟧s := by grind
+theorem denoteCV_not_inverted (h : ¬lit.inverted) : ⟦lit.var⟧cv =  ⟦lit    ⟧c := by grind
+theorem denoteSV_not_inverted (h : ¬lit.inverted) : ⟦lit.var⟧sv =  ⟦lit    ⟧s := by grind
+theorem denoteCV_inverted     (h :  lit.inverted) : ⟦lit.var⟧cv = !⟦lit    ⟧c := by grind
+theorem denoteSV_inverted     (h :  lit.inverted) : ⟦lit.var⟧sv = !⟦lit    ⟧s := by grind
 
-@[simp] theorem denoteCV_var_eq : ⟦lit.var⟧cv = (lit.inverted ^^ ⟦lit⟧c) := by grind
-@[simp] theorem denoteSV_var_eq : ⟦lit.var⟧sv = (lit.inverted ^^ ⟦lit⟧s) := by grind
+theorem denoteCV_var_eq : ⟦lit.var⟧cv = (lit.inverted ^^ ⟦lit⟧c) := by grind
+theorem denoteSV_var_eq : ⟦lit.var⟧sv = (lit.inverted ^^ ⟦lit⟧s) := by grind
 grind_pattern denoteCV_var_eq => ⟦aig, lit.var, frame, assign⟧cv where lit =/= Lit.mk _ _
 grind_pattern denoteSV_var_eq => ⟦aig, lit.var, frame, assign⟧sv where lit =/= Lit.mk _ _
 

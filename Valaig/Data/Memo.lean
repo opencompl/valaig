@@ -43,6 +43,12 @@ variable {lt : α -> α -> Prop} {si : StateInv μ} {ci : CacheInv si α β}
 def Query.respects (query : Query σ β lt root) (p : α -> β -> Prop) (s : σ) :=
   ∀ {k h v}, query s k h = some v → p k v
 
+@[grind .]
+theorem Query.respects_get {query : Query σ β lt root} {p : α -> β -> Prop} {s : σ}
+      (hrespects : query.respects p s) (k : α) hlt h :
+    p k ((query s k hlt).get h) := by
+  grind
+
 @[expose, implicit_reducible]
 def Enqueue (query : Query σ β lt root) :=
   (s : σ) -> (a : α) -> (h : lt a root) -> query s a h = none -> { s' : σ // query s' = query s }
@@ -164,6 +170,14 @@ def get (a : α) (ha : lt a root := by grind) : ActionM hsi ci enq { val : β //
     match _ : query s a ha with
     | some v => ⟨s, hci, .pure ⟨v, by grind⟩⟩
     | none => ⟨enq s a (by grind) (by grind), by grind, .enqueued usr rfl .init⟩
+
+@[simp, grind =]
+theorem value?_get {a : α} (ha : lt a root) :
+    ((get a ha (enq := enq)) s hci).value? = (query s a ha).attachWith _ (by grind) := by
+  simp only [get]
+  split
+  next heq => simp [heq, value?]
+  next heq => simp [heq, value?]
 
 @[always_inline, specialize query enq]
 def get2 (a b : α) (ha : lt a root := by grind) (hb : lt b root := by grind) :
