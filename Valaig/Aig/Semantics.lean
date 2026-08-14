@@ -1,6 +1,7 @@
 module
 
 public import Valaig.Aig.Core
+import all Valaig.Aig.Core.Basic
 
 public section
 namespace Valaig.Aig
@@ -26,7 +27,7 @@ def denoteC (aig : Aig) (lit : Lit) (assign : LeafIdx -> Frame -> Bool) (frame :
     match _ : frame with
     | 0                   => lit.inverted ^^ assign idx 0
     | n + 1               => lit.inverted ^^ aig.denoteC (idx.getNext aig) assign n
-  | some (.and rhs0 rhs1) => lit.inverted ^^ (aig.denoteC rhs0 assign frame && aig.denoteC rhs1 assign frame)
+  | some (.and lhs rhs) => lit.inverted ^^ (aig.denoteC lhs assign frame && aig.denoteC rhs assign frame)
 termination_by (frame, lit.var)
 decreasing_by all_goals grind
 
@@ -63,7 +64,7 @@ def denoteS (aig : Aig) (lit : Lit) (assign : LeafIdx -> Frame -> Bool) (frame :
       | none              => lit.inverted ^^ assign idx 0
       | some reset        => lit.inverted ^^ aig.denoteS reset assign 0
     | n + 1               => lit.inverted ^^ aig.denoteS (idx.getNext aig) assign n
-  | some (.and rhs0 rhs1) => lit.inverted ^^ (aig.denoteS rhs0 assign frame && aig.denoteS rhs1 assign frame)
+  | some (.and lhs rhs) => lit.inverted ^^ (aig.denoteS lhs assign frame && aig.denoteS rhs assign frame)
 termination_by (frame, lit.var)
 decreasing_by all_goals grind
 
@@ -317,10 +318,10 @@ theorem denoteSV_var_latches {idx : LatchIdx} (mem : idx ∈ aig.latches) :
 grind_pattern denoteSV_var_latches => ⟦aig, aig.latches[idx].var, frame, assign⟧sv where
   frame =/= 0
 
-@[simp] theorem denoteCV_getElem_nodes_and {rhs0 rhs1 : Lit} (h : aig.nodes[var]'mem = .and rhs0 rhs1) : ⟦var⟧cv = (⟦rhs0⟧c && ⟦rhs1⟧c) := by grind [denoteCV, denoteC]
-@[simp] theorem denoteSV_getElem_nodes_and {rhs0 rhs1 : Lit} (h : aig.nodes[var]'mem = .and rhs0 rhs1) : ⟦var⟧sv = (⟦rhs0⟧s && ⟦rhs1⟧s) := by grind [denoteSV, denoteS]
-grind_pattern denoteCV_getElem_nodes_and => aig.nodes[var], Node.and rhs0 rhs1, ⟦aig, var, frame, assign⟧cv
-grind_pattern denoteSV_getElem_nodes_and => aig.nodes[var], Node.and rhs0 rhs1, ⟦aig, var, frame, assign⟧sv
+@[simp] theorem denoteCV_getElem_nodes_and {lhs rhs : Lit} (h : aig.nodes[var]'mem = .and lhs rhs) : ⟦var⟧cv = (⟦lhs⟧c && ⟦rhs⟧c) := by grind [denoteCV, denoteC]
+@[simp] theorem denoteSV_getElem_nodes_and {lhs rhs : Lit} (h : aig.nodes[var]'mem = .and lhs rhs) : ⟦var⟧sv = (⟦lhs⟧s && ⟦rhs⟧s) := by grind [denoteSV, denoteS]
+grind_pattern denoteCV_getElem_nodes_and => aig.nodes[var], Node.and lhs rhs, ⟦aig, var, frame, assign⟧cv
+grind_pattern denoteSV_getElem_nodes_and => aig.nodes[var], Node.and lhs rhs, ⟦aig, var, frame, assign⟧sv
 
 end get
 
@@ -458,6 +459,30 @@ theorem denoteSV_of_assign_eq :
 end var
 
 end denote_of_assign_eq
+
+@[simp, grind =]
+theorem denoteCV_addAndRaw {lhs rhs : Lit} (hl : lhs.validIn aig) (hr : rhs.validIn aig) :
+    ⟦(aig.addAndRaw lhs rhs).fst, (aig.addAndRaw lhs rhs).snd, frame, assign⟧cv =
+      (⟦aig, lhs, frame, assign⟧c && ⟦aig, rhs, frame, assign⟧c) := by
+  grind [denoteCV_getElem_nodes_and (lhs := lhs) (rhs := rhs)]
+
+@[simp, grind =]
+theorem denoteSV_addAndRaw {lhs rhs : Lit} (hl : lhs.validIn aig) (hr : rhs.validIn aig) :
+    ⟦(aig.addAndRaw lhs rhs).fst, (aig.addAndRaw lhs rhs).snd, frame, assign⟧sv =
+      (⟦aig, lhs, frame, assign⟧s && ⟦aig, rhs, frame, assign⟧s) := by
+  grind [denoteSV_getElem_nodes_and (lhs := lhs) (rhs := rhs)]
+
+@[simp, grind =]
+theorem denoteCV_addAnd {lhs rhs : Lit} (hl : lhs.validIn aig) (hr : rhs.validIn aig) :
+    ⟦(aig.addAnd lhs rhs).fst, (aig.addAnd lhs rhs).snd, frame, assign⟧c =
+      (⟦aig, lhs, frame, assign⟧c && ⟦aig, rhs, frame, assign⟧c) := by
+  grind [addAnd]
+
+@[simp, grind =]
+theorem denoteSV_addAnd {lhs rhs : Lit} (hl : lhs.validIn aig) (hr : rhs.validIn aig) :
+    ⟦(aig.addAnd lhs rhs).fst, (aig.addAnd lhs rhs).snd, frame, assign⟧s =
+      (⟦aig, lhs, frame, assign⟧s && ⟦aig, rhs, frame, assign⟧s) := by
+  grind [addAnd]
 
 /--
   A literal is unsatisfiable in an Aig if for all assignments to inputs and latches its value is

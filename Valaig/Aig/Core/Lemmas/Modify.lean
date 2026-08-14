@@ -446,19 +446,19 @@ attribute [local simp, local grind] addAnd
 theorem size_nodes_addAnd :
     (aig.addAnd lhs rhs).fst.nodes.size = aig.nodes.size ∨
     (aig.addAnd lhs rhs).fst.nodes.size = aig.nodes.size + 1 := by
-  sorry
+  simp [addAndRaw]
 
 -- TODO: We need that things are WF such that l0/l1/r0/r1 are valid
 @[simp, grind =]
-theorem mem_nodes_addAnd {var : Var} (hl : lhs.validIn aig) (hr : rhs.validIn aig) :
+theorem mem_nodes_addAnd {var : Var} :
     var ∈ (aig.addAnd lhs rhs).fst.nodes ↔
     var ∈ aig.nodes ∨ var = (aig.addAnd lhs rhs).snd.var := by
-  sorry
+  simp [addAndRaw]
 
 @[simp]
 theorem getElem_nodes_addAnd (hl : lhs.validIn aig) (hr : rhs.validIn aig) (new : (aig.addAnd lhs rhs).snd.var ∉ aig.nodes) :
     (aig.addAnd lhs rhs).fst[(aig.addAnd lhs rhs).snd.var] matches .and _ _ := by
-  sorry
+  grind
 
 grind_pattern getElem_nodes_addAnd => (aig.addAnd lhs rhs).fst[(aig.addAnd lhs rhs).snd.var]
 
