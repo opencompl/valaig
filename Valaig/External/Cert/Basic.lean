@@ -8,6 +8,7 @@ import Std.Data.HashMap.IteratorLemmas
 
 public section
 namespace Valaig.Cert
+open Aig
 
 namespace appendCert
 
@@ -24,7 +25,7 @@ structure State (old cert : WFAig) where
   mono : old ≤ aig
   deferredLatches : Std.HashMap Aig.LatchIdx Aig.LatchIdx
   latchKeys : ∀ latch ∈ deferredLatches, latch.validIn cert
-  latchVals : ∀ (h : latch ∈ deferredLatches), deferredLatches[latch].validIn aig
+  latchVals : ∀ {latch} (h : latch ∈ deferredLatches), deferredLatches[latch].validIn aig ∧ ¬deferredLatches[latch].validIn old
 
 attribute [local grind! .] State.mono
 
@@ -72,7 +73,16 @@ private def walker (old : WFAig) (cert : Aiger) (wf : cert.aig.WF := by grind) :
     | .latch idx =>
       match _ : leafMapping cert idx |>.filter (·.validIn s.aig) with
       | none =>
-        let (eq:=_) (aig, idx') := s.aig.addLatch .false none
+        let rst :=
+          match _ : idx.getReset cert.aig with
+          | none => none
+          | some lit => cache.mapLit lit (by grind [show lit.var < var by grind])
+
+        let (eq:=_) (aig, idx') := s.aig.addLatch .false rst (resetValid := by
+          subst rst
+          split; trivial
+          next lit heq => split at heq <;> grind
+        )
         ({ s with
            aig,
            deferredLatches := s.deferredLatches.insert idx idx'
@@ -95,24 +105,39 @@ private theorem size_walk {aig : WFAig} {cert : Aiger} (certWf : cert.aig.WF) :
     (walk aig cert certWf).snd.size = cert.aig.size := by
   grind [walk]
 
-private def internal (aig : WFAig) (cert : Aiger) (certWf : cert.aig.WF := by grind) : WFAig × Data.VarCache Lit := Id.run do
-  let (state, cache) := walk aig cert
-  let mut aig : { s : WFAig // ∀ {idx : Aig.LatchIdx}, idx.validIn state.aig → idx.validIn s } := ⟨state.aig, by grind⟩
-  for h : e in state.deferredLatches.iter do
-    have : e.fst.validIn cert.aig := by grind [Std.HashMap.toList_iter, State]
-    have : e.snd.validIn aig := by grind [Std.HashMap.toList_iter, State]
-    let aig' := aig.val.setReset e.snd
-      ((e.fst.getReset cert.aig).map fun (x : Lit) => if _ : x.var.idx < cache.size then cache.mapLit x else .false)
-      sorry sorry
-    let next := e.fst.getNext cert.aig
-    let next := if _ : next.var.idx < cache.size then cache.mapLit next else .false
-    let aig' := aig'.setNext e.snd next sorry sorry
-    aig := ⟨aig', by grind⟩
+@[simp, grind .]
+private theorem validIn_walk {aig : WFAig} {cert : Aiger} {certWf : cert.aig.WF} {var' : Var} h :
+    ((walk aig cert certWf).snd[var']'h).var.validIn (walk aig cert certWf).fst.aig  := by
+  unfold walk walker
+  grind
+
+private def internal (old : WFAig) (cert : Aiger) (certWf : cert.aig.WF := by grind) : WFAig × Data.VarCache Lit := Id.run do
+  let (eq:=_) (state, cache) := walk old cert
+
+  let aig := state.deferredLatches.iter
+    |> Data.DetIter.wrap
+    |>.attachWith _ (by simp)
+    |>.fold (init := ⟨state.aig, by grind⟩)
+    fun (aig : { aig : WFAig // old ≤ aig ∧ aig.nodes = state.aig.nodes ∧ ∀ (idx : LatchIdx), idx.validIn state.aig → idx.validIn aig})
+        (elem : { e : (LatchIdx × LatchIdx) // state.deferredLatches[e.fst]? = e.snd }) =>
+
+      let (eq:=_) (key, val) := elem.val
+      have : key.validIn cert.aig := by grind [state.latchKeys]
+      have : val.validIn aig := by grind [state.latchVals]
+
+      let next := cache.mapLit (key.getNext cert.aig)
+      let aig' := aig.val.setNext val next
+      ⟨aig', by grind [state.latchVals]⟩
+
   ⟨aig, cache⟩
+
+@[simp, grind =]
+private theorem size_cache_internal {old : WFAig} {cert : Aiger} (certWf : cert.aig.WF) :
+    (internal old cert certWf).snd.size = cert.aig.size := by
+  simp [internal, Id.run]
 
 end appendCert
 
-set_option warn.sorry false in
 def appendCert (aig : Aiger) (cert : Aiger) : Except String (WFAig × Lit) := do
   -- TODO: Hoist these checks and store them in the types
   if _ : ¬aig.aig.WF then
@@ -132,7 +157,7 @@ def appendCert (aig : Aiger) (cert : Aiger) : Except String (WFAig × Lit) := do
 
   let (eq:=_) (prod, cache) := appendCert.internal aig.aig.toWF cert
 
-  let bad := cache.mapLit cert.bads[0].lit sorry
+  let bad := cache.mapLit cert.bads[0].lit
   return (prod, bad)
 
 end Valaig.Cert

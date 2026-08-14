@@ -82,6 +82,13 @@ theorem newLatchIdx_setNode :
     (aig.setNode var node valid).newLatchIdx = aig.newLatchIdx := by
   grind
 
+@[grind .]
+theorem mono_setNode {other : Aig} (mono : other ≤ aig) (h : var ∉ other.nodes) :
+    other ≤ aig.setNode var node valid := by
+  constructor
+  · constructor <;> grind
+  all_goals grind
+
 end setNode
 
 /-
@@ -299,6 +306,17 @@ theorem latches_setNext :
     (aig.setNext idx next valid).latches = aig.latches.modify idx ({ · with next }) := by
   apply AbsMap.ext' <;> grind
 
+@[grind .]
+theorem mono_setNext {other : Aig} (mono : other ≤ aig) (h : idx ∉ other.latches) :
+    other ≤ aig.setNext idx next valid := by
+  constructor
+  · grind
+  · grind
+  · constructor
+    · grind
+    · grind [mono.latches.sized]
+    · grind
+
 end setNext
 
 /-
@@ -322,6 +340,17 @@ theorem inputs_setReset :
 theorem latches_setReset :
     (aig.setReset idx reset valid).latches = aig.latches.modify idx ({· with reset }) := by
   apply AbsMap.ext' <;> grind
+
+@[grind .]
+theorem mono_setReset {other : Aig} (mono : other ≤ aig) (h : idx ∉ other.latches) :
+    other ≤ aig.setReset idx reset valid := by
+  constructor
+  · grind
+  · grind
+  · constructor
+    · grind
+    · grind [mono.latches.sized]
+    · grind
 
 end setReset
 
