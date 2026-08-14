@@ -12,8 +12,13 @@ namespace toStd
 @[simp, grind unfold]
 abbrev walker.info (aig : WFAig) (reset : Bool) : Data.Memo.VisitorInfo (Var.In aig) Lit AIG where
   lt := (·.val < ·)
-  cacheInv std _ _ lit :=
-    std.contains lit.var
+  cacheInv std _ var lit :=
+    ∃ (h : std.contains lit.var),
+      ∀ {assign},
+        if reset then
+          std.denote lit assign = ⟦aig, var, fun idx _ => assign idx⟧sv0
+        else
+          std.denote lit assign = ⟦aig, var, fun idx _ => assign idx⟧cv0
 
 open Data.Memo.ActionM in
 @[always_inline]
@@ -38,17 +43,28 @@ def walker (aig : WFAig) (reset : Bool) : Data.Memo.Visitor (walker.info aig res
 
 variable {reset : Bool}
 
+-- TODO: These proofs can be made faster by not simping on hpure (which is slow)
+-- and instead just simping on the result term followed by running generalize_proofs
+-- from batteries
 instance {aig : WFAig} : Data.Memo.WFVisitor (walker aig reset) where
   stateInv := by grind
   cacheInv std var hsi query _ walk hci := by
     apply walker.fun_cases_unfolding
       (motive := fun a => ∀ h, (walker.info aig reset).cacheInv ((a walk hci).value?.get h).fst hsi var ((a walk hci).value?.get h).snd)
+    <;> simp only
+    <;> intros
+    <;> rename_i hpure
+    <;> revert hpure
     <;> simp [Option.get_unattach]
     <;> grind
-  cachePreservation std root var val hsi _ _ _ walk hci := by
+  cachePreservation std root var val hsi hci _ _ walk hci' := by
     apply walker.fun_cases_unfolding
-      (motive := fun a => ∀ h, (walker.info aig reset).cacheInv ((a walk hci).value?.get h).fst hsi var val)
-    <;> simp
+      (motive := fun a => ∀ h, (walker.info aig reset).cacheInv ((a walk hci').value?.get h).fst hsi var val)
+    <;> simp only
+    <;> intros
+    <;> rename_i hpure
+    <;> revert hpure
+    <;> simp [Option.get_unattach]
     <;> grind
 
 end toStd

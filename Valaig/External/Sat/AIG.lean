@@ -48,6 +48,20 @@ def entrypoint (aig : AIG) (lit : Lit) (h : aig.contains lit.var := by grind) : 
 def denote (aig : AIG) (lit : Lit) (assign : LeafIdx -> Bool) (h : aig.contains lit.var := by grind) : Bool :=
   Std.Sat.AIG.denote assign (aig.entrypoint lit)
 
+@[simp, grind =]
+theorem denote_false :
+    aig.denote Lit.false assign = false := by
+  simp [Lit.toRef, Std.Sat.AIG.denote_idx_false aig.aig.hconst]
+
+@[simp, grind =]
+theorem denote_mapTo {lit new : Lit} h  :
+    aig.denote (lit.mapTo new) assign h = (lit.inverted ^^ aig.denote new assign) := by
+  simp [Lit.toRef]
+  by_cases hn : new.inverted
+  <;> by_cases hl : lit.inverted
+  <;> simp [hn, hl]
+  <;> grind only [Std.Sat.AIG.denote_not_invert]
+
 @[inline]
 def mkAtomCached (aig : AIG) (atom : LeafIdx) : AIG × Lit :=
   let res := aig.aig.mkAtomCached atom
