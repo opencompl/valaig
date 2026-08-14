@@ -62,6 +62,12 @@ theorem denote_mapTo {lit new : Lit} h  :
   <;> simp [hn, hl]
   <;> grind only [Std.Sat.AIG.denote_not_invert]
 
+@[simp, grind =]
+theorem denote_entrypoint {assign} {lit : Lit} h :
+    Std.Sat.AIG.denote assign (aig.entrypoint lit h) =
+      aig.denote lit assign := by
+  rfl
+
 @[inline]
 def mkAtomCached (aig : AIG) (atom : LeafIdx) : AIG × Lit :=
   let res := aig.aig.mkAtomCached atom

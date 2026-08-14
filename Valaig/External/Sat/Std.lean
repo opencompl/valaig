@@ -46,7 +46,7 @@ variable {reset : Bool}
 -- TODO: These proofs can be made faster by not simping on hpure (which is slow)
 -- and instead just simping on the result term followed by running generalize_proofs
 -- from batteries
-instance {aig : WFAig} : Data.Memo.WFVisitor (walker aig reset) where
+instance instWF {aig : WFAig} : Data.Memo.WFVisitor (walker aig reset) where
   stateInv := by grind
   cacheInv std var hsi query _ walk hci := by
     apply walker.fun_cases_unfolding
@@ -76,5 +76,28 @@ public def toStd (aig : WFAig) (reset : Bool) (entry : Lit) (valid : entry.valid
   let s := w.new .empty
   let (eq:=_) (s', lit) := w.visit s ⟨entry.var, valid⟩
   (w.state s').entrypoint (entry.mapTo lit) (by have := w.cacheInv; grind)
+
+section toStd
+variable {aig : WFAig} {reset : Bool} {entry : Lit} {valid : entry.validIn aig}
+
+@[simp, grind =]
+theorem denote_toStd_reset {assign} :
+    Std.Sat.AIG.denote assign (toStd aig true entry valid) =
+      ⟦aig, entry, fun idx _ => assign idx⟧s0 := by
+  fun_cases toStd
+  next wf _ _ _ _ =>
+    have := wf.cacheInv
+    grind
+
+@[simp, grind =]
+theorem denote_toStd_not_reset {assign} :
+    Std.Sat.AIG.denote assign (toStd aig false entry valid) =
+      ⟦aig, entry, fun idx _ => assign idx⟧c0 := by
+  fun_cases toStd
+  next wf _ _ _ _ =>
+    have := wf.cacheInv
+    grind
+
+end toStd
 
 end Valaig.Sat

@@ -111,7 +111,7 @@ private theorem validIn_walk {aig : WFAig} {cert : Aiger} {certWf : cert.aig.WF}
   unfold walk walker
   grind
 
-private def internal (old : WFAig) (cert : Aiger) (certWf : cert.aig.WF := by grind) : WFAig × Data.VarCache Lit := Id.run do
+private def internal (old : WFAig) (cert : Aiger) (certWf : cert.aig.WF := by grind) : WFAig × Data.VarCache Lit :=
   let (eq:=_) (state, cache) := walk old cert
 
   let aig := state.deferredLatches.iter
@@ -134,11 +134,21 @@ private def internal (old : WFAig) (cert : Aiger) (certWf : cert.aig.WF := by gr
 @[simp, grind =]
 private theorem size_cache_internal {old : WFAig} {cert : Aiger} (certWf : cert.aig.WF) :
     (internal old cert certWf).snd.size = cert.aig.size := by
-  simp [internal, Id.run]
+  simp [internal]
+
+@[simp, grind .]
+private theorem validIn_cache_internal {old : WFAig} {cert : Aiger} (certWf : cert.aig.WF) {var : Var} h :
+    ((internal old cert certWf).snd[var]'h).validIn (internal old cert certWf).fst := by
+  grind [internal]
+
+@[simp, grind .]
+private theorem mono_internal {old : WFAig} {cert : Aiger} (certWf : cert.aig.WF) :
+    old ≤ (internal old cert certWf).fst := by
+  grind [internal, Id.run]
 
 end appendCert
 
-def appendCert (aig : Aiger) (cert : Aiger) : Except String (WFAig × Lit) := do
+def appendCert (aig cert : Aiger) : Except String (WFAig × Lit) := do
   -- TODO: Hoist these checks and store them in the types
   if _ : ¬aig.aig.WF then
     throw "Original aig not well formed"
@@ -159,6 +169,23 @@ def appendCert (aig : Aiger) (cert : Aiger) : Except String (WFAig × Lit) := do
 
   let bad := cache.mapLit cert.bads[0].lit
   return (prod, bad)
+
+@[simp, grind .]
+theorem mono_appendCert {aig cert : Aiger} {res} (h : appendCert aig cert = .ok res) :
+    aig.aig ≤ res.fst := by
+  have := @appendCert.mono_internal (cert := cert)
+  revert h
+  fun_cases appendCert
+  <;> simp [pure, Except.pure]
+  <;> grind
+
+@[simp, grind .]
+theorem validIn_appendCert_snd {aig cert : Aiger} {res} (h : appendCert aig cert = .ok res) :
+    res.snd.validIn res.fst := by
+  revert h
+  fun_cases appendCert
+  <;> simp [pure, Except.pure]
+  <;> grind
 
 end Valaig.Cert
 

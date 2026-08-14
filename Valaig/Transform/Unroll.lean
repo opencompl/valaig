@@ -87,4 +87,30 @@ def unroll (aig : WFAig) : WFAig × Data.VarCache Lit :=
   let res := (unroll.walker aig).walk
   (res.fst.fst, res.snd)
 
+@[simp, grind .]
+theorem mono_unroll {aig : WFAig} :
+    aig ≤ (unroll aig).fst := by
+  have := (unroll.walker aig).stateMotive_walk
+  grind [unroll, unroll.walker]
+
+@[simp, grind .]
+theorem size_cache_unroll {aig : WFAig} :
+    (unroll aig).snd.size = aig.size := by
+  have := (unroll.walker aig).stateMotive_walk
+  grind [unroll, unroll.walker]
+
+@[simp, grind .]
+theorem mem_nodes_unroll {aig : WFAig} {var : Var} (mem : var ∈ aig.nodes) :
+    var ∈ (unroll aig).fst.nodes := by
+  have := (unroll.walker aig).stateMotive_walk
+  grind [unroll, unroll.walker]
+
+theorem denote_unroll {assign} {aig : WFAig} {var : Var} mem :
+  ∃ assign',
+    ⟦aig, var, 1, assign⟧sv =
+      ⟦(unroll aig).fst, (unroll aig).snd[var]'mem, assign'⟧s0 := by
+  have := (unroll.walker aig).cacheMotive_walk var (by grind)
+  exists unroll.assignMap assign (unroll.walker aig).walk.fst.snd
+  grind [unroll, unroll.walker]
+
 end Valaig.Transform
