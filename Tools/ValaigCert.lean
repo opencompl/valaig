@@ -11,8 +11,6 @@ import Std.Sat.AIG.CNF
 
 open Valaig
 
-set_option warn.sorry false
-
 def println (s : String) : IO Unit := do
   IO.println s
   (←IO.getStdout).flush

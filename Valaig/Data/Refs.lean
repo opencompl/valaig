@@ -96,7 +96,7 @@ instance : @Data.FinitePartialOrder Var (· < ·) where
   trans := by grind
 
   list x := (List.range x.idx).map (.ofIdx ·)
-  nodup := sorry
+  nodup := by grind [List.pairwise_iff_getElem]
   mem_list := by grind
 
 @[inline]
