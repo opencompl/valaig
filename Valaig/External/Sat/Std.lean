@@ -69,8 +69,10 @@ instance instWF {aig : WFAig} : Data.Memo.WFVisitor (walker aig reset) where
 
 end toStd
 
+public section
+
 open Data.Memo in
-public def toStd (aig : WFAig) (reset : Bool) (entry : Lit) (valid : entry.validIn aig := by grind) : Std.Sat.AIG.Entrypoint LeafIdx :=
+def toStd (aig : WFAig) (reset : Bool) (entry : Lit) (valid : entry.validIn aig := by grind) : Std.Sat.AIG.Entrypoint LeafIdx :=
   let w : WFWalker (toStd.walker aig reset) (DFSWalker (toStd.walker aig reset) (Std.HashMap (Var.In aig) _)) :=
     DFSWalker.instWalker
   let s := w.new .empty
@@ -98,6 +100,17 @@ theorem denote_toStd_not_reset {assign} :
     have := wf.cacheInv
     grind
 
-end toStd
+@[simp, grind =]
+theorem Unsat_toStd_reset :
+    (toStd aig true entry valid).Unsat ↔
+      ∀ {assign : LeafIdx -> Bool}, ⟦aig, entry, fun idx _ => assign idx⟧s0 = false := by
+  simp [Std.Sat.AIG.Entrypoint.Unsat, Std.Sat.AIG.UnsatAt]
 
+@[simp, grind =]
+theorem Unsat_toStd_not_reset :
+    (toStd aig false entry valid).Unsat ↔ aig.Unsat entry := by
+  simp [Unsat_iff, Std.Sat.AIG.Entrypoint.Unsat, Std.Sat.AIG.UnsatAt]
+
+end toStd
+end
 end Valaig.Sat

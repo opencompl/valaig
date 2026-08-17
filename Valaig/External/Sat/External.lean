@@ -35,21 +35,23 @@ def solveCnf (cnf : Std.Sat.CNF Nat) (lratPath : System.FilePath) (config : Conf
     config.binaryProofs
     .proof
 
-def solveUnsatCnfChecked (cnf : Std.Sat.CNF Nat) (lratPath : System.FilePath) (config : Config := {}) : Lean.CoreM (Except String Unit) := do
+def solveUnsatCnfChecked (cnf : Std.Sat.CNF Nat) (lratPath : System.FilePath) (config : Config := {}) : Lean.CoreM (Except String { _u : Unit // cnf.Unsat }) := do
   match ← solveCnf cnf lratPath config with
   | .error _ => return throw "Sat solver returned SAT"
   | .ok cert =>
 
   let verified := Reflect.verifyCert cnf cert
-  if !verified then
+  if _ : !verified then
     return throw "Failed to verify UNSAT proof"
+  else
 
-  return pure ()
+  return pure ⟨(), by grind [Reflect.verifyCert_correct]⟩
 
-def solveUnsatChecked (aig : Std.Sat.AIG.Entrypoint Aig.LeafIdx) (config : Config := {}) : Lean.CoreM (Except String Unit) := do
+def solveUnsatChecked (aig : Std.Sat.AIG.Entrypoint Aig.LeafIdx) (config : Config := {}) : Lean.CoreM (Except String { _u : Unit // aig.Unsat }) := do
   let aig := aig.relabelNat
   let cnf := Std.Sat.AIG.toCNF aig
   IO.FS.withTempFile fun _ lratPath => do
-    solveUnsatCnfChecked cnf lratPath config
+    let v ← solveUnsatCnfChecked cnf lratPath config
+    return v.map fun x => ⟨(), by grind[Std.Sat.AIG.toCNF_equisat, Std.Sat.AIG.Entrypoint.relabelNat_unsat_iff]⟩
 
 end Valaig.Sat.External

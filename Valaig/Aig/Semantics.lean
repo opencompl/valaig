@@ -188,6 +188,9 @@ theorem denoteSV_not_inverted (h : ¬lit.inverted) : ⟦lit.var⟧sv =  ⟦lit  
 theorem denoteCV_inverted     (h :  lit.inverted) : ⟦lit.var⟧cv = !⟦lit    ⟧c := by grind
 theorem denoteSV_inverted     (h :  lit.inverted) : ⟦lit.var⟧sv = !⟦lit    ⟧s := by grind
 
+@[simp] theorem denoteC_invert : ⟦lit.invert⟧c  = !⟦lit⟧c := by grind
+@[simp] theorem denoteS_invert : ⟦lit.invert⟧s  = !⟦lit⟧s := by grind
+
 theorem denoteCV_var_eq : ⟦lit.var⟧cv = (lit.inverted ^^ ⟦lit⟧c) := by grind
 theorem denoteSV_var_eq : ⟦lit.var⟧sv = (lit.inverted ^^ ⟦lit⟧s) := by grind
 grind_pattern denoteCV_var_eq => ⟦aig, lit.var, frame, assign⟧cv where lit =/= Lit.mk _ _
@@ -204,6 +207,16 @@ grind_pattern denoteC_invalid  => ⟦aig, lit, frame, assign⟧c, lit.validIn ai
 grind_pattern denoteS_invalid  => ⟦aig, lit, frame, assign⟧s, lit.validIn aig
 grind_pattern denoteCV_invalid => ⟦aig, var, frame, assign⟧cv, var.validIn aig
 grind_pattern denoteSV_invalid => ⟦aig, var, frame, assign⟧sv, var.validIn aig
+
+@[simp, grind =]
+theorem denoteC_mapTo_of {new : Lit} :
+    ⟦lit.mapTo new⟧c = (lit.inverted ^^ ⟦new⟧c) := by
+  grind
+
+@[simp, grind =]
+theorem denoteS_mapTo_of {new : Lit} :
+    ⟦lit.mapTo new⟧s = (lit.inverted ^^ ⟦new⟧s) := by
+  grind
 
 section get
 variable {mem : var ∈ aig.nodes}
@@ -370,7 +383,6 @@ theorem denoteSV_zero_eq_assign_zero :
     ⟦var⟧sv0 = ⟦aig, var, fun idx _ => assign idx 0⟧sv0 := by
   grind [denoteSV, denoteS_zero_eq_assign_zero]
 
-
 section mono
 variable {old new : Aig} {oldWf : old.WF} {newWf : new.WF} (mono : old ≤ new)
 include mono
@@ -473,13 +485,13 @@ theorem denoteSV_addAndRaw {lhs rhs : Lit} (hl : lhs.validIn aig) (hr : rhs.vali
   grind [denoteSV_getElem_nodes_and (lhs := lhs) (rhs := rhs)]
 
 @[simp, grind =]
-theorem denoteCV_addAnd {lhs rhs : Lit} (hl : lhs.validIn aig) (hr : rhs.validIn aig) :
+theorem denoteC_addAnd {lhs rhs : Lit} (hl : lhs.validIn aig) (hr : rhs.validIn aig) :
     ⟦(aig.addAnd lhs rhs).fst, (aig.addAnd lhs rhs).snd, frame, assign⟧c =
       (⟦aig, lhs, frame, assign⟧c && ⟦aig, rhs, frame, assign⟧c) := by
   grind [addAnd]
 
 @[simp, grind =]
-theorem denoteSV_addAnd {lhs rhs : Lit} (hl : lhs.validIn aig) (hr : rhs.validIn aig) :
+theorem denoteS_addAnd {lhs rhs : Lit} (hl : lhs.validIn aig) (hr : rhs.validIn aig) :
     ⟦(aig.addAnd lhs rhs).fst, (aig.addAnd lhs rhs).snd, frame, assign⟧s =
       (⟦aig, lhs, frame, assign⟧s && ⟦aig, rhs, frame, assign⟧s) := by
   grind [addAnd]
@@ -488,8 +500,9 @@ theorem denoteSV_addAnd {lhs rhs : Lit} (hl : lhs.validIn aig) (hr : rhs.validIn
   A literal is unsatisfiable in an Aig if for all assignments to inputs and latches its value is
   false.
 -/
+@[expose]
 def Unsat (aig : Aig) (lit : Lit) (wf : aig.WF := by grind) : Prop :=
-  ∀ {assign},
+  ∀ assign,
     ⟦aig, lit, assign⟧c0 = false
 
 theorem Unsat_iff :
@@ -507,5 +520,13 @@ theorem Unsat_iff :
 -/
 @[expose]
 def Unreachable (aig : Aig) (lit : Lit) (wf : aig.WF := by grind) :=
-  ∀ {frame assign},
+  ∀ (frame assign),
     ⟦aig, lit, frame, assign⟧s = false
+
+theorem Unreachable_mono {old new : Aig} {lit : Lit} (mono : old ≤ new) (oldWf : old.WF) (newWf : new.WF) (valid : lit.validIn old) :
+    new.Unreachable lit ↔ old.Unreachable lit := by
+  unfold Unreachable
+  have := @denoteS_mono
+  grind
+
+grind_pattern Unreachable_mono => new.Unreachable lit, old ≤ new

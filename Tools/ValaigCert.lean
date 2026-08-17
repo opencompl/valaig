@@ -31,55 +31,61 @@ def liftCoreM (action : Lean.CoreM α) : IO α := do
   let state := { env := env }
   action.toIO' ctx state
 
-def checkUnsat (aig : WFAig) (lit : Lit) (reset : Bool) (valid : lit.validIn aig := by grind) : IO (Except String Unit) := do
-  let entry := Sat.toStd aig reset lit
-  println s!"{entry.aig.decls.size} nodes "
-  -- let relabelled := entry.relabelNat
-  -- let cnf := Std.Sat.AIG.toCNF relabelled
-  -- print s!"({cnf.clauses.size} clauses, {cnf.numLiterals} literals) "
-  liftCoreM <| Sat.External.solveUnsatChecked entry
-
 def run (model cert : String) : IO Unit := do
   println "Reading model"
   let model ← IO.FS.Handle.mk model .read
-  let (_, model) ← IO.ofExcept <| Valaig.Aiger.parse <| ← model.readBinToEnd
+  let (_, model) ← IO.ofExcept <| Aiger.parse <| ← model.readBinToEnd
 
-  let bad := model.bads[0]!.lit
+  if _ : ¬model.aig.WF then return
+  else
+
+  let #[{ lit := bad, .. }] := model.bads | return
+
+  if _ : ¬bad.validIn model.aig then
+    return
+  else
 
   println "Reading certificate"
   let cert ← IO.FS.Handle.mk cert .read
-  let (_, cert) ← IO.ofExcept <| Valaig.Aiger.parse <| ← cert.readBinToEnd
+  let (_, cert) ← IO.ofExcept <| Aiger.parse <| ← cert.readBinToEnd
 
-  -- let modelaig := Transform.twoLevelSimp (model.aig.toWF sorry)
-  -- let model := { model with aig := modelaig }
+  let #[{ lit := invBad, .. }] := cert.bads | return
 
   println "Constructing product circuit"
-  let (product, invbad) ← time "product" <| fun _ => IO.ofExcept <| Valaig.Cert.appendCert model cert
+  let (eq:=_) .ok (product, invBad) := Cert.appendCert model cert | return
 
-  if !product.WF then
-    IO.ofExcept <| .error "Product not wellformed!"
+  if _ : ¬bad.validIn product then
+    return
+  else
 
-  -- Check that in a reset state the invariant holds
-  println "Init: "
-  IO.ofExcept <| ← time "init" <| fun _ => checkUnsat product invbad true sorry
-  println "ok"
+  if _ : ¬ invBad.validIn product then
+    return
+  else
 
-  -- Check that whenever the invariant holds, the original property does too
-  let (product, imp) := product.addAnd invbad.invert bad sorry sorry
-  println "Implication: "
-  IO.ofExcept <| ← time "implication" <| fun _ => checkUnsat product imp false sorry
-  println "ok"
+  let cert := Cert.Checker.new product bad invBad.invert
 
-  -- Check that the invariant is inductive
-  let (product, map) := Transform.unroll product
-  let (product, imp) := product.addAnd invbad.invert (map.mapLit invbad sorry) sorry sorry
-  println "Consecution: "
-  IO.ofExcept <| ← time "consecution" <| fun _ => checkUnsat product imp false sorry
-  println "ok"
+  println "Init:"
+  let .ok init := (← time "init" <| fun _ => liftCoreM <| Sat.External.solveUnsatChecked cert.initAig) |
+    return
+    -- IO.ofExcept (throw "s CERTIFICATE UNSAFE")
+
+  println "Implication:"
+  let .ok imp ← time "imp" <| fun _ => liftCoreM <| Sat.External.solveUnsatChecked cert.impAig |
+    return
+    -- IO.ofExcept (throw "s CERTIFICATE UNSAFE")
+
+  println "Consectution:"
+  let .ok consec ← time "consec" <| fun _ => liftCoreM <| Sat.External.solveUnsatChecked cert.consecAig |
+    return
+    -- IO.ofExcept (throw "s CERTIFICATE UNSAFE")
+
+  have : model.aig.Unreachable bad := by
+    have := @Cert.mono_appendCert
+    grind [Cert.Checker.unreachable_of init.property consec.property imp.property]
 
   println "s CERTIFICATE SAFE"
 
-  return ()
+  return
 
 public def main (args : List String) : IO Unit := do
   match args with
