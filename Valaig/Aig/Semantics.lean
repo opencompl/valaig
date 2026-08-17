@@ -163,7 +163,19 @@ grind_pattern denoteC_eq => ⟦aig, lit, frame, assign⟧c, lit.var
 @[local grind =]
 theorem denoteS_eq :
     ⟦lit⟧s = (lit.inverted ^^ ⟦lit.var⟧sv) := by
-  sorry
+  fun_cases denoteS
+  · grind [denoteSV, denoteS]
+  · grind [denoteSV, denoteS]
+  · simp [denoteSV]
+    grind [denoteS]
+  · rw [denoteSV, denoteS]
+    simp only [Lit.inverted_mk, Bool.false_eq_true, decide_false, Bool.false_bne]
+    (repeat' (split)) <;> grind
+  · simp [denoteSV]
+    rw (occs := .pos [2]) [denoteS]
+    (repeat' (split)) <;> grind
+  · grind [denoteSV, denoteS]
+  · grind [denoteSV, denoteS]
 
 grind_pattern denoteS_eq => ⟦aig, lit, frame, assign⟧s, lit.var
 
