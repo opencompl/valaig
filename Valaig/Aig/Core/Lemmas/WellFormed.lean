@@ -4,6 +4,7 @@ public import Valaig.Aig.Core.Basic
 import Valaig.Aig.Core.Lemmas.Basic
 import Valaig.Aig.Core.Lemmas.Modify
 import Valaig.Aig.Core.Lemmas.Monotone
+import all Valaig.Aig.Core.Basic
 
 public section
 namespace Valaig.Aig
@@ -801,7 +802,7 @@ theorem AcyclicGates_addAnd
     (h0 : lhs.validIn aig)
     (h1 : rhs.validIn aig) :
     (aig.addAnd lhs rhs).fst.AcyclicGates := by
-  sorry
+  grind [addAnd]
 
 @[simp, grind .]
 theorem AcyclicResets_addAnd
