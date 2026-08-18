@@ -32,12 +32,12 @@ termination_by (frame, lit.var)
 decreasing_by all_goals grind
 
 @[expose]
-def denoteC.assignNext (aig : Aig) (frame : Frame) (assign : LeafIdx -> Frame -> Bool)
+def denoteC.offset (aig : Aig) (offset : Frame) (assign : LeafIdx -> Frame -> Bool)
     (wf : aig.WF := by grind) : LeafIdx -> Frame -> Bool :=
-  fun idx _ =>
-    match _ : decide (idx.validIn aig), _ : idx, _ : frame with
+  fun idx frame =>
+    match _ : decide (idx.validIn aig), _ : idx, _ : offset with
     | true, .latch idx, n + 1 => aig.denoteC (idx.getNext aig) assign n
-    |    _,          _,     _ => assign idx frame
+    |    _,          _,     _ => assign idx (frame + offset)
 
 /--
   Combinational (uninitialised) denotation of variables.
@@ -69,16 +69,16 @@ termination_by (frame, lit.var)
 decreasing_by all_goals grind
 
 @[expose]
-def denoteS.assignNext (aig : Aig) (frame : Frame) (assign : LeafIdx -> Frame -> Bool)
+def denoteS.offset (aig : Aig) (offset : Frame) (assign : LeafIdx -> Frame -> Bool)
     (wf : aig.WF := by grind) : LeafIdx -> Frame -> Bool :=
-  fun idx _ =>
-    match _ : decide (idx.validIn aig), _ : idx, _ : frame with
+  fun idx frame =>
+    match _ : decide (idx.validIn aig), _ : idx, _ : offset with
     | true, .latch idx, 0     =>
       match idx.getReset aig with
       | none                  => assign idx 0
       | some reset            => aig.denoteS reset assign 0
     | true, .latch idx, n + 1 => aig.denoteS (idx.getNext aig) assign n
-    |    _,          _,     _ => assign idx frame
+    |    _,          _,     _ => assign idx (frame + offset)
 
 /--
   Sequential (initialised) denotation of variables.
@@ -350,36 +350,79 @@ grind_pattern denoteSV_getElem_nodes_and => aig.nodes[var], Node.and lhs rhs, �
 
 end get
 
-theorem denoteC_eq_denoteC_assignNext :
-    ⟦lit⟧c = ⟦aig, lit, denoteC.assignNext aig frame assign⟧c0 := by
-  unfold denoteC.assignNext
-  fun_induction denoteC <;> grind
-
-theorem denoteS_eq_denoteC_assignNext :
-    ⟦lit⟧s = ⟦aig, lit, denoteS.assignNext aig frame assign⟧c0 := by
-  unfold denoteS.assignNext
-  fun_induction denoteS <;> grind
-
-theorem denoteCV_eq_denoteCV_assignNext :
-    ⟦var⟧cv = ⟦aig, var, denoteC.assignNext aig frame assign⟧cv0 := by
-  grind [denoteCV, denoteC_eq_denoteC_assignNext]
-
-theorem denoteSV_eq_denoteCV_assignNext :
-    ⟦var⟧sv = ⟦aig, var, denoteS.assignNext aig frame assign⟧cv0 := by
-  rw [denoteSV, denoteS_eq_denoteC_assignNext, denoteCV]
+@[simp, grind =]
+theorem denoteC_offset_eq_denoteC {offset : Nat} :
+  ⟦aig, lit, frame, denoteC.offset aig offset assign wf⟧c =
+    ⟦aig, lit, frame + offset, assign⟧c := by
+  induction _ : (frame, lit.var) using WellFounded.induction generalizing lit frame
+  exact WellFoundedRelation.wf
+  next ih _ =>
+    simp only [WellFoundedRelation.rel, Prod.lex_def, InvImage, sizeOf_nat] at ih
+    fun_cases denoteC
+    · grind
+    · grind
+    · unfold denoteC.offset; grind
+    · unfold denoteC.offset; grind
+    · grind
+    · grind
 
 @[simp, grind =]
-theorem denoteC_assignNext_zero  :
-    (denoteC.assignNext aig 0 assign wf) = fun idx _ => assign idx 0 := by
-  unfold denoteC.assignNext
+theorem denoteCV_offset_eq_denoteCV {offset : Nat} :
+  ⟦aig, var, frame, denoteC.offset aig offset assign wf⟧cv =
+    ⟦aig, var, frame + offset, assign⟧cv := by
+  grind [denoteCV_eq]
+
+theorem denoteC_offset_zero_eq_denoteC :
+    ⟦aig, lit, denoteC.offset aig frame assign wf⟧c0 = ⟦lit⟧c := by
   grind
 
-theorem denoteC_zero_eq_assign_zero :
-    ⟦lit⟧c0 = ⟦aig, lit, fun idx _ => assign idx 0⟧c0 := by
-  grind [denoteC_eq_denoteC_assignNext]
+theorem denoteCV_offset_zero_eq_denoteCV :
+    ⟦aig, var, denoteC.offset aig frame assign wf⟧cv0 = ⟦var⟧cv := by
+  grind
 
+@[simp, grind =]
+theorem denoteC_offset_eq_denoteS {offset : Nat} :
+    ⟦aig, lit, frame, denoteS.offset aig offset assign wf⟧c =
+      ⟦aig, lit, frame + offset, assign⟧s := by
+  induction _ : (frame, lit.var) using WellFounded.induction generalizing lit frame
+  exact WellFoundedRelation.wf
+  next ih _ =>
+    simp only [WellFoundedRelation.rel, Prod.lex_def, InvImage, sizeOf_nat] at ih
+    fun_cases denoteC
+    · grind
+    · grind
+    · unfold denoteS.offset; grind
+    · unfold denoteS.offset; grind
+    · grind
+    · grind
+
+@[simp, grind =]
+theorem denoteCV_offset_eq_denoteSV {offset : Nat} :
+    ⟦aig, var, frame, denoteS.offset aig offset assign wf⟧cv =
+      ⟦aig, var, frame + offset, assign⟧sv := by
+  grind [denoteCV_eq]
+
+theorem denoteC_offset_zero_eq_denoteS :
+    ⟦aig, lit, denoteS.offset aig frame assign wf⟧c0 = ⟦lit⟧s := by
+  grind
+
+theorem denoteCV_offset_zero_eq_denoteSV :
+    ⟦aig, var, denoteS.offset aig frame assign wf⟧cv0 = ⟦var⟧sv := by
+  grind
+
+@[simp, grind .]
+theorem denoteC_zero_eq_assign_zero :
+    ⟦aig, lit, fun idx _ => assign idx 0⟧c0 = ⟦lit⟧c0 := by
+  induction h : lit.var using WellFounded.induction generalizing lit
+  exact WellFoundedRelation.wf
+  next ih =>
+    simp only [WellFoundedRelation.rel] at ih
+    unfold denoteC
+    split <;> grind
+
+@[simp, grind .]
 theorem denoteS_zero_eq_assign_zero :
-    ⟦lit⟧s0 = ⟦aig, lit, fun idx _ => assign idx 0⟧s0 := by
+    ⟦aig, lit, fun idx _ => assign idx 0⟧s0 = ⟦lit⟧s0 := by
   induction h : lit.var using WellFounded.induction generalizing lit
   exact WellFoundedRelation.wf
   next ih =>
@@ -387,13 +430,15 @@ theorem denoteS_zero_eq_assign_zero :
     unfold denoteS
     split <;> grind
 
+@[simp, grind .]
 theorem denoteCV_zero_eq_assign_zero :
-    ⟦var⟧cv0 = ⟦aig, var, fun idx _ => assign idx 0⟧cv0 := by
-  grind [denoteCV, denoteC_zero_eq_assign_zero]
+    ⟦aig, var, fun idx _ => assign idx 0⟧cv0 = ⟦var⟧cv0 := by
+  grind [denoteCV]
 
+@[simp, grind .]
 theorem denoteSV_zero_eq_assign_zero :
-    ⟦var⟧sv0 = ⟦aig, var, fun idx _ => assign idx 0⟧sv0 := by
-  grind [denoteSV, denoteS_zero_eq_assign_zero]
+    ⟦aig, var, fun idx _ => assign idx 0⟧sv0 = ⟦var⟧sv0 := by
+  grind [denoteSV]
 
 section mono
 variable {old new : Aig} {oldWf : old.WF} {newWf : new.WF} (mono : old ≤ new)
@@ -524,7 +569,6 @@ theorem Unsat_iff :
   constructor
   · grind
   · intro h assign
-    rw [denoteC_zero_eq_assign_zero]
     grind [h (fun idx => assign idx 0)]
 
 /--

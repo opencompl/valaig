@@ -484,6 +484,7 @@ theorem mem_nodes_addAnd {var : Var} :
     var ∈ aig.nodes ∨ var = (aig.addAnd lhs rhs).snd.var := by
   simp [addAndRaw]
 
+set_option linter.unusedVariables false in
 @[simp]
 theorem getElem_nodes_addAnd (hl : lhs.validIn aig) (hr : rhs.validIn aig) (new : (aig.addAnd lhs rhs).snd.var ∉ aig.nodes) :
     (aig.addAnd lhs rhs).fst[(aig.addAnd lhs rhs).snd.var] matches .and _ _ := by

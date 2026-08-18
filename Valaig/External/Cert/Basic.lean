@@ -13,7 +13,13 @@ theorem unreachable_of_simple_induction (invariant : Lit)
     (init : ∀ assign, ⟦aig, invariant, assign⟧s0)
     (consec : ∀ assign, ⟦aig, invariant, assign⟧c0 → ⟦aig, invariant, assign⟧c1) :
     aig.Unreachable invariant.invert := by
-  sorry
+  unfold Unreachable
+  intro frame assign
+  induction _ : frame generalizing frame with
+  | zero => grind
+  | succ n =>
+    simp [show n + 1 = 1 + n by omega, ←denoteC_offset_eq_denoteS]
+    grind
 
 theorem unreachable_of_relative_induction (bad invariant : Lit)
     (init : ∀ assign, ⟦aig, invariant, assign⟧s0)
@@ -22,7 +28,7 @@ theorem unreachable_of_relative_induction (bad invariant : Lit)
   aig.Unreachable bad := by
   intro assign frame
   have := unreachable_of_simple_induction invariant init consec assign frame
-  grind [denoteS_eq_denoteC_assignNext]
+  grind [=_ denoteC_offset_zero_eq_denoteS]
 
 structure Checker where
   aig : WFAig
@@ -71,7 +77,7 @@ theorem unreachable_of {bad : Lit} {invariant : Lit} {hbad hinv}
   apply unreachable_of_relative_induction bad invariant
   · simp only [initAig, Sat.Unsat_toStd_reset, new] at hinit
     intro assign
-    grind [denoteS_zero_eq_assign_zero, @hinit (assign · 0)]
+    grind [@hinit (assign · 0)]
   · simp only [consecAig, new, WFAig.snd_addAnd, WFAig.raw_fst_addAnd, Sat.Unsat_toStd_not_reset,
       Unsat] at hconsec
     intro assign

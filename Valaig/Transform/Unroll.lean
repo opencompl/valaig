@@ -63,7 +63,7 @@ private def walker (old : WFAig) : old.CachingForwardsWalker (WFAig × Std.HashM
     intro assign
     split
     · simp; grind
-    · simp; grind
+    · simp; grind (splits := 100)
     · simp; grind [assignMap]
     next idx heq =>
       have : old.nodes[var] = Node.latch idx := by grind
