@@ -571,11 +571,19 @@ theorem Unsat_iff :
   · intro h assign
     grind [h (fun idx => assign idx 0)]
 
+theorem Unsat_mono {old new : Aig} {lit : Lit} (mono : old ≤ new) (oldWf : old.WF) (newWf : new.WF) (valid : lit.validIn old) :
+    new.Unsat lit newWf ↔ old.Unsat lit oldWf := by
+  unfold Unsat
+  have := @denoteC_mono
+  grind
+
+grind_pattern Unsat_mono => new.Unsat lit, old ≤ new
+
 /--
   A literal is unreachable if there is no trace that can reach a state where it is true.
 -/
 @[expose]
-def Unreachable (aig : Aig) (lit : Lit) (wf : aig.WF := by grind) :=
+def Unreachable (aig : Aig) (lit : Lit) (wf : aig.WF := by grind) : Prop :=
   ∀ (frame assign),
     ⟦aig, lit, frame, assign⟧s = false
 
@@ -586,3 +594,14 @@ theorem Unreachable_mono {old new : Aig} {lit : Lit} (mono : old ≤ new) (oldWf
   grind
 
 grind_pattern Unreachable_mono => new.Unreachable lit, old ≤ new
+
+/--
+  A literal is live if all reachable states always eventually reach it - i.e. all infinite traces
+  visit it infinitely many times.
+
+  This is equivalent to GF lit in LTL.
+-/
+@[expose]
+def Live (aig : Aig) (lit : Lit) (wf : aig.WF := by grind) : Prop :=
+  ∀ assign frame, ∃ frame',
+    frame ≤ frame' ∧ ⟦aig, lit, frame', assign⟧c
