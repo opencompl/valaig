@@ -485,7 +485,6 @@ theorem mem_nodes_addAnd {var : Var} :
   simp [addAndRaw]
 
 set_option linter.unusedVariables false in
-@[simp]
 theorem getElem_nodes_addAnd (hl : lhs.validIn aig) (hr : rhs.validIn aig) (new : (aig.addAnd lhs rhs).snd.var ∉ aig.nodes) :
     (aig.addAnd lhs rhs).fst[(aig.addAnd lhs rhs).snd.var] matches .and _ _ := by
   grind
@@ -785,7 +784,7 @@ attribute [local simp, local grind] rewriteAnd
 theorem nodes_rewriteAnd isAnd (hl : lhs.var ≠ var) (hr : rhs.var ≠ var) :
     (aig.rewriteAnd var lhs rhs valid isAnd).nodes =
     aig.nodes.set var (.and lhs rhs) := by
-  simp (disch := grind)
+  simp (disch := grind) [NodeData.toNode_and]
 
 @[simp, grind =]
 theorem inputs_rewriteAnd isAnd :

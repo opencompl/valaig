@@ -192,18 +192,18 @@ private theorem toNode_constant {data : NodeData} :
     data.toNode .constant = .false := by
   simp
 
-@[simp, grind =]
+@[grind =]
 private theorem toNode_input {idx : InputIdx} {var : Var} (notConst : var ≠ .constant) :
     (input idx var).toNode var = idx := by
   grind
 
-@[simp, grind =]
+@[grind =]
 private theorem toNode_latch {idx : LatchIdx} {var : Var} (notConst : var ≠ .constant) :
     (latch idx var).toNode var = idx := by
   grind
 
 set_option linter.unusedVariables false in
-@[simp, grind =]
+@[grind =]
 private theorem toNode_and {lhs rhs : Lit} {var : Var} (notConst : var ≠ .constant)
     (h0 : lhs.var ≠ var) (h1 : rhs.var ≠ var) :
     (and lhs rhs).toNode var = .and lhs rhs := by

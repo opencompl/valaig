@@ -64,17 +64,15 @@ theorem length_zero_done (h : it.length = 0) :
 
 grind_pattern length_zero_done => it.length, it.step
 
-@[simp]
 theorem length_yield (h : it.IsPlausibleStep (.yield it' out)) :
     it'.length = it.length - 1 := by
   grind
 
-@[simp]
 theorem length_yield_gt_zero (h : it.IsPlausibleStep (.yield it' out)) :
     it.length > 0 := by
   grind
 
-@[simp, grind .]
+@[grind .]
 theorem length_yield' (h : it.IsPlausibleStep (.yield it' out)) :
     it'.length + 1 = it.length := by
   grind
@@ -89,7 +87,7 @@ theorem done_eq (h : it.IsPlausibleStep .done) :
     it = aig.iterEnd := by
   grind
 
-@[simp, grind .]
+@[grind .]
 theorem iterVal_yield (h : it.IsPlausibleStep  (.yield it' out)) :
     aig.iterVal it' = aig.iterVal it + 1 := by
   grind
@@ -99,7 +97,7 @@ theorem out_yield (h : it.IsPlausibleStep (.yield it' out)) :
     out = aig.iterVal it := by
   grind
 
-@[simp, grind .]
+@[grind .]
 theorem iterVal_yield_mem_nodes (h : it.IsPlausibleStep (.yield it' out)) :
     (aig.iterVal it) ∈ aig.nodes := by
   grind
@@ -111,7 +109,6 @@ theorem toList_eq_ofFn :
   rw [Std.Iter.toList_eq_match_step]
   apply List.ext_getElem <;> split <;> grind
 
-@[simp]
 theorem toList_done (h : it.IsPlausibleStep .done) :
     it.toList = [] := by
   grind
