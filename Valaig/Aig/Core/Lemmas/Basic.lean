@@ -214,7 +214,6 @@ theorem getElem?_eq {var : Var} :
     aig[var]? = if h : var.validIn aig then some aig[var] else none := by
   grind [getElem?_eq_some_getElem_iff]
 
-@[simp]
 theorem mem_nodes_of_getElem?_some {var : Var} {node : Node} (h : aig[var]? = some node) :
     var ∈ aig.nodes := by
   grind

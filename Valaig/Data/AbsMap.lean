@@ -104,7 +104,7 @@ instance : Std.IsPreorder (AbsMap α β) := by
 section Monotone
 variable {old new : AbsMap α β}
 
-@[simp, grind .]
+@[grind .]
 theorem mem_mono (mono : old ≤ new) (h : key ∈ old) :
     key ∈ new := by
   grind [mono.valid]
@@ -115,7 +115,7 @@ theorem getElem_mono (mono : old ≤ new) (h : key ∈ old) {h' : key ∈ new} :
 
 grind_pattern getElem_mono => new[key], old ≤ new
 
-@[simp, grind .]
+@[grind .]
 theorem size_mono (mono : old ≤ new) :
     old.size ≤ new.size :=
   mono.sized

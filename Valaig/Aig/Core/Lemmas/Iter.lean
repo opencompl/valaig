@@ -212,7 +212,6 @@ theorem size_nodes_eq_of_mem_nodes_eq {aig aig' : Aig} (h : ∀ (var : Var), var
     aig'.nodes.size = aig.nodes.size := by
   grind [=_ length_toList_iter, Perm_iter_iff, List.Perm.length_eq]
 
-@[simp]
 theorem toList_iter_prefix_mono {old new : Aig} (mono : old ≤ new):
     old.iter.toList <+: new.iter.toList := by
   grind [List.prefix_iff_getElem]
@@ -269,7 +268,6 @@ theorem size_inputs_eq_of_mem_inputs_eq {aig aig' : Aig} (h : ∀ (idx : InputId
     aig'.inputs.size = aig.inputs.size := by
   grind [=_ length_toList_inputsIter, Perm_inputsIter_iff, List.Perm.length_eq]
 
-@[simp]
 theorem toList_inputsIter_subset_mono {old new : Aig} (mono : old ≤ new) :
     old.inputsIter.toList ⊆ new.inputsIter.toList := by
   grind
@@ -326,7 +324,6 @@ theorem size_latches_eq_of_mem_latches_eq {aig aig' : Aig} (h : ∀ (idx : Latch
     aig'.latches.size = aig.latches.size := by
   grind [=_ length_toList_latchesIter, Perm_latchesIter_iff, List.Perm.length_eq]
 
-@[simp]
 theorem toList_latchesIter_subset_mono {old new : Aig} (mono : old ≤ new) :
     old.latchesIter.toList ⊆ new.latchesIter.toList := by
   grind

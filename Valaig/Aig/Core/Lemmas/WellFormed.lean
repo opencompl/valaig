@@ -30,12 +30,12 @@ def InputsValid (aig : Aig) : Prop :=
   ∃ (_ : aig.inputs[idx].var ∈ aig.nodes),
     aig.nodes[aig.inputs[idx].var] = idx
 
-@[simp, grind .]
+@[grind .]
 theorem WF.var_inputs_mem_nodes {inputsValid : aig.InputsValid} {idx : InputIdx} (mem : idx ∈ aig.inputs) :
     (aig.inputs[idx]'mem).var ∈ aig.nodes := by
   grind
 
-@[simp, grind =]
+@[grind =]
 theorem WF.nodes_var_inputs_eq {inputsValid : aig.InputsValid} {idx : InputIdx} (mem : idx ∈ aig.inputs) :
     aig.nodes[(aig.inputs[idx]'mem).var] = idx := by
   grind
@@ -48,7 +48,6 @@ def InputIdxsValid (aig : Aig) : Prop :=
   ∀ var (_ : var ∈ aig.nodes) idx,
     aig[var] = .input idx → ∃ _, aig.inputs[idx].var = var
 
-@[simp]
 theorem WF.mem_inputs_of_node {inputIdxsValid : aig.InputIdxsValid} {var : Var} {idx : InputIdx}
     (mem : var ∈ aig.nodes) (eq : aig[var]'mem = .input idx) :
     idx ∈ aig.inputs := by
@@ -56,7 +55,6 @@ theorem WF.mem_inputs_of_node {inputIdxsValid : aig.InputIdxsValid} {var : Var} 
 
 grind_pattern WF.mem_inputs_of_node => idx ∈ aig.inputs, aig[var]'mem, Node.input idx
 
-@[simp]
 theorem WF.var_inputs_of_node {inputIdxsValid : aig.InputIdxsValid} {var : Var} {idx : InputIdx}
     (mem : var ∈ aig.nodes) (eq : aig[var]'mem = .input idx) mem' :
     (aig.inputs[idx]'mem').var = var := by
@@ -73,12 +71,12 @@ def LatchesValid (aig : Aig) : Prop :=
   ∃ (_ : aig.latches[idx].var ∈ aig.nodes),
     aig.nodes[aig.latches[idx].var] = idx
 
-@[simp, grind .]
+@[grind .]
 theorem WF.var_latches_mem_nodes {latchesValid : aig.LatchesValid} {idx : LatchIdx} (mem : idx ∈ aig.latches) :
     (aig.latches[idx]'mem).var ∈ aig.nodes := by
   grind
 
-@[simp, grind =]
+@[grind =]
 theorem WF.nodes_var_latches_eq {latchesValid : aig.LatchesValid} {idx : LatchIdx} (mem : idx ∈ aig.latches) :
     aig.nodes[(aig.latches[idx]'mem).var] = idx := by
   grind
@@ -91,7 +89,6 @@ def LatchIdxsValid (aig : Aig) : Prop :=
   ∀ var (_ : var ∈ aig.nodes) idx,
     aig[var] = .latch idx → ∃ _, aig.latches[idx].var = var
 
-@[simp]
 theorem WF.mem_latches_of_node {latchIdxsValid : aig.LatchIdxsValid} {var : Var} {idx : LatchIdx}
     (mem : var ∈ aig.nodes) (eq : aig[var]'mem = .latch idx) :
     idx ∈ aig.latches := by
@@ -99,7 +96,6 @@ theorem WF.mem_latches_of_node {latchIdxsValid : aig.LatchIdxsValid} {var : Var}
 
 grind_pattern WF.mem_latches_of_node => idx ∈ aig.latches, aig[var]'mem, Node.latch idx
 
-@[simp]
 theorem WF.var_latches_of_node {latchIdxsValid : aig.LatchIdxsValid} {var : Var} {idx : LatchIdx}
     (mem : var ∈ aig.nodes) (eq : aig[var]'mem = .latch idx) mem' :
     (aig.latches[idx]'mem').var = var := by
@@ -110,7 +106,6 @@ grind_pattern WF.var_latches_of_node => (aig.latches[idx]'mem').var, aig[var]'me
 /-
   Equivalent of `getElem_nodes_LatchesValid` on leaves.
 -/
-@[simp]
 theorem WF.getVar_LeafIdxsValid {inputsValid : aig.InputsValid} {latchesValid : aig.LatchesValid}
     {idx : LeafIdx} (valid : idx.validIn aig) :
     idx.getVar aig valid ∈ aig.nodes := by
@@ -129,7 +124,6 @@ def ResetsValid (aig : Aig) : Prop :=
     | none => True
     | some lit => lit.validIn aig
 
-@[simp]
 theorem WF.mem_nodes_reset {resetsValid : aig.ResetsValid} {idx : LatchIdx} (mem : idx ∈ aig.latches)
     {lit : Lit} (isSome : (aig.latches[idx]'mem).reset = some lit) :
     lit.validIn aig := by
@@ -145,7 +139,7 @@ def NextsValid (aig : Aig) : Prop :=
   ∀ idx (_ : idx ∈ aig.latches),
     aig.latches[idx].next.validIn aig
 
-@[simp, grind .]
+@[grind .]
 theorem WF.mem_nodes_next {nextsValid : aig.NextsValid} {idx : LatchIdx} (mem : idx ∈ aig.latches) :
     (aig.latches[idx]'mem).next.validIn aig := by
   grind
@@ -165,12 +159,10 @@ variable {acyclicGates : aig.AcyclicGates} {var var' : Var} {lhs rhs : Lit}
 variable (mem : var ∈ aig.nodes) (eq : aig.nodes[var]'mem = .and lhs rhs)
 include acyclicGates mem eq
 
-@[simp]
 theorem WF.lhs_lt_and :
     lhs.var < var := by
   grind
 
-@[simp]
 theorem WF.rhs_lt_and :
     rhs.var < var := by
   grind
@@ -201,14 +193,12 @@ theorem WF.rhs_idx_lt_and_of_le {n : Nat} (lt : var.idx ≤ n) :
 grind_pattern WF.rhs_idx_lt_and_of_le => rhs.var.idx < n, Node.and lhs rhs, aig.nodes[var]'mem
 grind_pattern WF.rhs_idx_lt_and_of_le => n ≤ rhs.var.idx, Node.and lhs rhs, aig.nodes[var]'mem
 
-@[simp]
 theorem WF.lhs_mem_nodes_and :
     lhs.var ∈ aig.nodes := by
   grind
 
 grind_pattern WF.lhs_mem_nodes_and => lhs.var.validIn aig, Node.and lhs rhs, aig.nodes[var]'mem
 
-@[simp]
 theorem WF.rhs_mem_nodes_and :
     rhs.var ∈ aig.nodes := by
   grind
@@ -235,7 +225,6 @@ theorem WF.ResetsValid_of_LatchesValid_AcyclicReset {aig : Aig}
     aig.ResetsValid := by
   grind
 
-@[simp]
 theorem WF.reset_lt_var (acyclicResets : aig.AcyclicResets) {idx : LatchIdx} (mem : idx ∈ aig.latches)
     {lit : Lit} (isSome : (aig.latches[idx]'mem).reset = some lit) :
     lit.var < (aig.latches[idx]'mem).var := by
