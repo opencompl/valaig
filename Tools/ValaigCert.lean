@@ -72,7 +72,7 @@ def run (model cert : String) : IO Unit := do
     return
     -- IO.ofExcept (throw "s CERTIFICATE UNSAFE")
 
-  println "Consectution:"
+  println "Consecution:"
   let .ok consec ← time "consec" <| fun _ => liftCoreM <| Sat.External.solveUnsatChecked cert.consecAig |
     return
     -- IO.ofExcept (throw "s CERTIFICATE UNSAFE")
