@@ -3,10 +3,9 @@ module
 public import Valaig.Aig.Core
 public import Lean.CoreM
 public import Std.Sat.CNF.Basic
+import Std.Tactic.BVDecide.LRAT.Checker
 public import Lean.Elab.Tactic.BVDecide
-import Std.Tactic.BVDecide.Syntax
 import all Lean.Meta.Tactic.BVDecide.TacticContext
-import Std.Tactic.BVDecide.Reflect
 
 public section
 namespace Valaig.Sat.External
@@ -16,7 +15,7 @@ structure Config where
   timeout : Nat := 3600
   binaryProofs : Bool := true
 
-open Lean.Elab.Tactic.BVDecide.Frontend Std.Tactic.BVDecide
+open Std.Tactic.BVDecide
 open Lean.Meta.Tactic.BVDecide
 
 /--

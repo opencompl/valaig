@@ -323,11 +323,17 @@ theorem denote_fourInputNegNeg {l0 l1 r0 r1 : Lit} {out : Lit}
     assign out = (!(assign l0 && assign l1) && !(assign r0 && assign r1)) := by
   revert heq
   fun_cases fourInputNegNeg
-  · simp only [Option.pure_def, Option.some.injEq]; intro h; cbv; grind
-  · simp only [Option.pure_def, Option.some.injEq]; intro h; cbv; grind
-  · simp only [Option.pure_def, Option.some.injEq]; intro h; cbv; grind
-  · simp only [Option.pure_def, Option.some.injEq]; intro h; cbv; grind
-  · grind
+  case case5 => grind
+  all_goals (
+    rename_i h
+    simp only [Option.pure_def, Option.some.injEq]
+    intro hi
+    simp only [h, ←hi, assignInv]
+    generalize assign r0 = r0
+    generalize assign r1 = r1
+    revert r0 r1
+    decide
+  )
 
 theorem var_fourInputNegNeg {l0 l1 r0 r1 out : Lit} (motive : Var -> Prop)
     (heq : fourInputNegNeg l0 l1 r0 r1 = some out)

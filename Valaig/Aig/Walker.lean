@@ -102,11 +102,11 @@ structure CachingForwardsWalker (aig : Aig) (σ α : Type) where
 
   stepCache var state cache le valid size (sm : stateMotive state var.idx le) cm :
     ∀ {var'} (h : var' < var),
-      cacheMotive (step var state cache valid size sm cm).fst (var.idx + 1) (by grind) (by grind)
+      cacheMotive (step var state cache valid size sm cm).fst (var.idx + 1) (by grind) (by apply stepState)
         var' (by grind) cache[var']
 
   stepCacheNew var state cache valid size sm cm :
-    cacheMotive (step var state cache valid size sm cm).fst (var.idx + 1) (by grind) (by grind)
+    cacheMotive (step var state cache valid size sm cm).fst (var.idx + 1) (by grind) (by apply stepState)
       var (by grind) (step var state cache valid size sm cm).snd
 
 namespace CachingForwardsWalker
@@ -130,7 +130,11 @@ private def walk.go (walker : aig.CachingForwardsWalker σ α) step (it : aig.It
     let res := step var state cache (by grind) (by grind) (by grind) (by grind)
     go walker step it' res.fst (cache.push res.snd)
       (sm := by subst res; rw [eq]; grind [walker.stepState])
-      (cm := by subst res; simp only [eq]; have := @walker.stepCacheNew; grind [walker.stepCache])
+      (cm := by
+        subst res
+        simp only [eq]
+        have := @walker.stepCacheNew var state cache (by grind) (by grind) (by grind) (by grind)
+        grind [walker.stepCache])
 termination_by it.finitelyManySteps
 
 /--
