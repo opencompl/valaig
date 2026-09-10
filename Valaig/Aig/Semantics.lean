@@ -191,10 +191,10 @@ theorem denoteSV_eq : ⟦var⟧sv = ⟦var.toLit⟧s := by grind [denoteSV]
 @[simp, grind =] theorem denoteCV_constant : ⟦.constant⟧cv = .false := by grind [denoteCV_eq, denoteC]
 @[simp, grind =] theorem denoteSV_constant : ⟦.constant⟧sv = .false := by grind [denoteSV_eq, denoteS]
 
-@[simp] theorem denoteC_not_inverted  (h : ¬lit.inverted) : ⟦lit    ⟧c  =  ⟦lit.var⟧cv := by grind
-@[simp] theorem denoteS_not_inverted  (h : ¬lit.inverted) : ⟦lit    ⟧s  =  ⟦lit.var⟧sv := by grind
-@[simp] theorem denoteC_inverted      (h :  lit.inverted) : ⟦lit    ⟧c  = !⟦lit.var⟧cv := by grind
-@[simp] theorem denoteS_inverted      (h :  lit.inverted) : ⟦lit    ⟧s  = !⟦lit.var⟧sv := by grind
+theorem denoteC_not_inverted  (h : ¬lit.inverted) : ⟦lit    ⟧c  =  ⟦lit.var⟧cv := by grind
+theorem denoteS_not_inverted  (h : ¬lit.inverted) : ⟦lit    ⟧s  =  ⟦lit.var⟧sv := by grind
+theorem denoteC_inverted      (h :  lit.inverted) : ⟦lit    ⟧c  = !⟦lit.var⟧cv := by grind
+theorem denoteS_inverted      (h :  lit.inverted) : ⟦lit    ⟧s  = !⟦lit.var⟧sv := by grind
 theorem denoteCV_not_inverted (h : ¬lit.inverted) : ⟦lit.var⟧cv =  ⟦lit    ⟧c := by grind
 theorem denoteSV_not_inverted (h : ¬lit.inverted) : ⟦lit.var⟧sv =  ⟦lit    ⟧s := by grind
 theorem denoteCV_inverted     (h :  lit.inverted) : ⟦lit.var⟧cv = !⟦lit    ⟧c := by grind
@@ -211,10 +211,10 @@ grind_pattern denoteSV_var_eq => ⟦aig, lit.var, frame, assign⟧sv where lit =
 @[simp, grind =] theorem denoteC_mk {var : Var} {invert : Bool} : ⟦.mk var invert⟧c = (invert ^^ ⟦var⟧cv) := by grind
 @[simp, grind =] theorem denoteS_mk {var : Var} {invert : Bool} : ⟦.mk var invert⟧s = (invert ^^ ⟦var⟧sv) := by grind
 
-@[simp] theorem denoteC_invalid  (invalid : ¬lit.validIn aig) : ⟦lit⟧c  = decide lit.inverted := by grind [denoteC]
-@[simp] theorem denoteS_invalid  (invalid : ¬lit.validIn aig) : ⟦lit⟧s  = decide lit.inverted := by grind [denoteS]
-@[simp] theorem denoteCV_invalid (invalid : ¬var.validIn aig) : ⟦var⟧cv = false               := by grind [denoteCV_eq, denoteC_invalid]
-@[simp] theorem denoteSV_invalid (invalid : ¬var.validIn aig) : ⟦var⟧sv = false               := by grind [denoteSV_eq, denoteS_invalid]
+theorem denoteC_invalid  (invalid : ¬lit.validIn aig) : ⟦lit⟧c  = decide lit.inverted := by grind [denoteC]
+theorem denoteS_invalid  (invalid : ¬lit.validIn aig) : ⟦lit⟧s  = decide lit.inverted := by grind [denoteS]
+theorem denoteCV_invalid (invalid : ¬var.validIn aig) : ⟦var⟧cv = false               := by grind [denoteCV_eq, denoteC_invalid]
+theorem denoteSV_invalid (invalid : ¬var.validIn aig) : ⟦var⟧sv = false               := by grind [denoteSV_eq, denoteS_invalid]
 grind_pattern denoteC_invalid  => ⟦aig, lit, frame, assign⟧c, lit.validIn aig
 grind_pattern denoteS_invalid  => ⟦aig, lit, frame, assign⟧s, lit.validIn aig
 grind_pattern denoteCV_invalid => ⟦aig, var, frame, assign⟧cv, var.validIn aig
@@ -246,7 +246,6 @@ grind_pattern denoteSV_getElem_nodes_input => aig.nodes[var], Node.input idx, �
 @[simp, grind =] theorem denoteCV_var_inputs {idx : InputIdx} (mem : idx ∈ aig.inputs) : ⟦(aig.inputs[idx]'mem).var⟧cv = assign idx frame := by grind [denoteCV_getElem_nodes_input]
 @[simp, grind =] theorem denoteSV_var_inputs {idx : InputIdx} (mem : idx ∈ aig.inputs) : ⟦(aig.inputs[idx]'mem).var⟧sv = assign idx frame := by grind [denoteSV_getElem_nodes_input]
 
-@[simp]
 theorem denoteCV_getElem_nodes_latch_zero {idx : LatchIdx} (h : aig.nodes[var]'mem = .latch idx) :
     ⟦var⟧cv0 = assign idx 0 := by
   grind [denoteCV_eq, denoteC]
@@ -254,7 +253,6 @@ theorem denoteCV_getElem_nodes_latch_zero {idx : LatchIdx} (h : aig.nodes[var]'m
 grind_pattern denoteCV_getElem_nodes_latch_zero => aig.nodes[var], Node.latch idx, ⟦aig, var, 0, assign⟧cv where
   idx =/= ((_ : Aig).addLatch _ _).snd
 
-@[simp]
 theorem denoteSV_getElem_nodes_latch_zero {idx : LatchIdx} (h : aig.nodes[var]'mem = .latch idx) :
     ⟦var⟧sv0 =
       match idx.getReset aig with
@@ -305,12 +303,12 @@ grind_pattern denoteSV_getElem_nodes_latch => aig.nodes[var], Node.latch idx, �
   idx =/= ((_ : Aig).addLatch _ _).snd
   frame =/= 0
 
-@[simp, grind =]
+@[grind =]
 theorem denoteCV_var_latches_zero {idx : LatchIdx} (mem : idx ∈ aig.latches) :
     ⟦(aig.latches[idx]'mem).var⟧cv0 = assign idx 0 := by
   apply denoteCV_getElem_nodes_latch_zero <;> grind
 
-@[simp, grind =]
+@[grind =]
 theorem denoteSV_var_latches_zero {idx : LatchIdx} (mem : idx ∈ aig.latches) :
     ⟦(aig.latches[idx]'mem).var⟧sv0 =
       match idx.getReset aig with
