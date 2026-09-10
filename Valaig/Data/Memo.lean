@@ -249,18 +249,20 @@ class WFVisitor (visitor : Visitor info) where
     {hsi : info.stateInv state}
     {query : Query σ β info.lt root} {enq : Enqueue query}
     {walk : σ} {hci : query.respects (info.cacheInv state hsi) walk} :
-    let res := (visitor state root (enq := enq) walk hci).value?
-      ∀ hpure,
-        info.stateInv (res.get hpure |>.fst)
+    let motive action := ∀ hpure, info.stateInv ((action walk hci).value?.get hpure |>.fst)
+    let action := visitor state root (enq := enq)
+    motive action
 
   cacheInv
     {σ : Type} (state : μ) (root : α)
     {hsi : info.stateInv state}
     {query : Query σ β info.lt root} {enq : Enqueue query}
     {walk : σ} {hci : query.respects (info.cacheInv state hsi) walk} :
-    let res := (visitor state root (enq := enq) walk hci).value?
-    ∀ hpure,
-      info.cacheInv (res.get hpure |>.fst) (by apply stateInv) root (res.get hpure |>.snd)
+    let motive action :=
+      ∀ hpure hsi,
+        info.cacheInv ((action walk hci).value?.get hpure |>.fst) hsi root ((action walk hci).value?.get hpure |>.snd)
+    let action := visitor state root (enq := enq)
+    motive action
 
   cachePreservation
     {σ : Type} (state : μ) (root key : α) (value : β)
@@ -268,9 +270,11 @@ class WFVisitor (visitor : Visitor info) where
     (cacheInv : info.cacheInv state hsi key value)
     {query : Query σ β info.lt root} {enq : Enqueue query}
     {walk : σ} {hci : query.respects (info.cacheInv' hsi) walk} :
-    let res := (visitor state root (enq := enq) walk hci).value?
-    ∀ hpure,
-      info.cacheInv (res.get hpure |>.fst) (by apply stateInv) key value
+    let motive action :=
+      ∀ hpure hsi,
+        info.cacheInv ((action walk hci).value?.get hpure |>.fst) hsi key value
+    let action := visitor state root (enq := enq)
+    motive action
 
 /--
   The walker class defines a generic incremental memoizer walker that runs a `Visitor` at a given
