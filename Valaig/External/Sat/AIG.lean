@@ -107,13 +107,13 @@ end mkAtomCached
 @[inline]
 def mkGateCached (aig : AIG) (lhs rhs : Lit)
     (hl : aig.contains lhs.var := by grind) (hr : aig.contains rhs.var := by grind) : AIG × Lit :=
-  let res := aig.aig.mkGateCached <| .mk (lhs.toRef aig.aig hl) (rhs.toRef aig.aig hr)
+  let res := aig.aig.mkGate <| .mk (lhs.toRef aig.aig hl) (rhs.toRef aig.aig hr)
   ({ aig with aig := res.aig }, .ofRef res.ref)
 
 section mkGateCached
 variable {lhs rhs : Lit} {hl : aig.contains lhs.var} {hr : aig.contains rhs.var}
 attribute [local simp, local grind] mkGateCached
-attribute [local simp, local grind! .] mkGateCached_le_size
+attribute [local simp, local grind! .] mkGate_le_size
 
 @[simp, grind .]
 theorem mem_mkGateCached {var : Var} (h : aig.contains var) :
@@ -132,7 +132,7 @@ theorem denote_mkGateCached {lit : Lit} (h : aig.contains lit.var) :
   grind [Lit.toRef,
     show aig = { aig with aig := entry.aig } by grind,
     show lit = .ofRef entry.ref by grind,
-    Std.Sat.AIG.LawfulOperator.denote_input_entry (f := Std.Sat.AIG.mkGateCached)]
+    Std.Sat.AIG.LawfulOperator.denote_input_entry (f := Std.Sat.AIG.mkGate)]
 
 @[simp, grind =]
 theorem denote_mkGateCached_self :
