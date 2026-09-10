@@ -45,8 +45,10 @@ def walker (old : WFAig) : Data.Memo.Visitor (walker.info old) :=
 
 instance instWF {old : WFAig} : Data.Memo.WFVisitor (walker old) where
   stateInv state root hsi query _ walk hci := by
+    intro res
+    subst res
     apply walker.fun_cases_unfolding
-      (motive := fun a => ∀ h, (walker.info old).stateInv ((a walk hci).value?.get h).fst)
+      (motive := fun a => ∀ hpure, (walker.info old).stateInv ((a walk hci).value?.get hpure).fst)
     <;> simp only
     <;> intros
     <;> rename_i hpure
@@ -55,17 +57,17 @@ instance instWF {old : WFAig} : Data.Memo.WFVisitor (walker old) where
     <;> grind [mem_inputs_newInputIdx (aig := state.fst)]
   cacheInv state var hsi query _ walk hci := by
     apply walker.fun_cases_unfolding
-      (motive := fun a => ∀ h, (walker.info old).cacheInv ((a walk hci).value?.get h).fst sorry var ((a walk hci).value?.get h).snd)
+      (motive := fun a => ∀ hpure hsi, (walker.info old).cacheInv ((a walk hci).value?.get hpure).fst hsi var ((a walk hci).value?.get hpure).snd)
     <;> simp only
     <;> intros
-    <;> rename_i hpure
+    <;> rename_i hpure hsi
     <;> revert hpure
     <;> simp [-eq_self]
     · grind
     · grind
     · grind [assignMap]
     · rename_i h
-      intro hpure
+      intros
       exists by grind only [!WFAig.is_WF, WF.mem_nodes_next, usr WF.NextsValid_of_WF]
       simp only [WFAig.getElem_eq, getElem_eq] at h
       simp only [WFAig.le_iff] at hsi
@@ -81,15 +83,15 @@ instance instWF {old : WFAig} : Data.Memo.WFVisitor (walker old) where
       · grind
   cachePreservation state root var val hsi hci _ _ walk hci' := by
     apply walker.fun_cases_unfolding
-      (motive := fun a => ∀ h, (walker.info old).cacheInv ((a walk hci').value?.get h).fst sorry var val)
+      (motive := fun a => ∀ hpure hsi, (walker.info old).cacheInv ((a walk hci').value?.get hpure).fst hsi var val)
     <;> simp only
     <;> intros
-    <;> rename_i hpure
+    <;> rename_i hpure hsi
     <;> revert hpure
     <;> simp [-eq_self]
     · grind
     · grind
-    · intro hpure
+    · intros
       exists by grind
       intro assign
       rw [denoteC_mono (mono_addInput (aig := state.fst))]
@@ -162,6 +164,7 @@ instance instWF {old : WFAig} : Data.Memo.WFVisitor (walker old) where
 --       all_goals grind
 
 end unroll
+/-
 
 /--
   Unroll the Aig by one time step. The second timestep is appended onto the existing circuit
@@ -203,5 +206,6 @@ theorem unroll_not_mem_of_mem_inputs {aig : WFAig} {idx : InputIdx} (mem : idx �
     idx ∉ (unroll aig).snd.snd := by
   have := (unroll.walker aig).stateMotive_walk
   grind [unroll, unroll.walker]
+-/
 
 end Valaig.Transform

@@ -50,21 +50,21 @@ instance instWF {aig : WFAig} : Data.Memo.WFVisitor (walker aig reset) where
   stateInv := by grind
   cacheInv std var hsi query _ walk hci := by
     apply walker.fun_cases_unfolding
-      (motive := fun a => ∀ h, (walker.info aig reset).cacheInv ((a walk hci).value?.get h).fst hsi var ((a walk hci).value?.get h).snd)
+      (motive := fun a => ∀ hpure hsi, (walker.info aig reset).cacheInv ((a walk hci).value?.get hpure).fst hsi var ((a walk hci).value?.get hpure).snd)
     <;> simp only
     <;> intros
-    <;> rename_i hpure
+    <;> rename_i hpure hsi
     <;> revert hpure
-    <;> simp [Option.get_unattach]
+    <;> simp [-eq_self, Option.get_unattach]
     <;> grind
   cachePreservation std root var val hsi hci _ _ walk hci' := by
     apply walker.fun_cases_unfolding
-      (motive := fun a => ∀ h, (walker.info aig reset).cacheInv ((a walk hci').value?.get h).fst hsi var val)
+      (motive := fun a => ∀ hpure hsi, (walker.info aig reset).cacheInv ((a walk hci').value?.get hpure).fst hsi var val)
     <;> simp only
     <;> intros
-    <;> rename_i hpure
+    <;> rename_i hpure hsi
     <;> revert hpure
-    <;> simp [Option.get_unattach]
+    <;> simp [-eq_self, Option.get_unattach]
     <;> grind
 
 end toStd
