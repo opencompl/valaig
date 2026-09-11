@@ -34,48 +34,41 @@ def run (model cert : String) : IO Unit := do
   let model ← IO.FS.Handle.mk model .read
   let (_, model) ← IO.ofExcept <| Aiger.parse <| ← model.readBinToEnd
 
-  if _ : ¬model.aig.WF then return
+  if _ : ¬model.aig.WF then
+    IO.ofExcept (.error "model not wellformed")
   else
 
-  let #[{ lit := bad, .. }] := model.bads | return
+  let #[{ lit := bad, .. }] := model.bads | IO.ofExcept (.error "expected single bad in model")
 
   if _ : ¬bad.validIn model.aig then
-    return
+    IO.ofExcept (.error "bad not valid in model")
   else
 
   println "Reading certificate"
   let cert ← IO.FS.Handle.mk cert .read
   let (_, cert) ← IO.ofExcept <| Aiger.parse <| ← cert.readBinToEnd
 
-  let #[{ lit := invBad, .. }] := cert.bads | return
+  let #[{ lit := invBad, .. }] := cert.bads | IO.ofExcept (.error "expected single bad in certificate")
 
   println "Constructing product circuit"
-  let (eq:=_) .ok (product, invBad) := Cert.appendCert model cert | return
+  let (eq:=_) .ok (product, invBad) := Cert.appendCert model cert | IO.ofExcept (.error "failed to construct product circuit")
 
-  if _ : ¬bad.validIn product then
-    return
-  else
-
-  if _ : ¬ invBad.validIn product then
-    return
-  else
+  have : bad.validIn product := by have := @Cert.mono_appendCert; grind
+  have : invBad.validIn product := by have := @Cert.validIn_appendCert_snd; grind
 
   let cert := Cert.Checker.new product bad invBad.invert
 
   println "Init:"
   let .ok init := (← time "init" <| fun _ => liftCoreM <| Sat.External.solveUnsatChecked cert.initAig) |
-    return
-    -- IO.ofExcept (throw "s CERTIFICATE UNSAFE")
+    IO.ofExcept (.error "s CERTIFICATE UNSAFE")
 
   println "Implication:"
   let .ok imp ← time "imp" <| fun _ => liftCoreM <| Sat.External.solveUnsatChecked cert.impAig |
-    return
-    -- IO.ofExcept (throw "s CERTIFICATE UNSAFE")
+    IO.ofExcept (.error "s CERTIFICATE UNSAFE")
 
   println "Consecution:"
   let .ok consec ← time "consec" <| fun _ => liftCoreM <| Sat.External.solveUnsatChecked cert.consecAig |
-    return
-    -- IO.ofExcept (throw "s CERTIFICATE UNSAFE")
+    IO.ofExcept (.error "s CERTIFICATE UNSAFE")
 
   have : model.aig.Unreachable bad := by
     have := @Cert.mono_appendCert
