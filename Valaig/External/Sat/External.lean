@@ -3,6 +3,7 @@ module
 public import Valaig.Aig.Core
 public import Lean.CoreM
 public import Std.Sat.CNF.Basic
+import Std.Tactic.BVDecide.LRAT.Parser
 import Std.Tactic.BVDecide.LRAT.Checker
 public import Lean.Elab.Tactic.BVDecide
 import all Lean.Meta.Tactic.BVDecide.TacticContext
@@ -39,12 +40,16 @@ def solveUnsatCnfChecked (cnf : Std.Sat.CNF Nat) (lratPath : System.FilePath) (c
   | .error _ => return throw "Sat solver returned SAT"
   | .ok cert =>
 
-  let verified := Reflect.verifyCert cnf cert
+  match LRAT.parseLRATProof cert.toUTF8 with
+  | .error err => return throw s!"error parsing LRAT: {err}"
+  | .ok lratProof =>
+
+  let verified := LRAT.check lratProof cnf
   if _ : !verified then
     return throw "Failed to verify UNSAT proof"
   else
 
-  return pure ⟨(), by grind [Reflect.verifyCert_correct]⟩
+  return pure ⟨(), by grind [LRAT.check_sound]⟩
 
 def solveUnsatChecked (aig : Std.Sat.AIG.Entrypoint Aig.LeafIdx) (config : Config := {}) : Lean.CoreM (Except String { _u : Unit // aig.Unsat }) := do
   let aig := aig.relabelNat
