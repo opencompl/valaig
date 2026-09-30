@@ -21,61 +21,68 @@ namespace Valaig.Data.Memo
 variable {α β σ μ γ : Type} {a root : α} {b : β} {usr : μ}
 
 /--
+  An invariant on the key type used in the walker.
+-/
+@[expose, implicit_reducible]
+def KeyInv (α : Type) := α -> Prop
+
+/--
   An invariant on the user state in the walker.
 -/
 @[expose, implicit_reducible]
 def StateInv (μ : Type) := μ -> Prop
 
 /--
-  An invariant on a value in the cache, indexed by the user state.
+  An invariant on key-value pairs in the cache, indexed by the user state.
 -/
 @[expose, implicit_reducible]
-def ValInv (si : StateInv μ) (α β : Type) :=
-  {s : μ} -> si s -> α -> β -> Prop
+def ValInv (ki : KeyInv α) (si : StateInv μ) (β : Type) :=
+  {s : μ} -> si s -> (a : α) -> ki a -> β -> Prop
 
 @[expose, implicit_reducible]
-def Query (σ β : Type) (lt : α -> α -> Prop) (root : α) :=
-  σ -> (a : α) -> lt a root -> Option β
+def Query (σ β : Type) (ki : KeyInv α) (lt : α -> α -> Prop) (root : α) :=
+  σ -> (a : α) -> ki a -> lt a root -> Option β
 
-variable {lt : α -> α -> Prop} {si : StateInv μ} {ci : ValInv si α β}
+variable {ki : KeyInv α} {lt : α -> α -> Prop} {si : StateInv μ} {vi : ValInv ki si β}
 
 @[expose, implicit_reducible, local grind]
-def Query.respects (query : Query σ β lt root) (p : α -> β -> Prop) (s : σ) :=
-  ∀ {k h v}, query s k h = some v → p k v
+def Query.respects (query : Query σ β ki lt root) (p : (a : α) -> ki a -> β -> Prop) (s : σ) :=
+  ∀ {k hki hlt v}, query s k hki hlt = some v → p k hki v
 
 @[grind .]
-theorem Query.respects_get {query : Query σ β lt root} {p : α -> β -> Prop} {s : σ}
-      (hrespects : query.respects p s) (k : α) hlt h :
-    p k ((query s k hlt).get h) := by
+theorem Query.respects_get {query : Query σ β ki lt root} {p : (a : α) -> ki a -> β -> Prop} {s : σ}
+      (hrespects : query.respects p s) (k : α) hki hlt h :
+    p k hki ((query s k hki hlt).get h) := by
   grind
 
 @[expose, implicit_reducible]
-def Enqueue (query : Query σ β lt root) :=
-  (s : σ) -> (a : α) -> (h : lt a root) -> query s a h = none -> { s' : σ // query s' = query s }
+def Enqueue (query : Query σ β ki lt root) :=
+  (s : σ) -> (a : α) -> (hki : ki a) -> (hlt : lt a root) -> query s a hki hlt = none ->
+    { s' : σ // query s' = query s }
 
 @[simp]
-theorem Enqueue.respects_enqueue {query : Query σ β lt root} {enqueue : Enqueue query}
-    {p : α -> β -> Prop} {s : σ} {a : α} {h heq} :
-    query.respects p (enqueue s a h heq) ↔ query.respects p s := by
+theorem Enqueue.respects_enqueue {query : Query σ β ki lt root} {enqueue : Enqueue query}
+    {p : (a : α) -> ki a -> β -> Prop} {s : σ} {a : α} {hki hlt heq} :
+    query.respects p (enqueue s a hki hlt heq) ↔ query.respects p s := by
   grind
 
 /--
   This captures a relationship between states that is true if they have had at least one
   and potentially multiple variables enqueued.
 -/
-inductive Enqueue.reach {query : Query σ β lt root} (enq : Enqueue query) : σ -> σ -> Prop
-| init {s a} (hlt := by grind) (hq := by grind) : enq.reach s (enq s a hlt hq)
-| trans {s s' a} (hs : enq.reach s s') (hlt := by grind) (hq := by grind) : enq.reach s (enq s' a hlt hq)
+inductive Enqueue.reach {query : Query σ β ki lt root} (enq : Enqueue query) : σ -> σ -> Prop
+| init {s a} (hki := by grind) (hlt := by grind) (hq := by grind) : enq.reach s (enq s a hki hlt hq)
+| trans {s s' a} (hs : enq.reach s s') (hki := by grind) (hlt := by grind) (hq := by grind) : enq.reach s (enq s' a hki hlt hq)
 
-theorem Enqueue.reach.rel {query : Query σ β lt root} {enq : Enqueue query} {p : σ -> σ -> Prop} {s s'}
+theorem Enqueue.reach.rel {query : Query σ β ki lt root} {enq : Enqueue query} {p : σ -> σ -> Prop} {s s'}
     (h : enq.reach s s')
-    (rel : ∀ s a hlt hq, p s (enq s a hlt hq))
+    (rel : ∀ s a hki hlt hq, p s (enq s a hki hlt hq))
     (trans : ∀ a b c, p a b → p b c → p a c) :
     p s s' := by
   induction h <;> grind
 
 section Action
-variable {query : Query σ β lt root} {enq : Enqueue query}
+variable {query : Query σ β ki lt root} {enq : Enqueue query}
 
 /--
   A valid memo action either produces a value without modifying the state, or enqueues indices
@@ -86,22 +93,22 @@ inductive Action (usr : μ) (enq : Enqueue query) (γ : Type) : σ -> σ -> Type
 | enqueued {s s'} (usr' : μ) (heq : usr' = usr := by grind) (h : enq.reach s s' := by grind) : Action usr enq γ s s'
 
 @[ext, grind ext]
-structure ActionState (hsi : si usr) (ci : ValInv si α β) (enq : Enqueue query) (s : σ) (γ : Type) where
+structure ActionState (hsi : si usr) (vi : ValInv ki si β) (enq : Enqueue query) (s : σ) (γ : Type) where
   state : σ
-  hvi : query.respects (ci hsi) state
+  hvi : query.respects (vi hsi) state
   action : Action usr enq γ s state
 
 @[expose, implicit_reducible]
-def ActionM (hsi : si usr) (ci : ValInv si α β) (enq : Enqueue query) (γ : Type) :=
-  (s : σ) -> query.respects (ci hsi) s -> ActionState hsi ci enq s γ
+def ActionM (hsi : si usr) (vi : ValInv ki si β) (enq : Enqueue query) (γ : Type) :=
+  (s : σ) -> query.respects (vi hsi) s -> ActionState hsi vi enq s γ
 
 variable {hsi : si usr} {s s' : σ}
 
 namespace ActionState
-variable {action : ActionState hsi ci enq s γ}
+variable {action : ActionState hsi vi enq s γ}
 
 @[expose]
-def value? (action : ActionState hsi ci enq s γ) : Option γ :=
+def value? (action : ActionState hsi vi enq s γ) : Option γ :=
   match _ : action.action with
   | .pure val _ => val
   | .enqueued _ _ _ => none
@@ -117,7 +124,7 @@ namespace ActionM
 open ActionState
 
 @[always_inline]
-instance : Monad (ActionM hsi ci enq) where
+instance : Monad (ActionM hsi vi enq) where
   pure x s hvi := ⟨s, hvi, .pure x⟩
   bind x f s hvi :=
     let a := x s hvi
@@ -125,10 +132,10 @@ instance : Monad (ActionM hsi ci enq) where
     | .pure val heq => cast (by grind only) (f val a.state (by grind))
     | .enqueued usr heq h => { a with action := .enqueued usr heq }
 
-variable {hvi : query.respects (ci hsi) s}
+variable {hvi : query.respects (vi hsi) s}
 
 @[simp]
-theorem value?_dite {c : Prop} [Decidable c] {a : c -> ActionM hsi ci enq γ} {b : ¬c -> ActionM hsi ci enq γ} :
+theorem value?_dite {c : Prop} [Decidable c] {a : c -> ActionM hsi vi enq γ} {b : ¬c -> ActionM hsi vi enq γ} :
     ((dite c a b) s hvi).value? =
       dite c
         (fun h => (a h s hvi).value?)
@@ -136,7 +143,7 @@ theorem value?_dite {c : Prop} [Decidable c] {a : c -> ActionM hsi ci enq γ} {b
   grind
 
 @[local simp, local grind =]
-theorem bind_eq {δ : Type} {a : ActionM hsi ci enq δ} {b : δ -> ActionM hsi ci enq γ} :
+theorem bind_eq {δ : Type} {a : ActionM hsi vi enq δ} {b : δ -> ActionM hsi vi enq γ} :
   (a >>= b) s hvi =
     let va := a s hvi
     match _ : va.action with
@@ -151,11 +158,11 @@ theorem bind_eq {δ : Type} {a : ActionM hsi ci enq δ} {b : δ -> ActionM hsi c
 
 @[simp, grind =]
 theorem value?_pure {val : γ} :
-    ((pure val : ActionM hsi ci enq _) s hvi).value? = val := by
+    ((pure val : ActionM hsi vi enq _) s hvi).value? = val := by
   rfl
 
 @[simp, grind =]
-theorem value?_bind {δ : Type} {a : ActionM hsi ci enq δ} {b : δ -> ActionM hsi ci enq γ} :
+theorem value?_bind {δ : Type} {a : ActionM hsi vi enq δ} {b : δ -> ActionM hsi vi enq γ} :
     ((a >>= b) s hvi).value? =
       (a s hvi).value? >>= (fun x => (b x s hvi).value?) := by
   grind [value?]
@@ -165,27 +172,28 @@ theorem value?_bind {δ : Type} {a : ActionM hsi ci enq δ} {b : δ -> ActionM h
   to this node if it is not found.
 -/
 @[always_inline, specialize query enq]
-def get (a : α) (ha : lt a root := by grind) : ActionM hsi ci enq { val : β // ci hsi a val } :=
+def get (a : α) (hki : ki a := by grind) (hlt : lt a root := by grind) : ActionM hsi vi enq { val : β // vi hsi a hki val } :=
   fun s hvi =>
-    match _ : query s a ha with
+    match _ : query s a hki hlt with
     | some v => ⟨s, hvi, .pure ⟨v, by grind⟩⟩
-    | none => ⟨enq s a (by grind) (by grind), by grind, .enqueued usr rfl .init⟩
+    | none => ⟨enq s a hki (by grind) (by grind), by grind, .enqueued usr rfl .init⟩
 
 @[simp, grind =]
-theorem value?_get {a : α} (ha : lt a root) :
-    ((get a ha (enq := enq)) s hvi).value? = (query s a ha).attachWith _ (by grind) := by
+theorem value?_get {a : α} (hki : ki a) (hlt : lt a root) :
+    ((get a hki hlt (enq := enq)) s hvi).value? = (query s a hki hlt).attachWith _ (by grind) := by
   simp only [get]
   split
   next heq => simp [heq, value?]
   next heq => simp [heq, value?]
 
 @[always_inline, specialize query enq]
-def get2 (a b : α) (ha : lt a root := by grind) (hb : lt b root := by grind) :
-    ActionM hsi ci enq ({ val : β // ci hsi a val } × { val : β // ci hsi b val }) :=
+def get2 (a b : α) (hkia : ki a := by grind) (hkib : ki b := by grind)
+    (hlta : lt a root := by grind) (hltb : lt b root := by grind) :
+    ActionM hsi vi enq ({ val : β // vi hsi a hkia val } × { val : β // vi hsi b hkib val }) :=
   fun s hvi =>
-    let va := query s a ha
-    let vb := query s b hb
-    let enq s a (hlt := by grind) (hq := by grind) := enq s a hlt hq
+    let va := query s a hkia hlta
+    let vb := query s b hkib hltb
+    let enq s a (hki := by grind) (hlt := by grind) (hq := by grind) := enq s a hki hlt hq
     match _ : va, _ : vb with
     | some va, some vb => ⟨s, hvi, .pure (⟨va, by grind⟩, ⟨vb, by grind⟩)⟩
     | none, some _ => ⟨enq s a, by grind, .enqueued usr rfl .init⟩
@@ -196,21 +204,21 @@ def get2 (a b : α) (ha : lt a root := by grind) (hb : lt b root := by grind) :
   Returns a value paired with a user state, using the default user state registered for the action.
 -/
 @[always_inline]
-def just (val : γ) : ActionM hsi ci enq (μ × γ) :=
+def just (val : γ) : ActionM hsi vi enq (μ × γ) :=
   return (usr, val)
 
 @[simp, grind =]
 theorem value?_just {val : γ} :
-    ((just val : ActionM hsi ci enq (μ × γ)) s hvi).value? = (usr, val) := by
+    ((just val : ActionM hsi vi enq (μ × γ)) s hvi).value? = (usr, val) := by
   simp [just]
 
 @[always_inline]
-def pair {δ : Type} (a : δ) (b : γ): ActionM hsi ci enq (δ × γ) :=
+def pair {δ : Type} (a : δ) (b : γ): ActionM hsi vi enq (δ × γ) :=
   return (a, b)
 
 @[simp, grind =]
 theorem value?_pair {δ : Type} {a : δ} {b : γ} :
-    ((pair a b : ActionM hsi ci enq (δ × γ)) s hvi).value? = (a, b) := by
+    ((pair a b : ActionM hsi vi enq (δ × γ)) s hvi).value? = (a, b) := by
   simp [pair]
 
 end ActionM
@@ -223,19 +231,21 @@ structure VisitorInfo (α : Type) (β : Type := Unit) (μ : Type := Unit) where
   lt : α -> α -> Prop
   fin : FinitePartialOrder lt := by infer_instance
 
+  keyInv : α -> Prop := fun _ => True
   stateInv : μ -> Prop := fun _ => True
-  valInv : (s : μ) -> stateInv s -> α -> β -> Prop := fun _ _ _ _ => True
+  valInv : (s : μ) -> stateInv s -> (a : α) -> keyInv a -> β -> Prop := fun _ _ _ _ _ => True
 
 namespace VisitorInfo
 
 @[simp, grind unfold]
-abbrev valInv' (info : VisitorInfo α β μ) : ValInv info.stateInv α β :=
+abbrev valInv' (info : VisitorInfo α β μ) : ValInv info.keyInv info.stateInv β :=
   fun {s} => info.valInv s
 
 end VisitorInfo
 
 variable {info : VisitorInfo α β μ}
 
+set_option linter.unusedVariables false in
 /--
   A user provided visitor function defines the transfer function to compute the value at a given
   node. It can query earlier nodes with actions in ActionM.
@@ -243,41 +253,46 @@ variable {info : VisitorInfo α β μ}
 @[expose]
 def Visitor (info : VisitorInfo α β μ) :=
   {σ : Type} -> (state : μ) -> (root : α) ->
+    {hroot : info.keyInv root} ->
     {hsi : info.stateInv state} ->
-    {query : Query σ β info.lt root} -> {enq : Enqueue query} ->
+    {query : Query σ β info.keyInv info.lt root} -> {enq : Enqueue query} ->
       ActionM hsi info.valInv' enq (μ × β)
 
 class WFVisitor (visitor : Visitor info) where
   stateInv
-    {σ : Type} (state : μ) (root : α)
-    {hsi : info.stateInv state}
-    {query : Query σ β info.lt root} {enq : Enqueue query}
-    {walk : σ} {hvi : query.respects (info.valInv state hsi) walk} :
+      {σ : Type} (state : μ) (root : α)
+      {hroot : info.keyInv root}
+      {hsi : info.stateInv state}
+      {query : Query σ β info.keyInv info.lt root} {enq : Enqueue query}
+      {walk : σ} {hvi : query.respects (info.valInv state hsi) walk} :
     let motive action := ∀ hpure, info.stateInv ((action walk hvi).value?.get hpure |>.fst)
-    let action := visitor state root (enq := enq)
+    let action := visitor state root (hroot := hroot) (enq := enq)
     motive action
 
   valInv
-    {σ : Type} (state : μ) (root : α)
-    {hsi : info.stateInv state}
-    {query : Query σ β info.lt root} {enq : Enqueue query}
-    {walk : σ} {hvi : query.respects (info.valInv state hsi) walk} :
+      {σ : Type} (state : μ) (root : α)
+      {hroot : info.keyInv root}
+      {hsi : info.stateInv state}
+      {query : Query σ β info.keyInv info.lt root} {enq : Enqueue query}
+      {walk : σ} {hvi : query.respects (info.valInv state hsi) walk} :
     let motive action :=
       ∀ hpure hsi,
-        info.valInv ((action walk hvi).value?.get hpure |>.fst) hsi root ((action walk hvi).value?.get hpure |>.snd)
-    let action := visitor state root (enq := enq)
+        info.valInv ((action walk hvi).value?.get hpure |>.fst) hsi root hroot ((action walk hvi).value?.get hpure |>.snd)
+    let action := visitor state root (hroot := hroot) (enq := enq)
     motive action
 
   cachePreservation
-    {σ : Type} (state : μ) (root key : α) (value : β)
-    {hsi : info.stateInv state}
-    (valInv : info.valInv state hsi key value)
-    {query : Query σ β info.lt root} {enq : Enqueue query}
-    {walk : σ} {hvi : query.respects (info.valInv' hsi) walk} :
+      {σ : Type} (state : μ) (root key : α) (value : β)
+      {hroot : info.keyInv root}
+      {hki : info.keyInv key}
+      {hsi : info.stateInv state}
+      (valInv : info.valInv state hsi key hki value)
+      {query : Query σ β info.keyInv info.lt root} {enq : Enqueue query}
+      {walk : σ} {hvi : query.respects (info.valInv' hsi) walk} :
     let motive action :=
       ∀ hpure hsi,
-        info.valInv ((action walk hvi).value?.get hpure |>.fst) hsi key value
-    let action := visitor state root (enq := enq)
+        info.valInv ((action walk hvi).value?.get hpure |>.fst) hsi key hki value
+    let action := visitor state root (hroot := hroot) (enq := enq)
     motive action
 
 /--
@@ -287,11 +302,11 @@ class WFVisitor (visitor : Visitor info) where
 class Walker (visitor : outParam (Visitor info)) (σ : Type) where
   new : (s : μ) -> (h : info.stateInv s := by grind) -> σ
   state : σ -> μ
-  visit : σ -> α -> (σ × β)
+  visit : σ -> (k : α) -> (hki : info.keyInv k := by grind) -> (σ × β)
 
 class WFWalker (visitor : outParam (Visitor info)) (σ : Type) extends Walker visitor σ where
   stateInv s : info.stateInv (state s)
-  valInv s k : info.valInv' (stateInv (visit s k).fst) k (visit s k).snd
+  valInv s k hki : info.valInv' (stateInv (visit s k hki).fst) k hki (visit s k hki).snd
 
 attribute [grind! .] WFWalker.stateInv WFWalker.valInv
 
@@ -356,7 +371,7 @@ structure DFSWalker (visitor : Visitor info) (cache : Type) [Cache α β cache] 
   cache : cache
   usr : μ
   hsi : info.stateInv usr
-  hvi : ∀ k (h : Cache.mem k cache), info.valInv' hsi k (Cache.get cache k)
+  hvi : ∀ k hki (h : Cache.mem k cache), info.valInv' hsi k hki (Cache.get cache k)
 
 namespace DFSWalker
 variable {visitor : Visitor info} {cache : Type} [Cache α β cache]
@@ -372,43 +387,48 @@ structure LookupState (cache : Type) [Cache α β cache] where
 namespace LookupState
 
 @[always_inline, specialize cache α β]
-abbrev query (cache : Type) [Cache α β cache] lt (root : α) : Query (LookupState cache) β lt root :=
-  fun s idx _ =>
+abbrev query (cache : Type) [Cache α β cache] ki lt (root : α) : Query (LookupState cache) β ki lt root :=
+  fun s idx _ _ =>
     Cache.get? s.cache idx
 
 @[always_inline, specialize cache α β]
-abbrev enqueue (cache : Type) [Cache α β cache] lt root : Enqueue (query cache lt root) :=
-  fun s key _ _ =>
+abbrev enqueue (cache : Type) [Cache α β cache] ki lt root : Enqueue (query cache ki lt root) :=
+  fun s key _ _ _ =>
     ⟨{ s with stack := s.stack.push key }, by grind⟩
 
 @[simp, grind →]
-theorem cache_reach {s s'} (h : (enqueue cache lt root).reach s s') :
+theorem cache_reach {s s'} (h : (enqueue cache ki lt root).reach s s') :
     s'.cache = s.cache := by
   apply Enqueue.reach.rel h <;> grind only
 
-@[grind →]
-theorem mem_stack_of_mem_stack_reach {s s'} {n : α} (h : (enqueue cache lt root).reach s s') (mem : n ∈ s'.stack) :
+theorem mem_stack_or_lt_of_reach {s s'} {n : α} (h : (enqueue cache ki lt root).reach s s') (mem : n ∈ s'.stack) :
     n ∈ s.stack ∨ lt n root := by
   revert mem
   apply Enqueue.reach.rel h
   <;> grind
 
+theorem mem_stack_or_ki_of_reach {s s'} {n : α} (h : (enqueue cache ki lt root).reach s s') (mem : n ∈ s'.stack) :
+    n ∈ s.stack ∨ ki n := by
+  revert mem
+  apply Enqueue.reach.rel h
+  <;> grind
+
 @[simp, grind .]
-theorem mem_stack_reach {s s'} {n : α} (h : (enqueue cache lt root).reach s s') (mem : n ∈ s.stack) :
+theorem mem_stack_reach {s s'} {n : α} (h : (enqueue cache ki lt root).reach s s') (mem : n ∈ s.stack) :
     n ∈ s'.stack := by
   revert mem
   apply Enqueue.reach.rel h
   <;> grind
 
 @[simp]
-theorem countP_cache_reach {s s'} (h : (enqueue cache lt root).reach s s') :
+theorem countP_cache_reach {s s'} (h : (enqueue cache ki lt root).reach s s') :
     s'.stack.countP (Cache.mem · s'.cache) = s.stack.countP (Cache.mem · s.cache) := by
   apply Enqueue.reach.rel h
   · grind [Array.countP_push]
   · grind only
 
 @[grind .]
-theorem back?_getD_lt_reach {s s'} {root' : α} (h : (enqueue cache lt root).reach s s') :
+theorem back?_getD_lt_reach {s s'} {root' : α} (h : (enqueue cache ki lt root).reach s s') :
     lt (s'.stack.back?.getD root') root := by
   apply Enqueue.reach.rel h
   · grind
@@ -419,20 +439,23 @@ end LookupState
 structure State (visitor : Visitor info) (cache' : Type) (root : α) [Cache α β cache']
     extends DFSWalker visitor cache' where
   stack : Array α
+  stackInv : ∀ x ∈ stack, info.keyInv x
   stackOrdered : ∀ x ∈ stack, info.fin.le x root
 
 namespace State
 variable {s : State visitor cache root}
 
-def new (walker : DFSWalker visitor cache) (root : α) : State visitor cache root :=
+def new (walker : DFSWalker visitor cache) (root : α) (hroot : info.keyInv root := by grind) :
+    State visitor cache root :=
   { walker with
     stack := #[root],
+    stackInv := by grind,
     stackOrdered := by simp
   }
 
 abbrev Visit (info : VisitorInfo α β μ) (cache : Type) [Cache α β cache] :=
-  (state : μ) -> (root : α) -> (hsi : info.stateInv state) ->
-    ActionM hsi info.valInv' (LookupState.enqueue cache info.lt root) (μ × β)
+  (state : μ) -> (root : α) -> (hroot : info.keyInv root) -> (hsi : info.stateInv state) ->
+    ActionM hsi info.valInv' (LookupState.enqueue cache info.keyInv info.lt root) (μ × β)
 
 def measure (s : State visitor cache root) : Nat × Nat × Nat :=
   (
@@ -446,9 +469,11 @@ def measure (s : State visitor cache root) : Nat × Nat × Nat :=
 
 @[always_inline, specialize visitor cache visit]
 def visit (s : State visitor cache root) (n : α) (visit : Visit info cache)
-    (h : s.stack.back? = n := by grind) (hvisit : visit = (visitor · · (hsi := ·)) := by grind) :
+    (h : s.stack.back? = n := by grind) (hvisit : visit = (visitor · · (hroot := ·) (hsi := ·)) := by grind) :
     State visitor cache root :=
-  let res := visit s.usr n s.hsi { s with } <| by have := s.hvi; grind
+  have hki := s.stackInv n (by grind)
+  have hvi := by have := s.hvi; grind
+  let res := visit s.usr n hki s.hsi { s with } hvi
 
   match _ : res.action with
   | .enqueued usr _ _ =>
@@ -458,9 +483,11 @@ def visit (s : State visitor cache root) (n : α) (visit : Visit info cache)
       usr := usr
       hvi := by have := s.hvi; grind only [→ LookupState.cache_reach]
       hsi := by grind
+      stackInv := by
+        grind [s.stackInv, → LookupState.mem_stack_or_ki_of_reach]
       stackOrdered := by
         have : info.fin.le n root := by grind [s.stackOrdered]
-        grind [s.stackOrdered, info.fin.trans]
+        grind [s.stackOrdered, info.fin.trans, → LookupState.mem_stack_or_lt_of_reach]
     }
   | .pure (usr, val) _ =>
     { s with
@@ -469,13 +496,15 @@ def visit (s : State visitor cache root) (n : α) (visit : Visit info cache)
       usr := usr
       hvi k := by
         simp only [Cache.get, Cache.get?_insert]
-        have := s.hvi
-        have := @wf.valInv
-        have := @wf.cachePreservation
+        intro hki' hmem
+        have := s.hvi k hki'
+        have := @wf.valInv (state := s.usr) (hroot := hki) (hvi := hvi)
+        have := @wf.cachePreservation (state := s.usr) (hroot := hki) (hvi := hvi) (hki := hki')
         grind [ActionState.value?]
       hsi := by
-        have := @wf.stateInv
+        have := @wf.stateInv (state := s.usr) (hroot := hki) (hvi := hvi)
         grind [ActionState.value?]
+      stackInv := by grind [s.stackInv]
       stackOrdered := by grind [s.stackOrdered]
     }
 
@@ -512,10 +541,15 @@ theorem mem_cache_visit_of_mem_stack {n x : α} {visit h hvisit} (mem : x ∈ s.
 
 @[always_inline, specialize visitor cache visit]
 def step (s : State visitor cache root) (n : α) (visit : Visit info cache)
-    (h : s.stack.back? = n := by grind) (hvisit : visit = (visitor · · (hsi := ·)) := by grind) :
+    (h : s.stack.back? = n := by grind) (hvisit : visit = (visitor · · (hroot := ·) (hsi := ·)) := by grind) :
     State visitor cache root :=
   match _ : Cache.get? s.cache n with
-  | some _ => { s with stack := s.stack.pop, stackOrdered := by grind [s.stackOrdered] }
+  | some _ =>
+    { s with
+      stack := s.stack.pop,
+      stackInv := by grind [s.stackInv],
+      stackOrdered := by grind [s.stackOrdered]
+    }
   | none => s.visit n visit
 
 @[simp, grind .]
@@ -571,6 +605,7 @@ private def walk.rebuildState (s : State visitor cache root)
   let walker := rebuildDFSWalker s.toDFSWalker cache' usr
   apply State.mk walker stack
   <;> simp only [←hstack]
+  · refine s.stackInv
   · refine s.stackOrdered
 
 omit wf in
@@ -582,7 +617,7 @@ private theorem walk.rebuildState_eq (s : State visitor cache root)
 
 @[always_inline, specialize visitor cache]
 private def walk.walkSpec (s : State visitor cache root) (visit : Visit info cache)
-    (hvisit : visit = (visitor · · (hsi := ·)) := by grind) :
+    (hvisit : visit = (visitor · · (hroot := ·) (hsi := ·)) := by grind) :
     State visitor cache root :=
   go s s.cache s.usr s.stack
 where
@@ -609,12 +644,12 @@ open walk in
 -/
 @[always_inline, specialize visitor cache]
 private def walk (s : State visitor cache root) : State visitor cache root :=
-  walk.walkSpec s (visitor · · (hsi := ·))
+  walk.walkSpec s (visitor · · (hroot := ·) (hsi := ·))
 
 def walkSlow (s : State visitor cache root) : State visitor cache root :=
   match _ : s.stack.back? with
   | none => s
-  | some n => walkSlow (s.step n (visitor · · (hsi := ·)))
+  | some n => walkSlow (s.step n (visitor · · (hroot := ·) (hsi := ·)))
 termination_by s.measure
 
 @[simp, grind =]
@@ -638,7 +673,8 @@ theorem mem_cache_walkSlow_of_mem_stack {n : α} (mem : n ∈ s.stack) :
 end State
 
 @[always_inline, specialize visitor cache]
-def visit (s : DFSWalker visitor cache) (root : α) : DFSWalker visitor cache × β :=
+def visit (s : DFSWalker visitor cache) (root : α) (hroot : info.keyInv root := by grind) :
+    DFSWalker visitor cache × β :=
   match Cache.get? s.cache root with
   | some v => (s, v)
   | none =>
@@ -650,7 +686,7 @@ def visit (s : DFSWalker visitor cache) (root : α) : DFSWalker visitor cache ×
 instance instWalker : WFWalker visitor (DFSWalker visitor cache) where
   new usr hsi := { cache := Cache.empty, usr, hsi, hvi := by grind }
   state := (·.usr)
-  visit := visit
+  visit s k hki := visit s k hki
 
   stateInv s := s.hsi
   valInv s k := by have := @DFSWalker.hvi; grind [visit]
