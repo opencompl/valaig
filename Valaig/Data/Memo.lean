@@ -226,9 +226,20 @@ structure VisitorInfo (α : Type) (β : Type := Unit) (μ : Type := Unit) where
   stateInv : μ -> Prop := fun _ => True
   cacheInv : (s : μ) -> stateInv s -> α -> β -> Prop := fun _ _ _ _ => True
 
+namespace VisitorInfo
+
 @[simp, grind unfold]
-abbrev VisitorInfo.cacheInv' (info : VisitorInfo α β μ) : CacheInv info.stateInv α β :=
+abbrev cacheInv' (info : VisitorInfo α β μ) : CacheInv info.stateInv α β :=
   fun {s} => info.cacheInv s
+
+@[simp]
+abbrev wrapNullable (info : VisitorInfo α β μ) (null : Nullable α) : VisitorInfo { val : α // null.isSome val } β μ where
+  lt := (info.lt · ·)
+  fin := by have := info.fin; infer_instance
+  stateInv := info.stateInv
+  cacheInv := (info.cacheInv · · · ·)
+
+end VisitorInfo
 
 variable {info : VisitorInfo α β μ}
 
@@ -652,5 +663,17 @@ instance instWalker : WFWalker visitor (DFSWalker visitor cache) where
   cacheInv s k := by have := @DFSWalker.hci; grind [visit]
 
 end DFSWalker
+
+set_option warn.classDefReducibility false in
+@[always_inline, specialize visitor cache]
+def dfsWalker (visitor : Visitor info) [WFVisitor visitor] (cache : Type) [Cache α β cache] :
+    WFWalker visitor (DFSWalker visitor cache) :=
+  DFSWalker.instWalker
+
+set_option warn.classDefReducibility false in
+@[always_inline, specialize visitor]
+def dfsHashWalker [Hashable α] (visitor : Visitor info) [WFVisitor visitor] :
+    WFWalker visitor (DFSWalker visitor (Std.HashMap α β)) :=
+  DFSWalker.instWalker
 
 end Valaig.Data.Memo

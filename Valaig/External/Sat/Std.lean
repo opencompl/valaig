@@ -68,10 +68,9 @@ end toStd
 
 public section
 
-open Data.Memo in
+open Data Memo in
 def toStd (aig : WFAig) (reset : Bool) (entry : Lit) (valid : entry.validIn aig := by grind) : Std.Sat.AIG.Entrypoint LeafIdx :=
-  let w : WFWalker (toStd.walker aig reset) (DFSWalker (toStd.walker aig reset) (Std.HashMap (Var.In aig) _)) :=
-    DFSWalker.instWalker
+  let w := dfsHashWalker (toStd.walker aig reset)
   let s := w.new .empty
   let (eq:=_) (s', lit) := w.visit s ⟨entry.var, valid⟩
   (w.state s').entrypoint (entry.mapTo lit) (by have := w.cacheInv; grind)
