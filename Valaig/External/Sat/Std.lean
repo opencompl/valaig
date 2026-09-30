@@ -43,9 +43,6 @@ def walker (aig : WFAig) (reset : Bool) : Data.Memo.Visitor (walker.info aig res
 
 variable {reset : Bool}
 
--- TODO: These proofs can be made faster by not simping on hpure (which is slow)
--- and instead just simping on the result term followed by running generalize_proofs
--- from batteries
 instance instWF {aig : WFAig} : Data.Memo.WFVisitor (walker aig reset) where
   stateInv := by grind
   cacheInv std var hsi query _ walk hci := by
@@ -55,7 +52,7 @@ instance instWF {aig : WFAig} : Data.Memo.WFVisitor (walker aig reset) where
     <;> intros
     <;> rename_i hpure hsi
     <;> revert hpure
-    <;> simp [-eq_self, Option.get_unattach]
+    <;> simp [Option.get_unattach, Option.isSome_bind, Option.any_eq_true_iff_get]
     <;> grind
   cachePreservation std root var val hsi hci _ _ walk hci' := by
     intro motive
@@ -64,7 +61,7 @@ instance instWF {aig : WFAig} : Data.Memo.WFVisitor (walker aig reset) where
     <;> intros
     <;> rename_i hpure hsi
     <;> revert hpure
-    <;> simp [-eq_self, Option.get_unattach]
+    <;> simp [Option.get_unattach, Option.isSome_bind, Option.any_eq_true_iff_get]
     <;> grind
 
 end toStd
