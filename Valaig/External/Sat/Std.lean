@@ -12,7 +12,7 @@ namespace toStd
 @[simp, grind unfold]
 abbrev walker.info (aig : WFAig) (reset : Bool) : Data.Memo.VisitorInfo (Var.In aig) Lit AIG where
   lt := (·.val < ·)
-  cacheInv std _ var lit :=
+  valInv std _ var lit :=
     ∃ (h : std.contains lit.var),
       ∀ {assign},
         if reset then
@@ -45,7 +45,7 @@ variable {reset : Bool}
 
 instance instWF {aig : WFAig} : Data.Memo.WFVisitor (walker aig reset) where
   stateInv := by grind
-  cacheInv std var hsi query _ walk hci := by
+  valInv std var hsi query _ walk hvi := by
     intro motive
     apply walker.fun_cases_unfolding (motive := motive)
     <;> simp only [motive, walker.map]
@@ -73,7 +73,7 @@ def toStd (aig : WFAig) (reset : Bool) (entry : Lit) (valid : entry.validIn aig 
   let w := dfsHashWalker (toStd.walker aig reset)
   let s := w.new .empty
   let (eq:=_) (s', lit) := w.visit s ⟨entry.var, valid⟩
-  (w.state s').entrypoint (entry.mapTo lit) (by have := w.cacheInv; grind)
+  (w.state s').entrypoint (entry.mapTo lit) (by have := w.valInv; grind)
 
 section toStd
 variable {aig : WFAig} {reset : Bool} {entry : Lit} {valid : entry.validIn aig}
@@ -84,7 +84,7 @@ theorem denote_toStd_reset {assign} :
       ⟦aig, entry, fun idx _ => assign idx⟧s0 := by
   fun_cases toStd
   next wf _ _ _ _ =>
-    have := wf.cacheInv
+    have := wf.valInv
     grind
 
 @[simp, grind =]
@@ -93,7 +93,7 @@ theorem denote_toStd_not_reset {assign} :
       ⟦aig, entry, fun idx _ => assign idx⟧c0 := by
   fun_cases toStd
   next wf _ _ _ _ =>
-    have := wf.cacheInv
+    have := wf.valInv
     grind
 
 @[simp, grind =]
