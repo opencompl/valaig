@@ -415,12 +415,6 @@ end LookupState
 structure State (visitor : Visitor info) (cache' : Type) (root : α) [Cache α β cache']
     extends DFSWalker visitor cache' where
   stack : Array α
-
-  visitSpec :
-    (state : μ) -> (root : α) -> (hsi : info.stateInv state) ->
-      ActionM hsi info.cacheInv' (LookupState.enqueue cache' info.lt root) (μ × β)
-
-  hvisit : visitSpec = (visitor · · (hsi := ·))
   stackOrdered : ∀ x ∈ stack, info.fin.le x root
 
 namespace State
@@ -429,10 +423,12 @@ variable {s : State visitor cache root}
 def new (walker : DFSWalker visitor cache) (root : α) : State visitor cache root :=
   { walker with
     stack := #[root],
-    visitSpec := (visitor · · (hsi := ·)),
-    hvisit := rfl
     stackOrdered := by simp
   }
+
+abbrev Visit (info : VisitorInfo α β μ) (cache : Type) [Cache α β cache] :=
+  (state : μ) -> (root : α) -> (hsi : info.stateInv state) ->
+    ActionM hsi info.cacheInv' (LookupState.enqueue cache info.lt root) (μ × β)
 
 def measure (s : State visitor cache root) : Nat × Nat × Nat :=
   (
@@ -444,11 +440,11 @@ def measure (s : State visitor cache root) : Nat × Nat × Nat :=
     info.fin.measure (s.stack.back?.getD root)
   )
 
-@[always_inline, specialize visitor cache]
-def visit (s : State visitor cache root) (n : α)
-    (h : s.stack.back? = n := by grind) :
+@[always_inline, specialize visitor cache visit]
+def visit (s : State visitor cache root) (n : α) (visit : Visit info cache)
+    (h : s.stack.back? = n := by grind) (hvisit : visit = (visitor · · (hsi := ·)) := by grind) :
     State visitor cache root :=
-  let res := s.visitSpec s.usr n s.hsi { s with } <| by have := s.hci; grind
+  let res := visit s.usr n s.hsi { s with } <| by have := s.hci; grind
 
   match _ : res.action with
   | .enqueued usr _ _ =>
@@ -472,16 +468,16 @@ def visit (s : State visitor cache root) (n : α)
         have := s.hci
         have := @wf.cacheInv
         have := @wf.cachePreservation
-        grind [ActionState.value?, s.hvisit]
+        grind [ActionState.value?]
       hsi := by
         have := @wf.stateInv
-        grind [s.hvisit, ActionState.value?]
+        grind [ActionState.value?]
       stackOrdered := by grind [s.stackOrdered]
     }
 
 @[simp, grind .]
-theorem measure_visit {n : α} {h} {hmem : ¬Cache.mem n s.cache} :
-    Prod.Lex (· < ·) (Prod.Lex (· < ·) (· < ·)) (s.visit n h).measure s.measure := by
+theorem measure_visit {n : α} {visit h hvisit} {hmem : ¬Cache.mem n s.cache} :
+    Prod.Lex (· < ·) (Prod.Lex (· < ·) (· < ·)) (s.visit n visit h hvisit).measure s.measure := by
   have : info.fin.le n root := by grind [s.stackOrdered]
   fun_cases visit
   next hreach _ =>
@@ -499,26 +495,28 @@ theorem measure_visit {n : α} {h} {hmem : ¬Cache.mem n s.cache} :
     grind
 
 @[simp, grind .]
-theorem mem_cache_visit_of_mem_cache {n x : α} {h} (mem : Cache.mem x s.cache) :
-    Cache.mem x (s.visit n h).cache := by
+theorem mem_cache_visit_of_mem_cache {n x : α} {visit h hvisit} (mem : Cache.mem x s.cache) :
+    Cache.mem x (s.visit n visit h hvisit).cache := by
   fun_cases visit <;> grind
 
 @[simp, grind .]
-theorem mem_cache_visit_of_mem_stack {n x : α} {h} (mem : x ∈ s.stack) :
-    x ∈ (s.visit n h).stack ∨ Cache.mem x (s.visit n h).cache := by
+theorem mem_cache_visit_of_mem_stack {n x : α} {visit h hvisit} (mem : x ∈ s.stack) :
+    x ∈ (s.visit n visit h hvisit).stack ∨ Cache.mem x (s.visit n visit h hvisit).cache := by
   fun_cases visit
   · grind
   · grind [Array.mem_iff_getElem]
 
-@[always_inline, specialize visitor cache]
-def step (s : State visitor cache root) (n : α) (h : s.stack.back? = n := by grind) : State visitor cache root :=
+@[always_inline, specialize visitor cache visit]
+def step (s : State visitor cache root) (n : α) (visit : Visit info cache)
+    (h : s.stack.back? = n := by grind) (hvisit : visit = (visitor · · (hsi := ·)) := by grind) :
+    State visitor cache root :=
   match _ : Cache.get? s.cache n with
   | some _ => { s with stack := s.stack.pop, stackOrdered := by grind [s.stackOrdered] }
-  | none => s.visit n
+  | none => s.visit n visit
 
 @[simp, grind .]
-theorem measure_step {n : α} {h} :
-    Prod.Lex (· < ·) (Prod.Lex (· < ·) (· < ·)) (s.step n h).measure s.measure := by
+theorem measure_step {n : α} {visit h hvisit} :
+    Prod.Lex (· < ·) (Prod.Lex (· < ·) (· < ·)) (s.step n visit h hvisit).measure s.measure := by
   fun_cases step
   · apply Prod.Lex.right'
     · grind
@@ -530,23 +528,98 @@ theorem measure_step {n : α} {h} :
   · grind
 
 @[simp, grind .]
-theorem mem_cache_step_of_mem_cache {n x : α} {h} (mem : Cache.mem x s.cache) :
-    Cache.mem x (s.step n h).cache := by
+theorem mem_cache_step_of_mem_cache {n x : α} {visit h hvisit} (mem : Cache.mem x s.cache) :
+    Cache.mem x (s.step n visit h hvisit).cache := by
   fun_cases step <;> grind
 
 @[simp, grind .]
-theorem mem_cache_step_of_mem_stack {n x : α} {h} (mem : x ∈ s.stack) :
-    x ∈ (s.step n h).stack ∨ Cache.mem x (s.step n h).cache := by
+theorem mem_cache_step_of_mem_stack {n x : α} {visit h hvisit} (mem : x ∈ s.stack) :
+    x ∈ (s.step n visit h hvisit).stack ∨ Cache.mem x (s.step n visit h hvisit).cache := by
   fun_cases step
   · grind [Array.mem_iff_getElem]
   · grind
 
 @[always_inline, specialize visitor cache]
+private def walk.rebuildDFSWalker (walker : DFSWalker visitor cache)
+    (cache' : cache) (usr : μ)
+    (hcache : walker.cache = cache' := by grind)
+    (husr : walker.usr = usr := by grind) :
+    DFSWalker visitor cache := by
+  apply DFSWalker.mk cache' usr
+  <;> simp only [←hcache, ←husr]
+  · refine walker.hci
+  · refine walker.hsi
+
+omit wf in
+@[simp, grind =]
+private theorem walk.rebuildDFSWalker_eq (walker : DFSWalker visitor cache) cache' usr hcache husr :
+    rebuildDFSWalker walker cache' usr hcache husr = walker := by
+  simp [rebuildDFSWalker, ←hcache, ←husr]
+
+open walk in
+@[always_inline, specialize visitor cache]
+private def walk.rebuildState (s : State visitor cache root)
+    (cache' : cache) (usr : μ) (stack : Array α)
+    (hcache : s.cache = cache' := by grind)
+    (husr : s.usr = usr := by grind)
+    (hstack : s.stack = stack := by grind) :
+    State visitor cache root := by
+  let walker := rebuildDFSWalker s.toDFSWalker cache' usr
+  apply State.mk walker stack
+  <;> simp only [←hstack]
+  · refine s.stackOrdered
+
+omit wf in
+@[simp, grind =]
+private theorem walk.rebuildState_eq (s : State visitor cache root)
+    cache' usr stack hcache husr hstack :
+    rebuildState s cache' usr stack hcache husr hstack = s := by
+  simp [rebuildState, ←hcache, ←husr, ←hstack]
+
+@[always_inline, specialize visitor cache]
+private def walk.walkSpec (s : State visitor cache root) (visit : Visit info cache)
+    (hvisit : visit = (visitor · · (hsi := ·)) := by grind) :
+    State visitor cache root :=
+  go s s.cache s.usr s.stack
+where
+  @[specialize visitor cache visit]
+  go (s : State visitor cache root)
+      (cache' : cache) (usr : μ) (stack : Array α)
+      (hcache : s.cache = cache' := by grind)
+      (husr : s.usr = usr := by grind)
+      (hstack : s.stack = stack := by grind) :
+      State visitor cache root :=
+    let s' := rebuildState s cache' usr stack
+    match _ : s'.stack.back? with
+    | none => s'
+    | some n =>
+      let s' := s'.step n visit
+      go s' s'.cache s'.usr s'.stack
+  termination_by s.measure
+
+open walk in
+/-
+  We provide a custom implementation of the actual walker loop that doesn't box its arguments,
+  which when combined with liberal inlining allows the whole loop to be inlined into one loop
+  without boxing.
+-/
+@[always_inline, specialize visitor cache]
+private def walk (s : State visitor cache root) : State visitor cache root :=
+  walk.walkSpec s (visitor · · (hsi := ·))
+
 def walkSlow (s : State visitor cache root) : State visitor cache root :=
   match _ : s.stack.back? with
   | none => s
-  | some n => walkSlow (s.step n)
+  | some n => walkSlow (s.step n (visitor · · (hsi := ·)))
 termination_by s.measure
+
+@[simp, grind =]
+private theorem walk_eq_walkSlow :
+    s.walk = s.walkSlow := by
+  unfold walk walk.walkSpec
+  fun_induction walkSlow
+  <;> unfold walk.walkSpec.go
+  <;> grind
 
 @[simp, grind .]
 theorem mem_cache_walkSlow_of_mem_cache {n : α} (mem : Cache.mem n s.cache) :
@@ -565,7 +638,7 @@ def visit (s : DFSWalker visitor cache) (root : α) : DFSWalker visitor cache ×
   match Cache.get? s.cache root with
   | some v => (s, v)
   | none =>
-    let s := State.new s root |>.walkSlow
+    let s := State.new s root |>.walk
     let walker := s.toDFSWalker
     ⟨walker, Cache.get? walker.cache root |>.get <| by grind [State.new]⟩
 

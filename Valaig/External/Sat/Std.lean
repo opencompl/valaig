@@ -24,7 +24,7 @@ open Data.Memo.ActionM in
 @[always_inline]
 def walker (aig : WFAig) (reset : Bool) : Data.Memo.Visitor (walker.info aig reset) :=
   fun std var => do
-    let map (lit : Lit) (valid : lit.var < var := by grind) :
+    let rec @[always_inline] map (lit : Lit) (valid : lit.var < var := by grind) :
         Data.Memo.ActionM _ _ _ { l : Lit // std.contains l.var } := do
       let new ← get ⟨lit.var, by grind⟩ valid
       return ⟨lit.mapTo new, by grind⟩
@@ -48,7 +48,7 @@ instance instWF {aig : WFAig} : Data.Memo.WFVisitor (walker aig reset) where
   cacheInv std var hsi query _ walk hci := by
     intro motive
     apply walker.fun_cases_unfolding (motive := motive)
-    <;> simp only [motive]
+    <;> simp only [motive, walker.map]
     <;> intros
     <;> rename_i hpure hsi
     <;> revert hpure
