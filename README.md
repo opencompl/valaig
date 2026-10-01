@@ -15,9 +15,9 @@ lake build
 
 # Checking a certificate
 
-NOTE: The certificate checker is not yet fully verified, and likely contains bugs. Currently, only
-certificates without latches are supported, but this covers IC3 proofs. You can generate and check
-a certificate with [rIC3](https://github.com/gipsyh/rIC3) as follows:
+NOTE: Although the checker has been verified, the parser is not and likely contains bugs.
+Currently, only certificates with a single bad property and no constraints are supported.
+You can generate and check a certificate with [rIC3](https://github.com/gipsyh/rIC3) as follows:
 
 ```bash
 ric3 check --cert certificate.aig problem.aig ic3
