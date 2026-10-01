@@ -2,9 +2,10 @@ module
 
 public import Std.Data.HashMap
 public import Valaig.Data.FiniteOrder
-public import Valaig.Data.VarCache
+public import Valaig.Data.Nullable
 public import Valaig.ForLean.Prod
 public import Valaig.Data.Refs
+public import Valaig.Data.AbsMap
 import Valaig.ForLean.Array
 
 public section
@@ -346,71 +347,47 @@ class WFVisitor (visitor : Visitor info) where
   The walker class defines a generic incremental memoizer walker that runs a `Visitor` at a given
   node.
 -/
-class Walker (visitor : outParam (Visitor info)) (σ : Type) where
+class Walker [DecidableEq α] (visitor : outParam (Visitor info)) (σ : Type) where
   new : (s : μ) -> (h : info.stateInv s := by grind) -> σ
   state : σ -> μ
   visit : σ -> (k : α) -> (hki : info.keyInv k := by grind) -> (σ × β)
+  map : σ -> AbsMap α β
 
-class WFWalker (visitor : outParam (Visitor info)) (σ : Type) extends Walker visitor σ where
+class WFWalker [DecidableEq α] (visitor : outParam (Visitor info)) (σ : Type) extends Walker visitor σ where
   stateInv s : info.stateInv (state s)
   valInv s k hki : info.valInv' (stateInv (visit s k hki).fst) k hki (visit s k hki).snd
 
-attribute [grind! .] WFWalker.stateInv WFWalker.valInv
+  visitValid s k hki : (map (visit s k hki).fst).valid k
+  visitValue s k hki : (visit s k hki).snd = (map (visit s k hki).fst).map k (visitValid s k hki)
+  visitMono s k hki : map s ≤ map (visit s k hki).fst
+
+attribute [grind! .] WFWalker.stateInv WFWalker.valInv WFWalker.visitMono
+attribute [simp, grind .] WFWalker.visitValid
+attribute [simp, grind =] WFWalker.visitValue
 
 class Cache (α β : outParam Type) (σ : Type) [DecidableEq α] where
+  map : σ -> AbsMap α β
   empty : σ
   get? : σ -> α -> Option β
   insert : σ -> α -> β -> σ
-  mem : α -> σ -> Prop
 
-  get?_mem s k : (get? s k).isSome ↔ mem k s
-  get?_insert s k k' v : (get? (insert s k v) k') = if k = k' then some v else get? s k'
-  mem_empty k : ¬mem k empty
-  decide_mem : DecidableRel mem := by infer_instance
+  map_empty : map empty = .empty
+  get?_eq s k : get? s k = (map s)[k]?
+  map_insert s k v : map (insert s k v) = (map s).insert k v
 
-attribute [simp, grind! .] Cache.get?_mem
-attribute [simp, grind =] Cache.get?_insert
-attribute [simp, grind .] Cache.mem_empty
-
-namespace Cache
-
-variable [DecidableEq α] [cache : Cache α β σ] {s : σ}
-
-instance : DecidableRel cache.mem := cache.decide_mem
-
-@[always_inline, simp, grind]
-def get (s : σ) (key : α) (h : Cache.mem key s := by grind) : β :=
-  cache.get? s key |>.get (by grind)
-
-@[simp, grind =]
-theorem mem_insert {key key' : α} {val : β} :
-    cache.mem key' (cache.insert s key val) ↔ key' = key ∨ cache.mem key' s := by
-  grind [=_ get?_mem]
-
-end Cache
+attribute [simp, grind =] Cache.map_empty Cache.get?_eq Cache.map_insert
 
 @[always_inline, specialize α β]
 instance [BEq α] [Hashable α] [EquivBEq α] [LawfulHashable α] [LawfulBEq α] [DecidableEq α] :
     Cache α β (Std.HashMap α β) where
+  map := .ofHashMap
   empty := .emptyWithCapacity
   get? := (·[·]?)
   insert := (·.insert · ·)
-  mem := (· ∈ ·)
 
-  get?_mem := by grind
-  get?_insert := by grind
-  mem_empty := by grind
-
-@[always_inline, specialize β]
-instance [Nullable β] : Cache Var { b : β // Nullable.isSome b } (VarCache β) where
-  empty := .empty
-  get? c var := c[var]?.filter Nullable.isSome |>.attachWith _ (by grind)
-  insert := (·.insert · ·)
-  mem := (· ∈ ·)
-
-  get?_mem := by grind
-  get?_insert := by grind
-  mem_empty := by grind
+  map_empty := by grind
+  get?_eq := by grind
+  map_insert := by grind
 
 variable [DecidableEq α]
 
@@ -418,11 +395,15 @@ structure DFSWalker (visitor : Visitor info) (cache : Type) [Cache α β cache] 
   cache : cache
   usr : μ
   hsi : info.stateInv usr
-  hvi : ∀ k hki (h : Cache.mem k cache), info.valInv' hsi k hki (Cache.get cache k)
+  hvi : ∀ k hki (h : k ∈ Cache.map cache), info.valInv' hsi k hki (Cache.map cache)[k]
 
 namespace DFSWalker
 variable {visitor : Visitor info} {cache : Type} [Cache α β cache]
 variable [wf : WFVisitor visitor] {walker : DFSWalker visitor cache}
+
+@[always_inline, specialize cache, simp, grind unfold]
+abbrev map (s : DFSWalker visitor cache) : AbsMap α β :=
+  Cache.map s.cache
 
 /--
   A restricted view of the state for lookups.
@@ -469,7 +450,7 @@ theorem mem_stack_reach {s s'} {n : α} (h : (enqueue cache ki lt root).reach s 
 
 @[simp]
 theorem countP_cache_reach {s s'} (h : (enqueue cache ki lt root).reach s s') :
-    s'.stack.countP (Cache.mem · s'.cache) = s.stack.countP (Cache.mem · s.cache) := by
+    s'.stack.countP (· ∈ Cache.map s'.cache) = s.stack.countP (· ∈ Cache.map s.cache) := by
   apply Enqueue.reach.rel h
   · grind [Array.countP_push]
   · grind only
@@ -507,9 +488,9 @@ abbrev Visit (info : VisitorInfo α β μ) (cache : Type) [Cache α β cache] :=
 def measure (s : State visitor cache root) : Nat × Nat × Nat :=
   (
     -- The number of values lt the root that are not in the cache yet decreases
-    (info.fin.le_list root).countP (¬Cache.mem · s.cache),
+    (info.fin.le_list root).countP (· ∉ s.map),
     -- The number of values in the stack that are already in the cache decreases
-    s.stack.countP (Cache.mem · s.cache),
+    s.stack.countP (· ∈ s.map),
     -- The back index of the stack decreases
     info.fin.measure (s.stack.back?.getD root)
   )
@@ -542,7 +523,6 @@ def visit (s : State visitor cache root) (n : α) (visit : Visit info cache)
       stack := res.state.stack.pop
       usr := usr
       hvi k := by
-        simp only [Cache.get, Cache.get?_insert]
         intro hki' hmem
         have := s.hvi k hki'
         have := @wf.valInv (state := s.usr) (hroot := hki) (hvi := hvi)
@@ -556,7 +536,7 @@ def visit (s : State visitor cache root) (n : α) (visit : Visit info cache)
     }
 
 @[simp, grind .]
-theorem measure_visit {n : α} {visit h hvisit} {hmem : ¬Cache.mem n s.cache} :
+theorem measure_visit {n : α} {visit h hvisit} {hmem : n ∉ s.map} :
     Prod.Lex (· < ·) (Prod.Lex (· < ·) (· < ·)) (s.visit n visit h hvisit).measure s.measure := by
   have : info.fin.le n root := by grind [s.stackOrdered]
   fun_cases visit
@@ -569,22 +549,27 @@ theorem measure_visit {n : α} {visit h hvisit} {hmem : ¬Cache.mem n s.cache} :
         grind
   next heq _ =>
     apply Prod.Lex.left
-    simp only [heq, Cache.mem_insert, not_or, Bool.decide_and,
-      FinitePartialOrder.le_list, List.countP_eq_length_filter, ← List.filter_filter,
-      List.length_filter_lt_length_iff_exists]
+    simp only [heq, FinitePartialOrder.le_list]
+    simp only [map, Cache.map_insert, AbsMap.mem_insert, not_or, Bool.decide_and, and_comm]
+    simp only [List.countP_eq_length_filter, ← List.filter_filter,List.length_filter_lt_length_iff_exists]
     grind
 
 @[simp, grind .]
-theorem mem_cache_visit_of_mem_cache {n x : α} {visit h hvisit} (mem : Cache.mem x s.cache) :
-    Cache.mem x (s.visit n visit h hvisit).cache := by
+theorem mem_cache_visit_of_mem_cache {n x : α} {visit h hvisit} (mem : x ∈ s.map) :
+    x ∈ Cache.map (s.visit n visit h hvisit).cache := by
   fun_cases visit <;> grind
 
 @[simp, grind .]
 theorem mem_cache_visit_of_mem_stack {n x : α} {visit h hvisit} (mem : x ∈ s.stack) :
-    x ∈ (s.visit n visit h hvisit).stack ∨ Cache.mem x (s.visit n visit h hvisit).cache := by
+    x ∈ (s.visit n visit h hvisit).stack ∨ x ∈ (s.visit n visit h hvisit).map := by
   fun_cases visit
   · grind
   · grind [Array.mem_iff_getElem]
+
+@[grind .]
+theorem map_mono_visit {n : α} (hmem : n ∉ s.map) {visit h hvisit} :
+    s.map ≤ (s.visit n visit h hvisit).map := by
+  fun_cases visit <;> grind
 
 @[always_inline, specialize visitor cache visit]
 def step (s : State visitor cache root) (n : α) (visit : Visit info cache)
@@ -613,16 +598,21 @@ theorem measure_step {n : α} {visit h hvisit} :
   · grind
 
 @[simp, grind .]
-theorem mem_cache_step_of_mem_cache {n x : α} {visit h hvisit} (mem : Cache.mem x s.cache) :
-    Cache.mem x (s.step n visit h hvisit).cache := by
+theorem mem_cache_step_of_mem_cache {n x : α} {visit h hvisit} (mem : x ∈ s.map) :
+    x ∈ (s.step n visit h hvisit).map := by
   fun_cases step <;> grind
 
 @[simp, grind .]
 theorem mem_cache_step_of_mem_stack {n x : α} {visit h hvisit} (mem : x ∈ s.stack) :
-    x ∈ (s.step n visit h hvisit).stack ∨ Cache.mem x (s.step n visit h hvisit).cache := by
+    x ∈ (s.step n visit h hvisit).stack ∨ x ∈ (s.step n visit h hvisit).map := by
   fun_cases step
   · grind [Array.mem_iff_getElem]
   · grind
+
+@[grind .]
+theorem map_mono_step {n : α} {visit h hvisit} :
+    s.map ≤ (s.step n visit h hvisit).map := by
+  fun_cases step <;> grind
 
 @[always_inline, specialize visitor cache]
 private def walk.rebuildDFSWalker (walker : DFSWalker visitor cache)
@@ -696,7 +686,9 @@ private def walk (s : State visitor cache root) : State visitor cache root :=
 def walkSlow (s : State visitor cache root) : State visitor cache root :=
   match _ : s.stack.back? with
   | none => s
-  | some n => walkSlow (s.step n (visitor · · (hroot := ·) (hsi := ·)))
+  | some n =>
+    let s' := (s.step n (visitor · · (hroot := ·) (hsi := ·)))
+    walkSlow s'
 termination_by s.measure
 
 @[simp, grind =]
@@ -708,14 +700,23 @@ private theorem walk_eq_walkSlow :
   <;> grind
 
 @[simp, grind .]
-theorem mem_cache_walkSlow_of_mem_cache {n : α} (mem : Cache.mem n s.cache) :
-    Cache.mem n s.walkSlow.cache := by
+theorem mem_cache_walkSlow_of_mem_cache {n : α} (mem : n ∈ s.map) :
+    n ∈ s.walkSlow.map := by
   fun_induction walkSlow <;> grind
 
 @[simp, grind .]
 theorem mem_cache_walkSlow_of_mem_stack {n : α} (mem : n ∈ s.stack) :
-    Cache.mem n s.walkSlow.cache := by
+    n ∈ s.walkSlow.map := by
   fun_induction walkSlow <;> grind
+
+@[grind .]
+theorem map_mono_walkSlow (s : State visitor cache root) :
+    s.map ≤ s.walkSlow.map := by
+  fun_induction walkSlow
+  · grind
+  next s _ _ s' ih =>
+    suffices s.map ≤ s'.map by grind
+    grind
 
 end State
 
@@ -725,7 +726,7 @@ def visit (s : DFSWalker visitor cache) (root : α) (hroot : info.keyInv root :=
   match Cache.get? s.cache root with
   | some v => (s, v)
   | none =>
-    let s := State.new s root |>.walk
+    let s := State.new s root hroot |>.walk
     let walker := s.toDFSWalker
     ⟨walker, Cache.get? walker.cache root |>.get <| by grind [State.new]⟩
 
@@ -734,9 +735,19 @@ instance instWalker : WFWalker visitor (DFSWalker visitor cache) where
   new usr hsi := { cache := Cache.empty, usr, hsi, hvi := by grind }
   state := (·.usr)
   visit s k hki := visit s k hki
+  map s := s.map
 
   stateInv s := s.hsi
   valInv s k := by have := @DFSWalker.hvi; grind [visit]
+
+  visitValid := by grind [visit]
+  visitValue := by grind [visit]
+  visitMono := by
+    intro s k hki
+    fun_cases visit
+    · grind
+    · suffices s.map ≤ (State.new s k hki).map by grind [State.map_mono_walkSlow (State.new s k hki)]
+      grind [State.new]
 
 end DFSWalker
 
@@ -776,8 +787,7 @@ def attachNullable (visitor : Visitor info) [wf : WFVisitor visitor] [null : Nul
         have := @wf.valInv σ state root hroot hsi query' enq' walker hvi'
         grind [ActionState.value?]
 
-      { res with action := .pure ⟨usr, ⟨val, (by grind)⟩⟩ heq, hvi := by grind
-      }
+      { res with action := .pure ⟨usr, ⟨val, (by grind)⟩⟩ heq, hvi := by grind }
     | .enqueued usr' heq h =>
       { res with
         action := .enqueued usr' heq,

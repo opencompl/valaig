@@ -561,6 +561,45 @@ theorem ofPool_move [Inhabited β] {old new : Nat} mem notmem :
 
 end ofPool
 
+@[always_inline, expose, specialize map]
+def ofHashMap [BEq α] [Hashable α] (map : Std.HashMap α β) : AbsMap α β :=
+  .mk
+    (valid := (· ∈ map))
+    (map := fun key valid => map[key])
+    (size := map.size)
+
+section ofHashMap
+variable [BEq α] [Hashable α] {map : Std.HashMap α β} {key : α}
+
+@[simp, grind =]
+theorem mem_ofHashMap :
+    key ∈ ofHashMap map ↔ key ∈ map := by
+  rfl
+
+@[simp, grind =]
+theorem getElem_ofHashMap (mem : key ∈ ofHashMap map) :
+    (ofHashMap map)[key]'mem = map[key] := by
+  rfl
+
+@[simp, grind =]
+theorem size_ofHashMap :
+    (ofHashMap map).size = map.size := by
+  rfl
+
+@[simp, grind =]
+theorem ofHashMap_emptyWithCapacity {n : Nat} :
+    ofHashMap (.emptyWithCapacity n : Std.HashMap α β) = .empty := by
+  unfold ofHashMap empty
+  apply ext' <;> simp <;> grind
+
+@[simp, grind =]
+theorem ofHashMap_insert {val : β} [LawfulBEq α] :
+    ofHashMap (map.insert key val) = (ofHashMap map).insert key val := by
+  unfold ofHashMap insert
+  apply ext' <;> simp <;> grind
+
+end ofHashMap
+
 attribute [simp, grind =] valid_iff map_eq
 
 end AbsMap
