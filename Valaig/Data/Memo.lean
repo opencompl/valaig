@@ -45,41 +45,85 @@ def Query (σ β : Type) (ki : KeyInv α) (lt : α -> α -> Prop) (root : α) :=
 
 variable {ki : KeyInv α} {lt : α -> α -> Prop} {si : StateInv μ} {vi : ValInv ki si β}
 
-@[expose, implicit_reducible, local grind]
-def Query.respects (query : Query σ β ki lt root) (p : (a : α) -> ki a -> β -> Prop) (s : σ) :=
+namespace Query
+
+@[expose, implicit_reducible]
+def respects (query : Query σ β ki lt root) (p : (a : α) -> ki a -> β -> Prop) (s : σ) :=
   ∀ {k hki hlt v}, query s k hki hlt = some v → p k hki v
 
 @[grind .]
-theorem Query.respects_get {query : Query σ β ki lt root} {p : (a : α) -> ki a -> β -> Prop} {s : σ}
+theorem respects_get {query : Query σ β ki lt root} {p : (a : α) -> ki a -> β -> Prop} {s : σ}
       (hrespects : query.respects p s) (k : α) hki hlt h :
     p k hki ((query s k hki hlt).get h) := by
-  grind
+  grind [respects]
+
+@[always_inline, specialize query]
+def unattach {p : β -> Prop} (query : Query σ { b : β // p b } ki lt root) : Query σ β ki lt root :=
+  fun s a hki hlt => (query s a hki hlt).unattach
+
+@[simp, grind =]
+theorem unattach_eq {p : β -> Prop} {query : Query σ { b : β // p b } ki lt root} {s a} hki hlt :
+    (query.unattach s a hki hlt) = (query s a hki hlt).unattach := by
+  rfl
+
+end Query
+
+attribute [local grind] Query.respects
 
 @[expose, implicit_reducible]
 def Enqueue (query : Query σ β ki lt root) :=
   (s : σ) -> (a : α) -> (hki : ki a) -> (hlt : lt a root) -> query s a hki hlt = none ->
     { s' : σ // query s' = query s }
 
+namespace Enqueue
+
 @[simp]
-theorem Enqueue.respects_enqueue {query : Query σ β ki lt root} {enqueue : Enqueue query}
+theorem respects_enqueue {query : Query σ β ki lt root} {enqueue : Enqueue query}
     {p : (a : α) -> ki a -> β -> Prop} {s : σ} {a : α} {hki hlt heq} :
     query.respects p (enqueue s a hki hlt heq) ↔ query.respects p s := by
   grind
+
+@[always_inline, specialize query enqueue]
+def unattach {p : β -> Prop} {query : Query σ { b : β // p b } ki lt root}
+    (enqueue : Enqueue query) : Enqueue query.unattach :=
+  fun s a hki hlt hnone =>
+    ⟨enqueue s a hki hlt (by simp at hnone; grind), by grind⟩
+
+@[simp, grind =]
+theorem unattach_eq {p : β -> Prop} {query : Query σ { b : β // p b } ki lt root}
+    {enqueue : Enqueue query} {s a} hki hlt hnone :
+    (enqueue.unattach s a hki hlt hnone).val = (enqueue s a hki hlt (by simp at hnone; grind)).val := by
+  rfl
 
 /--
   This captures a relationship between states that is true if they have had at least one
   and potentially multiple variables enqueued.
 -/
-inductive Enqueue.reach {query : Query σ β ki lt root} (enq : Enqueue query) : σ -> σ -> Prop
+inductive reach {query : Query σ β ki lt root} (enq : Enqueue query) : σ -> σ -> Prop
 | init {s a} (hki := by grind) (hlt := by grind) (hq := by grind) : enq.reach s (enq s a hki hlt hq)
 | trans {s s' a} (hs : enq.reach s s') (hki := by grind) (hlt := by grind) (hq := by grind) : enq.reach s (enq s' a hki hlt hq)
 
-theorem Enqueue.reach.rel {query : Query σ β ki lt root} {enq : Enqueue query} {p : σ -> σ -> Prop} {s s'}
+theorem reach.rel {query : Query σ β ki lt root} {enq : Enqueue query} {p : σ -> σ -> Prop} {s s'}
     (h : enq.reach s s')
     (rel : ∀ s a hki hlt hq, p s (enq s a hki hlt hq))
     (trans : ∀ a b c, p a b → p b c → p a c) :
     p s s' := by
   induction h <;> grind
+
+@[simp, grind →]
+theorem reach_of_reach_unattach {p : β -> Prop} {query : Query σ { b : β // p b } ki lt root}
+    {enq : Enqueue query} {s s'} (h : enq.unattach.reach s s') :
+    enq.reach s s' := by
+  induction h with
+  | init hki hlt hq => exact .init hki hlt (by simp at hq; grind)
+  | trans _ hki hlt hq ih => exact .trans ih hki hlt (by simp at hq; grind)
+
+@[grind .]
+theorem query_of_reach {query : Query σ β ki lt root} {enq : Enqueue query} {s s'} (h : enq.reach s s') :
+    query s' = query s := by
+  induction h <;> grind
+
+end Enqueue
 
 section Action
 variable {query : Query σ β ki lt root} {enq : Enqueue query}
@@ -240,6 +284,9 @@ namespace VisitorInfo
 @[simp, grind unfold]
 abbrev valInv' (info : VisitorInfo α β μ) : ValInv info.keyInv info.stateInv β :=
   fun {s} => info.valInv s
+
+abbrev attachNullable (info : VisitorInfo α β μ) (null : Nullable β) : VisitorInfo α { b : β // null.isSome b } μ :=
+  { info with valInv s hsi a hki b := info.valInv s hsi a hki b }
 
 end VisitorInfo
 
@@ -704,5 +751,39 @@ set_option warn.classDefReducibility false in
 def dfsHashWalker [Hashable α] (visitor : Visitor info) [WFVisitor visitor] :
     WFWalker visitor (DFSWalker visitor (Std.HashMap α β)) :=
   DFSWalker.instWalker
+
+@[always_inline, specialize visitor]
+def attachNullable (visitor : Visitor info) [wf : WFVisitor visitor] [null : Nullable β]
+    (h : ∀ s hsi a hki b, info.valInv s hsi a hki b → null.isSome b := by grind) :
+    Visitor (info.attachNullable null) :=
+  fun {σ} state root {hroot hsi query enq} walker hvi =>
+    let query' := query.unattach
+    let enq' : Enqueue query' := enq.unattach
+
+    have hvi' := by
+      simp [Query.respects] at hvi ⊢
+      grind [Option.unattach_eq_some_iff]
+
+    let res := @visitor σ state root hroot hsi query' enq' walker hvi'
+
+    match _ : res.action with
+    | .pure ⟨usr, val⟩ heq =>
+      have hsi' : info.stateInv usr := by
+        have := @wf.stateInv σ state root hroot hsi query' enq' walker hvi'
+        grind [ActionState.value?]
+
+      have hvi' : info.valInv usr hsi' root hroot val := by
+        have := @wf.valInv σ state root hroot hsi query' enq' walker hvi'
+        grind [ActionState.value?]
+
+      { res with action := .pure ⟨usr, ⟨val, (by grind)⟩⟩ heq, hvi := by grind
+      }
+    | .enqueued usr' heq h =>
+      { res with
+        action := .enqueued usr' heq,
+        hvi := by
+          simp [Query.respects, Enqueue.query_of_reach (Enqueue.reach_of_reach_unattach h)]
+          grind
+      }
 
 end Valaig.Data.Memo
